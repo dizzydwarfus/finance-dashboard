@@ -2,8 +2,8 @@
 import pandas as pd
 import json
 import streamlit as st
-from functions import balance_sheet_collection, income_collection, cash_collection, company_profile, historical, stock_split, insert_to_mongoDB
-
+from utils._utils import get_tickers, company_profile, historical, stock_split, insert_to_mongoDB
+from utils.database._connector import balance_sheet_collection, income_collection, cash_collection
 #####################################################
 
 # Set page config
@@ -19,6 +19,8 @@ if 'state' not in st.session_state:
 # Generate Ticker List and Download Statements
 
 #####################################################
+
+tickers = get_tickers(balance_sheet_collection)
 
 st.markdown(
     """
@@ -81,7 +83,7 @@ company_list = company_profile.distinct('symbol')
 historical_list = historical.distinct('symbol')
 stock_split_list = stock_split.distinct('symbol')
 list_tickers = ['balance_list', 'income_list',
-                'cash_list', 'company_list', 'manual_list', 'historical_list','stock_split']
+                'cash_list', 'company_list', 'manual_list', 'historical_list', 'stock_split']
 
 list_tickers = col3.selectbox(
     "*Choose a list to scan/download*:", list_tickers, key="select_ticker_list")
@@ -181,8 +183,10 @@ profile_update = col10.checkbox(
     "Enable company profile update", key='profile_update')
 manual_download = col11.checkbox(
     "Enable manual download of all statements", key='update_list')
-historical_download = col12.checkbox("Enable download of historical price data", key='historical_price')
-stock_split_download = col13.checkbox("Enable download of stock split data", key='stock_split_data')
+historical_download = col12.checkbox(
+    "Enable download of historical price data", key='historical_price')
+stock_split_download = col13.checkbox(
+    "Enable download of stock split data", key='stock_split_data')
 if st.button("Download Statements :ledger:"):
     if manual_download:
         for i, x in enumerate(eval(list_tickers)):
@@ -218,9 +222,9 @@ if st.button("Download Statements :ledger:"):
             st.success(f"All downloads are completed.", icon="💯")
 
     elif stock_split_download:
-        for i,x in enumerate(eval(list_tickers)):
+        for i, x in enumerate(eval(list_tickers)):
             insert_to_mongoDB(stock_split, x, 'stock_split', 'date')
-        
+
         if i == len(eval(list_tickers))-1:
             st.success(f"All downloads are completed.", icon="💯")
     else:
@@ -234,7 +238,6 @@ if st.button("Download Statements :ledger:"):
             insert_to_mongoDB(company_profile, x, 'profile', 'ipoDate')
             insert_to_mongoDB(historical, x, 'stock_price', 'date')
             insert_to_mongoDB(stock_split, x, 'stock_split', 'date')
-
 
             # current += step
 

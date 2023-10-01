@@ -1,5 +1,5 @@
 import streamlit as st
-from functions import tickers, create_financial_page, select_profile, read_profile, company_profile
+from utils.functions import tickers, create_financial_page, select_profile, read_profile, company_profile
 
 #####################################################
 

@@ -58,3 +58,7 @@ env.bak/
 venv.bak/
 
 investment_dashboard.ipynb
+
+# Pipenv files
+Pipfile
+Pipfile.lock
