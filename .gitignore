@@ -62,3 +62,22 @@ investment_dashboard.ipynb
 # Pipenv files
 Pipfile
 Pipfile.lock
+
+# data files
+*.csv
+*.xlsx
+*.xls
+*.json
+*.pkl
+*.h5
+*.hdf5
+*.feather
+*.png
+*.jpg
+*.jpeg
+*.gif
+*.tif
+*.tiff
+*.zip
+*.gz
+*.pickle
