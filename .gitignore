@@ -45,7 +45,7 @@ coverage.xml
 .pytest_cache/
 cover/
 
-
+logs
 *.log
 
 # Environments

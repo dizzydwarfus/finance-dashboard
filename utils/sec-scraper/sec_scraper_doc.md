@@ -36,11 +36,10 @@ There are loads of ready-made APIs out there that serve as secondary distributor
 
 The main core part of the financial data obtained will be from [Data SEC](www.sec.gov). Several open-source tools/libraries may be used when needed to aid in scraping these data. These tools include but not limited to:
 
-1. sec-edgar-api
-2. sec-edgar-downloader
-3. BeautifulSoup
-4. Pandas
-5. Airflow
+1. requests
+2. BeautifulSoup
+3. Pandas
+
 
 <br>
 

@@ -3,13 +3,10 @@ import pandas as pd
 import json
 import xml.etree.ElementTree as ET
 from ratelimit import limits, sleep_and_retry
-import logging
 from bs4 import BeautifulSoup
 from tqdm import trange
-
-# Configure the logging settings
-logging.basicConfig(level=logging.DEBUG, filename='sec_logs.log',
-                    filemode='a', format='%(asctime)s - %(levelname)s - %(message)s')
+import logging
+import re
 
 
 class SECData:
@@ -53,7 +50,32 @@ class SECData:
     FILE_EXTENSIONS = ['.xsd', '.htm', '_cal.xml',
                        '_def.xml', '_lab.xml', '_pre.xml', '_htm.xml', '.xml']
 
-    def __init__(self, requester_company: str, requester_name: str, requester_email: str, taxonomy: str):
+    def __init__(self, requester_company: str = 'Financial API', requester_name: str = 'API Caller', requester_email: str = 'apicaller@gmail.com', taxonomy: str = 'us-gaap',):
+        # Initialize logger
+        self.scrape_logger = logging.getLogger('sec_scraper')
+        self.scrape_logger.setLevel(logging.DEBUG)
+
+        # Check if the self.scrape_logger already has handlers to avoid duplicate logging.
+        if not self.scrape_logger.hasHandlers():
+            # Create a file handler
+            file_handler = logging.FileHandler(
+                r'C:\Users\lianz\Python\finance-dashboard\utils\sec-scraper\logs\sec_logs.log')
+            file_handler.setLevel(logging.DEBUG)
+
+            # Create a stream handler
+            stream_handler = logging.StreamHandler()
+            stream_handler.setLevel(logging.DEBUG)
+
+            # Create a logging format
+            formatter = logging.Formatter(
+                '%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+            file_handler.setFormatter(formatter)
+            stream_handler.setFormatter(formatter)
+
+            # Add the handlers to the self.scrape_logger
+            self.scrape_logger.addHandler(file_handler)
+            self.scrape_logger.addHandler(stream_handler)
+
         self.requester_company = requester_company
         self.requester_name = requester_name
         self.requester_email = requester_email
@@ -84,8 +106,9 @@ class SECData:
         """
         response = requests.get(url, headers=headers)
         if response.status_code != 200:
-            logging.error(f'''
-Request failed at URL: {url}''')
+            self.scrape_logger.error(f'''Request failed at URL: {url}''')
+        else:
+            self.scrape_logger.info(f'''Request successful at URL: {url}''')
         return response
 
     def get_cik_list(self):
@@ -129,13 +152,20 @@ Request failed at URL: {url}''')
 
         return [element.attrib['name'] for element in root.findall(".//{http://www.w3.org/2001/XMLSchema}element")]
 
-    def get_submissions(self, cik):
-        url = f"{self.BASE_API_URL}submissions/CIK{cik}.json"
+    def get_submissions(self, cik: str = None, submission_file: str = None) -> dict:
+        if cik is not None:
+            url = f"{self.BASE_API_URL}submissions/CIK{cik}.json"
+        elif submission_file is not None:
+            url = f"{self.BASE_API_URL}submissions/{submission_file}"
+        else:
+            raise Exception(
+                "Please provide either a CIK number or a submission file.")
+
         response = self.rate_limited_request(
             url, headers=self.sec_data_headers)
         if response.status_code != 200:
             raise Exception(
-                f"Failed to retrieve submissions for CIK {cik}. Status code: {response.status_code}")
+                f"Failed to retrieve submissions. Status code: {response.status_code}")
         data = json.loads(response.text)
         return data
 
@@ -273,37 +303,56 @@ class TickerData(SECData):
     @property
     def filings(self,) -> pd.DataFrame:
         if self._filings is None:
-            self._filings = self.get_filings(self.submissions)
+            self._filings = self.get_filings()
         return self._filings
+
+    @property
+    def latest_filing(self,) -> pd.DataFrame:
+        return self.filings.iloc[0, :].to_dict()
+
+    @property
+    def latest_10Q(self,) -> pd.DataFrame:
+        return self.filings.query("form == '10-Q'").iloc[0, :].to_dict()
+
+    @property
+    def latest_10K(self,) -> pd.DataFrame:
+        return self.filings.query("form == '10-K'").iloc[0, :].to_dict()
+
+    @property
+    def latest_8K(self,) -> pd.DataFrame:
+        return self.filings.query("form == '8-K'").iloc[0, :].to_dict()
 
     @property
     def filing_folder_urls(self,) -> list:
         if self._filing_folder_urls is None:
-            self._filing_folder_urls = self.get_filing_folder_urls()
+            self._filing_folder_urls = self._get_filing_folder_urls()
         return self._filing_folder_urls
 
     @property
     def filing_urls(self,) -> list:
         if self._filing_urls is None:
-            self._filing_urls = self.get_filing_urls()
+            self._filing_urls = self.filings['file_url'].tolist()
 
         return self._filing_urls
 
-    def get_filing_folder_urls(self,) -> list:
+    def _get_filing_folder_urls(self,) -> list:
         """Get filing folder urls from index dict.
 
         Args:
             index (dict): index dict from get_index method
 
-        Returns:
+        Returns:s
             filing_folder_urls (list): list of filing folder urls
         """
         filing_folder_urls = [self.BASE_SEC_URL + self._index['directory']['name'] + '/' + folder['name']
                               for folder in self._index['directory']['item'] if folder['type'] == 'folder.gif']
         return filing_folder_urls
 
-    def get_filing_urls(self,) -> list:
-        """Get filing urls from filing folder urls.
+    def _get_filing_urls(self,) -> list:
+        """(DEPRECATED)
+        ---The filing urls are implemented in the get_filings method.---
+
+        Get filing urls from filing folder urls.
 
         Args:
             filing_folder_urls (list): list of filing folder urls
@@ -314,7 +363,7 @@ class TickerData(SECData):
         filing_urls = []
         with trange(len(self.filing_folder_urls), desc=f'Instantiating filing urls for {self.ticker}...') as t:
             for i in t:
-                logging.info(t)
+                self.scrape_logger.info(t)
                 try:
                     soup = self.get_file_data(self.filing_folder_urls[i])
                     for link in soup.find_all('a'):
@@ -322,33 +371,51 @@ class TickerData(SECData):
                             filing_urls.append(
                                 self.BASE_SEC_URL + link.get('href'))
                 except Exception as e:
-                    logging.error(
+                    self.scrape_logger.error(
                         f'Failed to instantiate filing urls for {self.ticker}...')
-                    logging.error(e)
+                    self.scrape_logger.error(e)
                     t.write(
                         f'Failed to instantiate filing urls for {self.ticker}...')
                     continue
         return filing_urls
 
-    def get_filings(self, submissions: dict):
-        """Get filings from submissions dict.
+    def get_filings(self,) -> dict:
+        """Get filings and urls to .txt from submissions dict.
 
         Args:
             submissions (dict): submissions dict from get_submissions method
 
         Returns:
-            filings (DataFrame): DataFrame containing filings
+            filings (dict): dictionary containing filings
         """
-        filings = pd.DataFrame(submissions['filings']['recent'])
+        self.scrape_logger.info(f'Retrieving filings for {self.ticker}...')
+        filings = self.submissions['filings']['recent']
+
+        if len(self.submissions['filings']) > 1:
+            self.scrape_logger.info(
+                f'Additional filings found for {self.ticker}...')
+            for file in self.submissions['filings']['files']:
+                additional_filing = self.get_submissions(
+                    submission_file=file['name'])
+                filings = {key: filings[key] + additional_filing[key]
+                           for key in filings.keys()}
+
+        filings = pd.DataFrame(filings)
 
         # Convert reportDate, filingDate, acceptanceDateTime columns to datetime
         filings['reportDate'] = pd.to_datetime(filings['reportDate'])
         filings['filingDate'] = pd.to_datetime(filings['filingDate'])
         filings['acceptanceDateTime'] = pd.to_datetime(
             filings['acceptanceDateTime'])
-        filings['file_url'] = self.BASE_DIRECTORY_URL + self.cik + '/' + \
-            filings['accessionNumber'].str.replace(
-                '-', '') + '/' + filings['accessionNumber'] + '.txt'
+
+        # get folder url for each row
+        filings['folder_url'] = self.BASE_DIRECTORY_URL + \
+            self.cik + '/' + filings['accessionNumber'].str.replace('-', '')
+
+        # get file url for each row
+        filings['file_url'] = filings['folder_url'] + \
+            '/' + filings['accessionNumber'] + '.txt'
+
         return filings
 
     def get_file_data(self, file_url: str) -> BeautifulSoup:
@@ -362,20 +429,29 @@ class TickerData(SECData):
         """
         data = self.rate_limited_request(
             url=file_url, headers=self.sec_headers)
-        soup = BeautifulSoup(data.content, "lxml")
-        return soup
+        try:
+            soup = BeautifulSoup(data.content, "lxml")
+            self.scrape_logger.info(
+                f'Parsed file data from {file_url} successfully.')
+            return soup
+
+        except Exception as e:
+            self.scrape_logger.error(
+                f'Failed to parse file data from {file_url}. Error: {e}')
+            raise Exception(
+                f'Failed to parse file data from {file_url}. Error: {e}')
 
     def search_tags(self, soup: BeautifulSoup, pattern: str) -> BeautifulSoup:
         """Search for tags in BeautifulSoup object.
 
         Args:
             soup (BeautifulSoup): BeautifulSoup object
-            pattern (str): pattern to search for
+            pattern (str): regex pattern to search for
 
         Returns:
             soup: BeautifulSoup object
         """
-        return soup.find_all(pattern)
+        return soup.find_all(re.compile(pattern))
 
     def search_context(self, soup: BeautifulSoup) -> pd.DataFrame:
         """Search for context in company .txt filing. 
@@ -401,7 +477,7 @@ class TickerData(SECData):
                    'startDate': 'datetime64[ns]', 'endDate': 'datetime64[ns]', 'instant': 'datetime64[ns]'}
         for tag in contexts:
             temp_dict = {}
-            temp_dict['contextId'] = tag.attrs['id']
+            temp_dict['contextId'] = tag.attrs.get('id')
             temp_dict['entity'] = tag.find("entity").text.split()[
                 0] if tag.find("entity") is not None else None
             temp_dict['segment'] = tag.find("segment").text.strip(
@@ -416,6 +492,136 @@ class TickerData(SECData):
 
         df = pd.DataFrame(dict_list, columns=columns.keys()).astype(columns)
         return df
+
+    def search_linklabels(self, soup: BeautifulSoup) -> pd.DataFrame:
+        """Search for link labels in company .txt filing. 
+        Link labels provide information about the relationship between facts and their corresponding concepts.
+
+        Args:
+            soup (BeautifulSoup): BeautifulSoup object
+
+        Returns:
+            df: DataFrame containing link label information with columns 
+            {
+                'linkLabelId': str,
+                'xlinkLabel': str,
+                'xlinkRole': str,
+                'xlinkType': str,
+                'xlmnsXml': str,
+                'xmlLang': str,
+                'label': str
+            }
+        """
+        links = self.search_tags(soup, '^link:label$')
+        dict_list = []
+        columns = {'linkLabelId': str, 'xlinkLabel': str, 'xlinkRole': str,
+                   'xlinkType': str, 'xlmnsXml': str, 'xmlLang': str, 'label': str}
+
+        for tag in links:
+            temp_dict = {}
+            temp_dict['linkLabelId'] = tag.attrs.get('id')
+            temp_dict['xlinkLabel'] = tag.attrs.get('xlink:label')
+            temp_dict['xlinkRole'] = tag.attrs.get('xlink:role')
+            temp_dict['xlinkType'] = tag.attrs.get('xlink:type')
+            temp_dict['xlmnsXml'] = tag.attrs.get('xmlns:xml')
+            temp_dict['xmlLang'] = tag.attrs.get('xml:lang')
+            temp_dict['label'] = tag.text if tag.text is not None else None
+            dict_list.append(temp_dict)
+
+        df = pd.DataFrame(dict_list, columns=columns.keys()).astype(columns)
+        return df
+
+    def search_facts(self, soup: BeautifulSoup) -> pd.DataFrame:
+        """Search for facts in company .txt filing. 
+        Facts provide the actual data values for the XBRL disclosures.
+
+        Args:
+            soup (BeautifulSoup): BeautifulSoup object
+
+        Returns:
+            df: DataFrame containing fact information with columns 
+            {
+                'factName': str,
+                'contextRef': str,
+                'decimals': int,
+                'factId': str,
+                'unitRef': str,
+                'value': str
+            }
+        """
+        facts = self.search_tags(soup, '^us-gaap:')
+        dict_list = []
+        columns = {'factName': str, 'contextRef': str, 'decimals': int, 'factId': str,
+                   'unitRef': str, 'value': str}
+
+        for tag in facts:
+            temp_dict = {}
+            temp_dict['factName'] = tag.name
+            temp_dict['contextRef'] = tag.attrs.get('contextref')
+            temp_dict['decimals'] = tag.attrs.get('decimals')
+            temp_dict['factId'] = tag.attrs.get('id')
+            temp_dict['unitRef'] = tag.attrs.get('unitref')
+            temp_dict['value'] = tag.text
+            dict_list.append(temp_dict)
+
+        df = pd.DataFrame(dict_list, columns=columns.keys())
+        df['factNameMerge'] = df['factName'].str.replace(':', '_')
+
+        return df
+
+    def get_metalinks(self, metalinks_url: str) -> pd.DataFrame:
+        """Get metalinks from metalinks url.
+
+        Args:
+            metalinks_url (str): metalinks url to retrieve data from
+
+        Returns:
+            df: DataFrame containing metalinks information with columns 
+            {
+                'labelKey': str,
+                'localName': str,
+                'labelName': int,
+                'terseLabel': str,
+                'documentation': str,
+            }
+        """
+        try:
+            response = self.rate_limited_request(
+                url=metalinks_url, headers=self.sec_headers).json()
+        except Exception as e:
+            self.scrape_logger.error(
+                f'Failed to retrieve metalinks from {metalinks_url}. Error: {e}')
+            raise Exception(
+                f'Failed to retrieve metalinks from {metalinks_url}. Error: {e}')
+        metalinks_instance = response['instance']
+        instance_key = list(metalinks_instance.keys())[0]
+        dict_list = []
+        for i in metalinks_instance[instance_key]['tag']:
+            dict_list.append(dict(labelKey=i.lower(),
+                                  localName=metalinks_instance[instance_key]['tag'][i].get(
+                                      'localname'),
+                                  labelName=metalinks_instance[instance_key]['tag'][i].get(
+                                      'lang').get('en-us').get('role').get('label'),
+                                  terseLabel=metalinks_instance[instance_key]['tag'][i].get(
+                                      'lang').get('en-us').get('role').get('terseLabel'),
+                                  documentation=metalinks_instance[instance_key]['tag'][i].get('lang').get('en-us').get('role').get('documentation'),))
+
+        df = pd.DataFrame.from_dict(dict_list)
+        return df
+
+    def __repr__(self) -> str:
+        class_name = type(self).__name__
+        main_attrs = ['ticker', 'cik', 'submissions', 'filings']
+        available_methods = [method_name for method_name in dir(self) if callable(
+            getattr(self, method_name)) and not method_name.startswith("_")]
+        return f"""{class_name}({self.ticker})
+    CIK: {self.cik}
+    Latest filing: {self.latest_filing['filingDate'].strftime('%Y-%m-%d')} for Form {self.latest_filing['form']}. Access via: {self.latest_filing['folder_url']}
+    Latest 10-Q: {self.latest_10Q['filingDate'].strftime('%Y-%m-%d')}. Access via: {self.latest_10Q['folder_url']}
+    Latest 10-K: {self.latest_10K['filingDate'].strftime('%Y-%m-%d')}. Access via: {self.latest_10K['folder_url']}
+
+Available methods:
+    {', '.join(available_methods)}"""
 
 
 if __name__ == "__main__":
@@ -433,11 +639,14 @@ Choose one of the following options:
 - 'exit' to exit
 
 Your input: """)
+
         if choice in sec.cik['ticker'].values:
             companyfacts = sec.get_data_as_dataframe(
                 sec.get_ticker_cik(choice))
             file_name = f"data/{choice}.csv"
             companyfacts.to_csv(file_name, index=False)
+            choice_data = TickerData(ticker=choice)
+            choice_data.scrape_logger.info(f"Data saved to {file_name}")
             print(f"Data saved to {file_name}")
             print('---------------------------------------')
 
