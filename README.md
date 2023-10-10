@@ -7,7 +7,6 @@ Welcome to the Finance Dashboard, a web application tailored to empower investme
 - [🌟 Finance Dashboard: Your Investment Insight Tool](#-finance-dashboard-your-investment-insight-tool)
   - [Table of Contents](#table-of-contents)
   - [🚀 Key Highlights](#-key-highlights)
-  - [💎 Features](#-features)
   - [📂 Project Structure](#-project-structure)
   - [🔧 Setup and Launch](#-setup-and-launch)
   - [🛠️ Tools and Libraries](#️-tools-and-libraries)
@@ -19,19 +18,10 @@ Welcome to the Finance Dashboard, a web application tailored to empower investme
 
 ## 🚀 Key Highlights
 
-- **Scalable Integration**: Seamlessly fetches data from the Financial Modeling Prep API, demonstrating efficient data acquisition techniques.
+- **SEC Integration**: Currently fetches data from FMP API but working on directly scraping from SEC EDGAR Database (see more at []())
 - **Optimized Data Storage**: Utilizes MongoDB for structured data storage and retrieval, ensuring fast and efficient access.
 - **Interactive User Interface**: Designed with Streamlit, the dashboard offers an intuitive experience with dynamic charts and metrics visualization.
-- **Dynamic Financial Analysis**: Integrated DCF calculator showcases advanced financial computation capabilities.
-
-## 💎 Features
-
-1. **Ticker Symbol Dynamics**: Input new ticker symbols and instantly fetch their latest financial statements.
-2. **Detailed Financial Data**: Delve deep into financial statements of any company, visually and analytically.
-3. **Key Metrics at a Glance**: Highlighting the pivotal financial metrics for swift decision-making.
-4. **Customizable Data Visualization**: Choose and toggle between different chart types for a tailored analysis experience.
-5. **DCF Calculator**: A sophisticated tool that aids in understanding a company's valuation with adjustable parameters.
-6. **Company Profiles**: Dive into the essence of companies with logos, descriptions, website links, and more.
+- **Intrinsic Value Calculator**: Integrated DCF calculator showcases financial computation capabilities.
 
 ## 📂 Project Structure
 
@@ -43,11 +33,18 @@ finance-dashboard/
 ├── pages/
 │   ├── 1Financial_Statements.py
 │   └── 2Summary.py
+├── utils/
+│   └── database
+│       └── _connector.py
+│   ├── _utils.py
+│   ├── logger.py
+│   └── sec-scraper\
+│       ├── sec_class.py
+│       ├── sec_scraper_doc.md
+│       └── sec_api_test.ipynb
 ├── requirements.txt
 ├── .env
 ├── .gitignore
-├── functions.py
-├── doc.md
 ├── Ticket_List.py
 ├── LICENSE
 └── README.md
@@ -66,7 +63,7 @@ finance-dashboard/
    pip install -r requirements.txt
    ```
 
-3. **MongoDB Setup**: Ensure MongoDB is active. Update `.env` with your MongoDB details.
+3. **MongoDB Setup**: Ensure MongoDB is active. Update `.env` with your MongoDB details. Refer to [SEC Scraper](./utils/sec-scraper/sec_scraper_doc.md) for more information on how the NoSQL database is setup.
 
 4. **Engage with the Dashboard**:
    ```bash
@@ -78,16 +75,12 @@ finance-dashboard/
 ## 🛠️ Tools and Libraries
 
 - **Data Processing:** Pandas
+- **Data Scraping:** BeautifulSoup
 - **Web Framework:** Streamlit
 - **Database:** pymongo
 - **Visualization:** plotly
 
-The main core part of the financial data obtained will be from financial APIs at the beginning to get started but will be transitioned to a self-scraped data from [Data SEC](www.sec.gov) eventually. Several open-source tools/libraries may be used when needed to aid in processing and scraping these data. These tools include but not limited to:
-
-1. Pandas
-2. Streamlit
-3. pymongo
-4. plotly
+The main core part of the financial data obtained will be from financial APIs at the beginning to get started but will be transitioned to a self-scraped data from [Data SEC](www.sec.gov) eventually. Several open-source tools/libraries may be used when needed to aid in processing and scraping these data.
 
 Streamlit will be used as the main open-source app framework for its ease of implementation. I will try to write the codebase in such a way where migration to other web-frameworks would be possible with minimal effort in the future since Streamlit has its limitation.
 
@@ -103,51 +96,80 @@ Besides personal stake in stock/ETF/crypto investing, I have a strong interest f
 
 The development strategy is segmented into:
 
-1. **Data Gathering/Extraction:** Extract data from trusted APIs.
-2. **Data Storage:** Store data to a NoSQL database.
-3. **Data Cleaning and Processing:** Ensure data quality and transform data as needed.
-4. **Data Presentation/Visualization:** Display data in a user-friendly format.
-5. **Generate Insights:** Analyze and offer valuable insights based on the data.
+1. **Data Gathering/Extraction:** Extract data from trusted APIs or scrape data from SEC.
+2. **Data Cleaning and Processing:** Ensure data is coherent and transform data as needed (in python).
+3. **Data Storage:** Store data to a NoSQL database.
+4. **Data Presentation/Visualization:** Display data in a user-friendly format where key metrics and financial statements summaries are displayed.
 
 
 ```mermaid
 flowchart TD
-    subgraph data_gather[Data Gathering]
-        direction LR
-        pre_tickers{{Pre-downloaded Ticker List}}
-        manual_tickers{{Manually Added Ticker List}}
-        api[API Call]
-        database[(database)]
+subgraph api_data["Data Gathering (FMP API)"]
+   direction LR
+   pre_tickers{{Pre-downloaded Ticker List}}
+   manual_tickers{{Manually Added Ticker List}}
 
-        pre_tickers --> api --> database
-        manual_tickers --> api
-    end
+end
 
-    subgraph data_storage[Data Storage]
+subgraph sec_data["Data Gathering (SEC)"]
+   direction TB
+   cik{{CIK}}
+   submissions{{Company<br>Submissions}}
+   filings{{Company<br>Filings}}
+   folder_url[[Directory URL]]
+   file_url[[".txt file url<br>(in directory)"]]
+   facts([Company Facts])
+   metalinks([Facts Metalinks])
+   context([Facts Context])
 
-    end
 
-    subgraph data_clean[Data Cleaning<br>and Processing]
-    
-    end
-    
-    subgraph data_viz[Data Visualization]
-    
-    end
 
-    subgraph data_insight[Generating Insights]
-    
-    end
-    data_gather --> data_storage
-    data_storage --> data_clean
-    data_clean --> data_viz
-    data_viz --> data_insight
+   filings -.- folder_url
+   filings -.- file_url
+   file_url --SEC API + BS4--> facts
+   file_url --SEC API + BS4--> metalinks
+   file_url --SEC API + BS4--> context
+
+   facts -. left join<br>contextRef on contextId.-> context 
+   facts -. left join<br>factNameMerge on labelName .-> metalinks
+   cik --SEC API--> submissions --SEC API--> filings
+   
+   style cik stroke-width:3px,color:#fff
+   style submissions stroke-width:3px,color:#fff
+   style filings stroke-width:3px,color:#fff
+   style file_url stroke:#f66,stroke-width:1px,color:#fff,stroke-dasharray: 5 5
+   style facts stroke-width:4px,color:#fff
+   style context stroke-width:2px,color:#fff, stroke-dasharray: 1 1
+   style metalinks stroke-width:2px,color:#fff, stroke-dasharray: 1 1
+end
+
+
+subgraph data_storage[Data Storage]
+   MongoDB[(NoSQL)]
+
+   style MongoDB stroke-width:4px,color:#fff
+end
+
+
+subgraph data_viz[Streamlit]
+   keymetrics[Key Metrics<br>Table]
+   DCF[DCF<br>Calculator]
+   tsgraphs[Time Series<br>Graphs]
+end
+
+
+pre_tickers ==FMP API==> MongoDB
+manual_tickers ==FMP API==> MongoDB
+
+filings ==> MongoDB
+facts ==> MongoDB
+MongoDB --> data_viz
 ```
 
 
 ## 📜 Data Acknowledgment
 
-All financial data is provided by [Financial Modeling Prep](https://financialmodelingprep.com).
+All financial data is provided by [Financial Modeling Prep](https://financialmodelingprep.com) and [SEC Edgar Database](https://www.sec.gov/edgar/sec-api-documentation)
 
 ## License
 
@@ -166,6 +188,8 @@ Before 2023-05-30
 6. Published on streamlit community cloud server (free)
 7. Cached data whenever possible to reduce load time
 
-| Date       | Description                                                                     |
-| ---------- | ------------------------------------------------------------------------------- |
-| 2023-05-30 | Created the doc.md file. Previously completed work is briefly documented above. |
+| Date       | Description                                                                                                                                      |
+| ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 2023-05-30 | Created the doc.md file. Previously completed work is briefly documented above.                                                                  |
+| 2023-08-02 | Revamped readme.md and transferred to new repository                                                                                             |
+| 2023-09-10 | Started investigating scraping from SEC Edgar database so data can be stored and distributed since FMP API free data cannot be used commercially |

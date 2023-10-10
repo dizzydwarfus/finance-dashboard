@@ -1,20 +1,16 @@
 # Documentation of Scraping SEC.gov
 The purpose of this document is two-fold:
 1. Elaborate on the reasons of scraping for financial data
-2. Description of action plan
 3. Lessons learned along the way
-
-A diagram made using mermaid will be accompanying the document to serve as a visual guideline to the steps taken.
-<br>
-<br>
 
 ## Table of Contents
 
-1. Why self-scrape?
-2. Data Sources and Tools
-3. Log
-<br>
-<br>
+- [Documentation of Scraping SEC.gov](#documentation-of-scraping-secgov)
+  - [Table of Contents](#table-of-contents)
+  - [Why self-scrape?](#why-self-scrape)
+  - [Data Sources and Tools](#data-sources-and-tools)
+  - [Lessons Learned](#lessons-learned)
+
 
 ## Why self-scrape?
 
@@ -29,8 +25,7 @@ There are loads of ready-made APIs out there that serve as secondary distributor
 | Difficult to interpret - requires lots of cleaning and processing from HTML/XML/XBRL formats                                         | Readily available in JSON/csv/table format for interpretation     |
 | Only company filings available                                                                                                       | Market/Analyst/Macro-economic data are also available             |
 | Free                                                                                                                                 | Free with paid-services available                                 |
-<br>
-<br>
+
 
 ## Data Sources and Tools
 
@@ -40,53 +35,14 @@ The main core part of the financial data obtained will be from [Data SEC](www.se
 2. BeautifulSoup
 3. Pandas
 
-
-<br>
-
-## Action Plan
-
-The plan will be segmented into different parts, namely:
-1. Data gathering/extraction
-2. Data cleaning and processing
-3. Data storage
-
-Airflow will be used to schedule these workflows and frequency of running the DAGs will be dependent on the companies considered since the workflows will be executed when new filings are made. 
-
-<br>
-
-## Log
-| Date       | Description                                                                                                                                                                                                                                                                                                                       |
-| ---------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 2023-05-24 | Learned to request from sec.gov using requests library through [Accessing EDGAR Data](https://www.sec.gov/os/accessing-edgar-data).                                                                                                                                                                                               |
-| 2023-05-25 | Found out about sec-edgar-api and sec-edgar-downloader for requesting and downloading company filings based on CIK.                                                                                                                                                                                                               |
-| 2023-05-27 | Compared using pandas pd.read_html method vs BeautifulSoup (BS4) html/lxml parser to parse through 10-Q filing. Easier to use pandas since it reads all tables found within the HTML document, however for customizability, I devised my own method using BS4 by parsing through with triple nested for loops (not standardized). |
-
-# Diagram
-
-```mermaid
-flowchart TD
-    subgraph data_gather[Data Gathering]
-        direction LR
-        cik{{CIK List}}
-        forms{{Forms List}}
-        html[HTML<br>Document]
-        local_storage[(Local <br> Storage)]
-        lake[(Data Lake)]
-
-        cik --sec-edgar-downloader--> html
-        forms --sec-edgar-downloader--> html
-        html --.write_bytes--> local_storage
-        html -.WIP.-> lake
-    end
-
-    subgraph data_process[Data Processing]
-
-    end
-
-    subgraph data_storage[Data Storage]
-    
-    end
-
-    data_gather --> data_process
-    data_process --> data_storage
-```
+## Lessons Learned
+| Topic | Lesson                                                                                                                                                                                                                                                                                                        |
+| ----- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1     | SEC Provides a programmatic way to scrape data from their website via [SEC Edgar API](https://www.sec.gov/edgar/sec-api-documentation)                                                                                                                                                                        |
+| 2     | The API has multiple endpoints:submissions, companyconcept, facts, frames. These endpoints provide a way to scrape the high level detail (such as Net Income, Net Debt, etc without breakdown into individual product or geographic segments). For the further details, scraping the actual filing is needed. |
+| 3     | There is a directory crawling method to be able to find all files pertaining to any and all filings by a company.                                                                                                                                                                                             |
+| 4     | A structure of Ticker -> Submissions -> Filings would fit very well in a document database. Then the TickerData class in sec_class.py can be used to make HTTP requests to each of the filing URL. The filing URL lead to a .txt file where it is a culmination of all documents in the filing directory.     |
+| 5     | Beautiful Soup can be used to parse the HTML and XML documents.                                                                                                                                                                                                                                               |
+| 6     | SEC filings are submitted based on XBRL, which was first introduced in 2005 (voluntary basis), made mandatory in 2009. After June 28, 2018, the Commission adopted amendments requiring the use (phased in) of inline XBRL.                                                                                   |
+| 7     | XBRL tags that correspond to Commission financial statement and schedule disclosure requirements are available in the 2018 SEC Reporting taxonomy ("SRT") and the 2018 U.S. Generally Accepted Accounting Principles (U.S. GAAP) Taxonomy, these exists in the XBRL documents as **<<us-gaap:xxxxxx>>**.      |
+| 8     | SECData and TickerData class that I have written works on some companies but not all. BeautifulSoup ".text", ".string" attributes, and ".get_text()" method do not work on some companies' filings.                                                                                                           |
