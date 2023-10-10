@@ -63,7 +63,7 @@ finance-dashboard/
    pip install -r requirements.txt
    ```
 
-3. **MongoDB Setup**: Ensure MongoDB is active. Update `.env` with your MongoDB details. Refer to [SEC Scraper](./utils/sec-scraper/sec_scraper_doc.md) for more information on how the NoSQL database is setup.
+3. **MongoDB Setup**: Ensure MongoDB is active. Update `.env` with your MongoDB details. 
 
 4. **Engage with the Dashboard**:
    ```bash
@@ -80,7 +80,7 @@ finance-dashboard/
 - **Database:** pymongo
 - **Visualization:** plotly
 
-The main core part of the financial data obtained will be from financial APIs at the beginning to get started but will be transitioned to a self-scraped data from [Data SEC](www.sec.gov) eventually. Several open-source tools/libraries may be used when needed to aid in processing and scraping these data.
+The main core part of the financial data obtained will be from financial APIs at the beginning to get started but will be transitioned to a self-scraped data from [SEC](www.sec.gov) eventually. Refer to [SEC Scraper](./utils/sec-scraper/sec_scraper_doc.md) for more information on scraping from [SEC](www.sec.gov).Several open-source tools/libraries may be used when needed to aid in processing and scraping these data. 
 
 Streamlit will be used as the main open-source app framework for its ease of implementation. I will try to write the codebase in such a way where migration to other web-frameworks would be possible with minimal effort in the future since Streamlit has its limitation.
 
@@ -99,7 +99,7 @@ The development strategy is segmented into:
 1. **Data Gathering/Extraction:** Extract data from trusted APIs or scrape data from SEC.
 2. **Data Cleaning and Processing:** Ensure data is coherent and transform data as needed (in python).
 3. **Data Storage:** Store data to a NoSQL database.
-4. **Data Presentation/Visualization:** Display data in a user-friendly format where key metrics and financial statements summaries are displayed.
+4. **Presented in Streamlit:** Display data in a user-friendly format where key metrics and financial statements summaries are displayed.
 
 
 ```mermaid

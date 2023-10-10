@@ -9,6 +9,7 @@ The purpose of this document is two-fold:
   - [Table of Contents](#table-of-contents)
   - [Why self-scrape?](#why-self-scrape)
   - [Data Sources and Tools](#data-sources-and-tools)
+  - [](#)
   - [Lessons Learned](#lessons-learned)
 
 
@@ -35,6 +36,8 @@ The main core part of the financial data obtained will be from [Data SEC](www.se
 2. BeautifulSoup
 3. Pandas
 
+## 
+
 ## Lessons Learned
 | Topic | Lesson                                                                                                                                                                                                                                                                                                        |
 | ----- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -46,3 +49,5 @@ The main core part of the financial data obtained will be from [Data SEC](www.se
 | 6     | SEC filings are submitted based on XBRL, which was first introduced in 2005 (voluntary basis), made mandatory in 2009. After June 28, 2018, the Commission adopted amendments requiring the use (phased in) of inline XBRL.                                                                                   |
 | 7     | XBRL tags that correspond to Commission financial statement and schedule disclosure requirements are available in the 2018 SEC Reporting taxonomy ("SRT") and the 2018 U.S. Generally Accepted Accounting Principles (U.S. GAAP) Taxonomy, these exists in the XBRL documents as **<<us-gaap:xxxxxx>>**.      |
 | 8     | SECData and TickerData class that I have written works on some companies but not all. BeautifulSoup ".text", ".string" attributes, and ".get_text()" method do not work on some companies' filings.                                                                                                           |
+| 9     | MongoDB supports max document size of 16MB, which leads to separate storage of company submissions and company filings, and facts for each filing is also stored in a separate collection.                                                                                                                    |
+| 10    | Accession Number is a unique number assigned to each digital submission document. This can be used to identify any filing made.                                                                                                                                                                               |

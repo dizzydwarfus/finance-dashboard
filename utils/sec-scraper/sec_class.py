@@ -1,3 +1,4 @@
+import logging
 import requests
 import pandas as pd
 import json
@@ -5,11 +6,38 @@ import xml.etree.ElementTree as ET
 from ratelimit import limits, sleep_and_retry
 from bs4 import BeautifulSoup
 from tqdm import trange
-import logging
 import re
 
 
-class SECData:
+class MyLogger:
+    def __init__(self, name: str = __name__, level: str = 'debug', log_file: str = 'logs.log'):
+        # Initialize logger
+        self.logging_level = logging.DEBUG if level == 'debug' else logging.INFO
+        self.scrape_logger = logging.getLogger(name)
+        self.scrape_logger.setLevel(self.logging_level)
+
+        # Check if the self.scrape_logger already has handlers to avoid duplicate logging.
+        if not self.scrape_logger.hasHandlers():
+            # Create a file handler
+            file_handler = logging.FileHandler(log_file, mode='a')
+            file_handler.setLevel(self.logging_level)
+
+            # Create a stream handler
+            stream_handler = logging.StreamHandler()
+            stream_handler.setLevel(self.logging_level)
+
+            # Create a logging format
+            formatter = logging.Formatter(
+                '%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+            file_handler.setFormatter(formatter)
+            stream_handler.setFormatter(formatter)
+
+            # Add the handlers to the self.scrape_logger
+            self.scrape_logger.addHandler(file_handler)
+            self.scrape_logger.addHandler(stream_handler)
+
+
+class SECData(MyLogger):
     """Class to retrieve data from SEC Edgar database.
 
     Args:
@@ -44,6 +72,7 @@ class SECData:
     BASE_API_URL = "https://data.sec.gov/"
     BASE_SEC_URL = "https://www.sec.gov/"
     BASE_DIRECTORY_URL = "https://www.sec.gov/Archives/edgar/data/"
+    SIC_LIST_URL = "https://www.sec.gov/corpfin/division-of-corporation-finance-standard-industrial-classification-sic-code-list"
     US_GAAP_TAXONOMY_URL = "https://xbrl.fasb.org/us-gaap/2023/elts/us-gaap-2023.xsd"
     ALLOWED_TAXONOMIES = ['us-gaap', 'ifrs-full', 'dei', 'srt']
     INDEX_EXTENSION = ['-index.html', '-index-headers.html']
@@ -51,30 +80,7 @@ class SECData:
                        '_def.xml', '_lab.xml', '_pre.xml', '_htm.xml', '.xml']
 
     def __init__(self, requester_company: str = 'Financial API', requester_name: str = 'API Caller', requester_email: str = 'apicaller@gmail.com', taxonomy: str = 'us-gaap',):
-        # Initialize logger
-        self.scrape_logger = logging.getLogger('sec_scraper')
-        self.scrape_logger.setLevel(logging.DEBUG)
-
-        # Check if the self.scrape_logger already has handlers to avoid duplicate logging.
-        if not self.scrape_logger.hasHandlers():
-            # Create a file handler
-            file_handler = logging.FileHandler(
-                r'C:\Users\lianz\Python\finance-dashboard\utils\sec-scraper\logs\sec_logs.log')
-            file_handler.setLevel(logging.DEBUG)
-
-            # Create a stream handler
-            stream_handler = logging.StreamHandler()
-            stream_handler.setLevel(logging.DEBUG)
-
-            # Create a logging format
-            formatter = logging.Formatter(
-                '%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-            file_handler.setFormatter(formatter)
-            stream_handler.setFormatter(formatter)
-
-            # Add the handlers to the self.scrape_logger
-            self.scrape_logger.addHandler(file_handler)
-            self.scrape_logger.addHandler(stream_handler)
+        super().__init__(name='sec-scraper', level='debug', log_file='sec_api.log')
 
         self.requester_company = requester_company
         self.requester_name = requester_name
@@ -85,12 +91,24 @@ class SECData:
         self.sec_data_headers = {"User-Agent": f"{requester_company} {requester_name} {requester_email}",
                                  "Accept-Encoding": "gzip, deflate",
                                  "Host": "data.sec.gov"}
-        self.cik = self.get_cik_list()
-        self.tags = self.get_usgaap_tags()
+        self._cik_list = None
+        self._tags = None
         if taxonomy not in self.ALLOWED_TAXONOMIES:
             raise ValueError(
                 f"Taxonomy {taxonomy} is not supported. Please use one of the following taxonomies: {self.ALLOWED_TAXONOMIES}")
         self.taxonomy = taxonomy
+
+    @property
+    def cik_list(self,):
+        if self._cik_list is None:
+            self._cik_list = self.get_cik_list()
+        return self._cik_list
+
+    @property
+    def tags(self,):
+        if self._tags is None:
+            self._tags = self.get_usgaap_tags()
+        return self._tags
 
     @sleep_and_retry
     @limits(calls=10, period=1)
@@ -136,7 +154,8 @@ class SECData:
         Returns:
             cik: CIK number of the company excluding the leading 'CIK'
         """
-        ticker_cik = self.cik.query(f"ticker == '{ticker}'")['cik_str']
+        ticker_cik = self.cik_list.query(
+            f"ticker == '{ticker.upper()}'")['cik_str']
         cik = f"{ticker_cik.iloc[0]:010d}"
         return cik
 
@@ -160,7 +179,6 @@ class SECData:
         else:
             raise Exception(
                 "Please provide either a CIK number or a submission file.")
-
         response = self.rate_limited_request(
             url, headers=self.sec_data_headers)
         if response.status_code != 200:
@@ -274,6 +292,31 @@ class SECData:
         response = self.rate_limited_request(url, headers=self.sec_headers)
         return response.json()
 
+    def get_sic_list(self, sic_list_url: str = SIC_LIST_URL) -> dict:
+        """Get the list of SIC codes from SEC website.
+
+        Args:
+            sic_list_url (str): URL to the list of SIC codes
+
+        Returns:
+            pd.DataFrame: DataFrame containing the SIC codes and descriptions
+        """
+        response = self.rate_limited_request(
+            sic_list_url, headers=self.sec_headers)
+
+        soup = BeautifulSoup(response.content, "lxml")
+        sic_table = soup.find('table', {'class': 'list'})
+        sic_list = []
+        for row in sic_table.find_all('tr')[1:]:
+            sic_dict = {'SIC Code': None,
+                        'Office': None, 'Industry Title': None}
+            sic_dict['SIC Code'] = row.text.split('\n')[1]
+            sic_dict['Office'] = row.text.split('\n')[2]
+            sic_dict['Industry Title'] = row.text.split('\n')[3]
+            sic_list.append(sic_dict)
+
+        return sic_list
+
 
 class TickerData(SECData):
     """Inherited from SECData class. Retrieves data from SEC Edgar database based on ticker.
@@ -287,17 +330,18 @@ class TickerData(SECData):
         super().__init__(requester_company, requester_name, requester_email, taxonomy)
         self.ticker = ticker.upper()
         self.cik = self.get_ticker_cik(self.ticker)
-        self._submissions = None
+        self._submissions = self.get_submissions(self.cik)
         self._filings = None
-        self.forms = self.filings['form'].unique()
+        self._forms = None
         self._index = self.get_index(self.cik)
         self._filing_folder_urls = None
         self._filing_urls = None
 
     @property
     def submissions(self,) -> dict:
-        if self._submissions is None:
-            self._submissions = self.get_submissions(self.cik)
+        if self._submissions is not None:
+            self._submissions['filings'] = self.filings.replace(
+                {pd.NaT: None}).to_dict('records')
         return self._submissions
 
     @property
@@ -308,19 +352,19 @@ class TickerData(SECData):
 
     @property
     def latest_filing(self,) -> pd.DataFrame:
-        return self.filings.iloc[0, :].to_dict()
+        return self.filings.iloc[0, :].to_dict() if len(self.filings) > 0 else None
 
     @property
     def latest_10Q(self,) -> pd.DataFrame:
-        return self.filings.query("form == '10-Q'").iloc[0, :].to_dict()
+        return self.filings.query("form == '10-Q'").iloc[0, :].to_dict() if len(self.filings.query("form == '10-Q'")) > 0 else None
 
     @property
     def latest_10K(self,) -> pd.DataFrame:
-        return self.filings.query("form == '10-K'").iloc[0, :].to_dict()
+        return self.filings.query("form == '10-K'").iloc[0, :].to_dict() if len(self.filings.query("form == '10-K'")) > 0 else None
 
     @property
     def latest_8K(self,) -> pd.DataFrame:
-        return self.filings.query("form == '8-K'").iloc[0, :].to_dict()
+        return self.filings.query("form == '8-K'").iloc[0, :].to_dict() if len(self.filings.query("form == '8-K'")) > 0 else None
 
     @property
     def filing_folder_urls(self,) -> list:
@@ -335,6 +379,12 @@ class TickerData(SECData):
 
         return self._filing_urls
 
+    @property
+    def forms(self,) -> list:
+        if self._forms is None:
+            self._forms = self.filings['form'].unique()
+        return self._forms
+
     def _get_filing_folder_urls(self,) -> list:
         """Get filing folder urls from index dict.
 
@@ -344,6 +394,7 @@ class TickerData(SECData):
         Returns:s
             filing_folder_urls (list): list of filing folder urls
         """
+
         filing_folder_urls = [self.BASE_SEC_URL + self._index['directory']['name'] + '/' + folder['name']
                               for folder in self._index['directory']['item'] if folder['type'] == 'folder.gif']
         return filing_folder_urls
@@ -388,25 +439,27 @@ class TickerData(SECData):
         Returns:
             filings (dict): dictionary containing filings
         """
-        self.scrape_logger.info(f'Retrieving filings for {self.ticker}...')
-        filings = self.submissions['filings']['recent']
+        self.scrape_logger.info(
+            f'Making http request for {self.ticker} filings...')
+        filings = self._submissions['filings']['recent']
 
-        if len(self.submissions['filings']) > 1:
+        if len(self._submissions['filings']) > 1:
             self.scrape_logger.info(
                 f'Additional filings found for {self.ticker}...')
-            for file in self.submissions['filings']['files']:
+            for file in self._submissions['filings']['files']:
                 additional_filing = self.get_submissions(
                     submission_file=file['name'])
                 filings = {key: filings[key] + additional_filing[key]
                            for key in filings.keys()}
 
         filings = pd.DataFrame(filings)
-
         # Convert reportDate, filingDate, acceptanceDateTime columns to datetime
         filings['reportDate'] = pd.to_datetime(filings['reportDate'])
         filings['filingDate'] = pd.to_datetime(filings['filingDate'])
         filings['acceptanceDateTime'] = pd.to_datetime(
             filings['acceptanceDateTime'])
+
+        filings = filings.loc[~pd.isnull(filings['reportDate'])]
 
         # get folder url for each row
         filings['folder_url'] = self.BASE_DIRECTORY_URL + \
@@ -616,12 +669,9 @@ class TickerData(SECData):
             getattr(self, method_name)) and not method_name.startswith("_")]
         return f"""{class_name}({self.ticker})
     CIK: {self.cik}
-    Latest filing: {self.latest_filing['filingDate'].strftime('%Y-%m-%d')} for Form {self.latest_filing['form']}. Access via: {self.latest_filing['folder_url']}
-    Latest 10-Q: {self.latest_10Q['filingDate'].strftime('%Y-%m-%d')}. Access via: {self.latest_10Q['folder_url']}
-    Latest 10-K: {self.latest_10K['filingDate'].strftime('%Y-%m-%d')}. Access via: {self.latest_10K['folder_url']}
-
-Available methods:
-    {', '.join(available_methods)}"""
+    Latest filing: {self.latest_filing['filingDate'].strftime('%Y-%m-%d') if self.latest_filing else 'No filing found'} for Form {self.latest_filing['form'] if self.latest_filing else None}. Access via: {self.latest_filing['folder_url'] if self.latest_filing else None}
+    Latest 10-Q: {self.latest_10Q['filingDate'].strftime('%Y-%m-%d') if self.latest_10Q else 'No filing found'}. Access via: {self.latest_10Q['folder_url'] if self.latest_10Q else None}
+    Latest 10-K: {self.latest_10K['filingDate'].strftime('%Y-%m-%d') if self.latest_10K else 'No filing found'}. Access via: {self.latest_10K['folder_url'] if self.latest_10K else None}"""
 
 
 if __name__ == "__main__":

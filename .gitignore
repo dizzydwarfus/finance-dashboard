@@ -81,3 +81,5 @@ Pipfile.lock
 *.zip
 *.gz
 *.pickle
+
+sec_api_test (old).ipynb
