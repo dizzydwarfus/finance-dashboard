@@ -80,7 +80,7 @@ class SECData(MyLogger):
                        '_def.xml', '_lab.xml', '_pre.xml', '_htm.xml', '.xml']
 
     def __init__(self, requester_company: str = 'Financial API', requester_name: str = 'API Caller', requester_email: str = 'apicaller@gmail.com', taxonomy: str = 'us-gaap',):
-        super().__init__(name='sec-scraper', level='debug', log_file='sec_api.log')
+        super().__init__(name='sec-scraper', level='debug', log_file='./logs/sec_logs.log')
 
         self.requester_company = requester_company
         self.requester_name = requester_name
@@ -340,6 +340,7 @@ class TickerData(SECData):
     @property
     def submissions(self,) -> dict:
         if self._submissions is not None:
+            self._submissions['cik'] = self.cik
             self._submissions['filings'] = self.filings.replace(
                 {pd.NaT: None}).to_dict('records')
         return self._submissions
@@ -458,6 +459,7 @@ class TickerData(SECData):
         filings['filingDate'] = pd.to_datetime(filings['filingDate'])
         filings['acceptanceDateTime'] = pd.to_datetime(
             filings['acceptanceDateTime'])
+        filings['cik'] = self.cik
 
         filings = filings.loc[~pd.isnull(filings['reportDate'])]
 
@@ -662,12 +664,65 @@ class TickerData(SECData):
         df = pd.DataFrame.from_dict(dict_list)
         return df
 
+    def get_facts_for_each_filing(self, filing: dict) -> pd.DataFrame:
+        """Get facts for each filing.
+
+        Args:
+            filing_url (str): filing url to retrieve data from (link to .txt file in filing directory)
+            folder_url (str): folder url to retrieve data from (link to filing directory)
+        Returns:
+            df: DataFrame containing facts information with columns 
+            {
+                'factName': str,
+                'contextRef': str,
+                'decimals': int,
+                'factId': str,
+                'unitRef': str,
+                'value': str,
+                'contextId': str,
+                'entity': str,
+                'segment': str,
+                'startDate': 'datetime64[ns]',
+                'endDate': 'datetime64[ns]',
+                'instant': 'datetime64[ns]',
+                'labelKey': str,
+                'localName': str,
+                'labelName': int,
+                'terseLabel': str,
+                'documentation': str,
+                'accessionNumber': str,
+            }
+        """
+        columns_to_keep = ['factName', 'contextRef', 'decimals', 'factId', 'unitRef', 'value', 'segment', 'startDate',
+                           'endDate', 'instant', 'labelKey', 'localName', 'labelName', 'terseLabel', 'documentation', 'accessionNumber']
+        soup = self.get_file_data(filing['file_url'])
+        facts = self.search_facts(soup)
+        context = self.search_context(soup)
+        metalinks = self.get_metalinks(
+            filing['folder_url'] + '/MetaLinks.json')
+        df = facts.merge(context, how='left', left_on='contextRef', right_on='contextId')\
+            .merge(metalinks, how='left', left_on='factNameMerge', right_on='labelKey')
+        df['ticker'] = self.ticker
+        df['cik'] = self.cik
+        df['accessionNumber'] = filing['accessionNumber']
+
+        df = df.loc[~df['unitRef'].isnull(), columns_to_keep].replace({
+            pd.NaT: None})
+        return df.to_dict('records')
+
     def __repr__(self) -> str:
         class_name = type(self).__name__
         main_attrs = ['ticker', 'cik', 'submissions', 'filings']
         available_methods = [method_name for method_name in dir(self) if callable(
             getattr(self, method_name)) and not method_name.startswith("_")]
         return f"""{class_name}({self.ticker})
+    CIK: {self.cik}
+    Latest filing: {self.latest_filing['filingDate'].strftime('%Y-%m-%d') if self.latest_filing else 'No filing found'} for Form {self.latest_filing['form'] if self.latest_filing else None}. Access via: {self.latest_filing['folder_url'] if self.latest_filing else None}
+    Latest 10-Q: {self.latest_10Q['filingDate'].strftime('%Y-%m-%d') if self.latest_10Q else 'No filing found'}. Access via: {self.latest_10Q['folder_url'] if self.latest_10Q else None}
+    Latest 10-K: {self.latest_10K['filingDate'].strftime('%Y-%m-%d') if self.latest_10K else 'No filing found'}. Access via: {self.latest_10K['folder_url'] if self.latest_10K else None}"""
+
+    def __str__(self) -> str:
+        return f"""{self.ticker}
     CIK: {self.cik}
     Latest filing: {self.latest_filing['filingDate'].strftime('%Y-%m-%d') if self.latest_filing else 'No filing found'} for Form {self.latest_filing['form'] if self.latest_filing else None}. Access via: {self.latest_filing['folder_url'] if self.latest_filing else None}
     Latest 10-Q: {self.latest_10Q['filingDate'].strftime('%Y-%m-%d') if self.latest_10Q else 'No filing found'}. Access via: {self.latest_10Q['folder_url'] if self.latest_10Q else None}
