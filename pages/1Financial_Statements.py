@@ -1,25 +1,32 @@
 import streamlit as st
-from utils.functions import tickers, create_financial_page, select_profile, read_profile, company_profile
-
+from utils._utils import get_tickers, create_financial_page, read_profile, generate_statements_type, generate_terms, read_statement, get_api
+from utils.database._connector import get_data
 #####################################################
 
 # Define dropdowns and set page config
 
 #####################################################
+fmp_api, alpha_vantage_api = get_api()
 
+balance_sheet_collection, income_collection, cash_collection, company_profile, historical, stock_split = get_data()
+statements_type = generate_statements_type(
+    _income_collection=income_collection, _cash_collection=cash_collection, _balance_sheet_collection=balance_sheet_collection)
+terms_interested = generate_terms()
+tickers = get_tickers(balance_sheet_collection)
 
 ticker_list_box = st.sidebar.selectbox(
     "Select a ticker symbol:", sorted(tickers), key="ticker_list")
 
-companyA_info = select_profile(ticker_list_box, 'profile')[0]
+companyA_info = read_profile(ticker_list_box, company_profile)[0]
 
-company_profile.update_one({'index_id':f"{ticker_list_box}_{companyA_info['ipoDate']}"}, {"$set": companyA_info}, upsert=True)
+company_profile.update_one({'index_id': f"{ticker_list_box}_{companyA_info['ipoDate']}"}, {
+                           "$set": companyA_info}, upsert=True)
 
-same_sector = sorted([i for i in tickers if read_profile(i)[
+same_sector = sorted([i for i in tickers if read_profile(i, company_profile)[
                      0]['sector'] == companyA_info['sector']])
 
 # ticker_compare = st.sidebar.selectbox(
-    # "Select a ticker symbol to compare:", same_sector, key="ticker_compare")
+# "Select a ticker symbol to compare:", same_sector, key="ticker_compare")
 
 # companyB_info = read_profile(ticker_compare)[0]
 
@@ -38,16 +45,16 @@ same_sector = sorted([i for i in tickers if read_profile(i)[
 #     c1, c2 = st.columns([1, 1])
 
 #     l0.markdown(f"""
-    
+
 #     ![Logo]({companyA_info['image']} "Company Logo")
-    
+
 #     """)
 
 #     t0.markdown(f"""
 
 
 #     # {companyA_info['companyName']}
-#     ###### *Ticker symbol*: {ticker_list_box} 
+#     ###### *Ticker symbol*: {ticker_list_box}
 #     ---
 #     ### Company Profile
 
@@ -58,9 +65,9 @@ same_sector = sorted([i for i in tickers if read_profile(i)[
 #     """, unsafe_allow_html=True)
 
 #     l1.markdown(f"""
-    
+
 #     ![Logo]({companyB_info['image']} "Company Logo")
-    
+
 #     """)
 
 #     t1.markdown(f"""
@@ -103,6 +110,7 @@ st.markdown(f"""
 
 p1, p2, p3 = st.columns([1, 1, 1])
 
-create_financial_page(ticker_list_box, companyA_info, st, [p1, p2, p3])
+create_financial_page(ticker_list_box, companyA_info, st, [
+                      p1, p2, p3], statements_type=statements_type, terms_interested=terms_interested, api_key=alpha_vantage_api)
 
 st.markdown("***[Data provided by Financial Modeling Prep](https://financialmodelingprep.com/developer/docs/)***", unsafe_allow_html=True)

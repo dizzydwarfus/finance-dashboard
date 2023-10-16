@@ -2,8 +2,8 @@
 import pandas as pd
 import json
 import streamlit as st
-from utils._utils import get_tickers, company_profile, historical, stock_split, insert_to_mongoDB
-from utils.database._connector import balance_sheet_collection, income_collection, cash_collection
+from utils._utils import get_tickers, insert_to_mongoDB
+from utils.database._connector import get_data
 #####################################################
 
 # Set page config
@@ -19,7 +19,7 @@ if 'state' not in st.session_state:
 # Generate Ticker List and Download Statements
 
 #####################################################
-
+balance_sheet_collection, income_collection, cash_collection, company_profile, historical, stock_split = get_data()
 tickers = get_tickers(balance_sheet_collection)
 
 st.markdown(

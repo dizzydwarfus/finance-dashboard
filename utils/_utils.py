@@ -18,17 +18,16 @@ def get_api():
 
 
 @st.cache_data
-def get_tickers(collection: Collection) -> list:
-    tickers = list(set([i['symbol'] for i in collection.find()]))
+def get_tickers(_collection: Collection) -> list:
+    tickers = list(set([i['symbol'] for i in _collection.find()]))
     return tickers
 
 
-@st.cache_data
-def generate_statements_type():
-    statements_type = ['Income Statement',
-                       'Cash Flow Statement',
-                       'Balance Sheet']
-    return statements_type
+def generate_statements_type(**mongo_collections) -> dict:
+    statements_dict = {'Income Statement': mongo_collections['_income_collection'],
+                       'Cash Flow Statement': mongo_collections['_cash_collection'],
+                       'Balance Sheet': mongo_collections['_balance_sheet_collection']}
+    return statements_dict
 
 
 @st.cache_data
@@ -53,18 +52,18 @@ def generate_terms():
 
 
 @st.cache_data
-def read_profile(ticker: str, mongodb_collection: Collection) -> dict:
+def read_profile(ticker: str, _mongodb_collection: Collection) -> dict:
 
-    statement = [i for i in mongodb_collection.find(
+    statement = [i for i in _mongodb_collection.find(
         {'symbol': ticker}).sort('date', DESCENDING)]
 
     return statement
 
 
-@st.cache_data
-def read_statement(ticker, mongodb_collection: Collection) -> list:
+# @st.cache_data
+def read_statement(ticker, _mongodb_collection: Collection) -> list:
 
-    statement = [i for i in mongodb_collection.find(
+    statement = [i for i in _mongodb_collection.find(
         {'symbol': ticker}).sort('date', DESCENDING)]
 
     return statement
@@ -160,9 +159,9 @@ def treasury(maturiy: str, api_key: str) -> dict:
 
 
 @st.cache_data
-def stock_peers(ticker):
+def stock_peers(ticker, api_key: str):
     r = requests.get(
-        f"https://financialmodelingprep.com/api/v4/stock_peers?symbol={ticker}&apikey={fmp_api}"
+        f"https://financialmodelingprep.com/api/v4/stock_peers?symbol={ticker}&apikey={api_key}"
     )
     r = r.json()
     return r
@@ -186,7 +185,7 @@ def access_entry(_collection_name, entry_name, entry_value, return_value):
 # Function to insert file to database
 def insert_to_mongoDB(collection, ticker, statement, second_key):
     if statement == 'profile':
-        file = get_company_profile(ticker, statement)
+        file = read_profile(ticker, collection)
         # file2 = stock_peers(ticker)
         file[0]['index_id'] = f"{file[0]['symbol']}_{file[0][second_key]}"
 
@@ -265,7 +264,7 @@ def insert_to_mongoDB(collection, ticker, statement, second_key):
 
 # function to generate growth over time plots
 @st.cache_data
-def generate_plots(dataframe, arrangement: tuple, metric):
+def generate_plots(dataframe, arrangement: tuple, metric, terms_interested: dict):
 
     # create columns to place charts based on arrangement specified (columns in each row)
     cols = st.columns(arrangement)
@@ -481,7 +480,7 @@ def intrinsic_value(df, ebitda_margin, terminal_growth_rate, wacc, tax_rate, dep
 
 
 # function to create financial_statements page
-def create_financial_page(ticker, company_profile_info, col3, p: list):
+def create_financial_page(ticker, company_profile_info, col3, p: list, statements_type: list, terms_interested: dict, api_key: str):
 
     p[0].markdown(
         f"""<span style='font-size:1.5em;'>CEO</span>  
@@ -527,8 +526,9 @@ def create_financial_page(ticker, company_profile_info, col3, p: list):
 
     for i, x in enumerate([income_tab, cash_tab, balance_tab]):
         with x:
-            col3.write(f"### {statements_type[i]}")
-            tab_statement = read_statement(statements_type[i], ticker)
+            col3.write(f"### {list(statements_type.keys())[i]}")
+            tab_statement = read_statement(
+                ticker, list(statements_type.values())[i])
             max_year = int(tab_statement[0]['calendarYear']) - \
                 int(tab_statement[-1]['calendarYear'])
             year_range = col3.slider('Select year range (past n years):',
@@ -554,7 +554,7 @@ def create_financial_page(ticker, company_profile_info, col3, p: list):
 
     with key_metrics_tab:
         master_table_unformatted = pd.concat([generate_key_metrics(read_statement(
-            x, ticker), terms_interested.values()) for x in statements_type], axis=0).drop_duplicates()
+            ticker, statements_type[x]), terms_interested.values()) for x in statements_type], axis=0).drop_duplicates()
         master_table_unformatted = master_table_unformatted.loc[~master_table_unformatted.index.duplicated(
             keep='first'), :]
         mt_growth = master_table_unformatted.T.pct_change(
@@ -572,7 +572,8 @@ def create_financial_page(ticker, company_profile_info, col3, p: list):
     with charts_tab:
         chart_select = st.multiselect(
             '*Select charts to show:*', terms_interested.keys(), key=f'{ticker}_multiselect')
-        generate_plots(master_table_unformatted, [1], chart_select)
+        generate_plots(master_table_unformatted, [
+                       1], chart_select, terms_interested=terms_interested)
 
     # with historical_tab:
     #     df_historical = pd.DataFrame.from_records([x for i,x in enumerate(historical.find({'symbol':ticker}))], index='date').sort_index()
@@ -601,15 +602,15 @@ def create_financial_page(ticker, company_profile_info, col3, p: list):
         """)
         c12, c13, c14 = con3.columns([0.5, 0.5, 0.5])
 
-        trate_dict = {'3month': float(treasury('3month')['data'][0]['value'])/100,
-                      '2year': float(treasury('2year')['data'][0]['value'])/100,
-                      '5year': float(treasury('5year')['data'][0]['value'])/100,
-                      '7year': float(treasury('7year')['data'][0]['value'])/100,
-                      '10year': float(treasury('10year')['data'][0]['value'])/100}
+        trate_dict = {'3month': float(treasury('3month', api_key)['data'][0]['value'])/100,
+                      '2year': float(treasury('2year', api_key)['data'][0]['value'])/100,
+                      '5year': float(treasury('5year', api_key)['data'][0]['value'])/100,
+                      '7year': float(treasury('7year', api_key)['data'][0]['value'])/100,
+                      '10year': float(treasury('10year', api_key)['data'][0]['value'])/100}
 
         avg_gr_choices = ['revenue', 'epsdiluted',
                           'dividendsPaid', 'netIncome']
-        df = pd.concat([pd.DataFrame.from_records(read_statement(x, ticker),
+        df = pd.concat([pd.DataFrame.from_records(read_statement(ticker, statements_type[x]),
                                                   index='calendarYear',
                                                   exclude=['_id', 'date', 'symbol', 'reportedCurrency', 'cik', 'fillingDate', 'acceptedDate', 'period', 'link', 'finalLink', 'index_id'])
                         for x in statements_type], axis=1).T
@@ -731,4 +732,4 @@ def create_financial_page(ticker, company_profile_info, col3, p: list):
             pass
 
 
-# TODO: Scrape from SEC.gove (limit of 10 requests per second)
+# TODO: Scrape from SEC.gov (limit of 10 requests per second)

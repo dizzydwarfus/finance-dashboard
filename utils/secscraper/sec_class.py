@@ -7,34 +7,25 @@ from ratelimit import limits, sleep_and_retry
 from bs4 import BeautifulSoup
 from tqdm import trange
 import re
+from utils.logger import MyLogger
 
 
-class MyLogger:
-    def __init__(self, name: str = __name__, level: str = 'debug', log_file: str = 'logs.log'):
-        # Initialize logger
-        self.logging_level = logging.DEBUG if level == 'debug' else logging.INFO
-        self.scrape_logger = logging.getLogger(name)
-        self.scrape_logger.setLevel(self.logging_level)
+def convert_keys_to_lowercase(d):
+    """Recursively convert all keys in a dictionary to lowercase.
 
-        # Check if the self.scrape_logger already has handlers to avoid duplicate logging.
-        if not self.scrape_logger.hasHandlers():
-            # Create a file handler
-            file_handler = logging.FileHandler(log_file, mode='a')
-            file_handler.setLevel(self.logging_level)
+    Args:
+        d (dict): Dictionary to convert
 
-            # Create a stream handler
-            stream_handler = logging.StreamHandler()
-            stream_handler.setLevel(self.logging_level)
-
-            # Create a logging format
-            formatter = logging.Formatter(
-                '%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-            file_handler.setFormatter(formatter)
-            stream_handler.setFormatter(formatter)
-
-            # Add the handlers to the self.scrape_logger
-            self.scrape_logger.addHandler(file_handler)
-            self.scrape_logger.addHandler(stream_handler)
+    Returns:
+        dict: Dictionary with all keys converted to lowercase
+    """
+    new_dict = {}
+    for k, v in d.items():
+        if isinstance(v, dict):
+            v = convert_keys_to_lowercase(v)
+        new_key = re.sub(r'[^a-zA-Z0-9]', '', k.lower())
+        new_dict[new_key] = v
+    return new_dict
 
 
 class SECData(MyLogger):
@@ -80,7 +71,7 @@ class SECData(MyLogger):
                        '_def.xml', '_lab.xml', '_pre.xml', '_htm.xml', '.xml']
 
     def __init__(self, requester_company: str = 'Financial API', requester_name: str = 'API Caller', requester_email: str = 'apicaller@gmail.com', taxonomy: str = 'us-gaap',):
-        super().__init__(name='sec-scraper', level='debug', log_file='./logs/sec_logs.log')
+        super().__init__(name='sec-scraper', level='debug', log_file='././logs.log')
 
         self.requester_company = requester_company
         self.requester_name = requester_name
@@ -643,26 +634,26 @@ class TickerData(SECData):
         try:
             response = self.rate_limited_request(
                 url=metalinks_url, headers=self.sec_headers).json()
+            metalinks_instance = convert_keys_to_lowercase(
+                response['instance'])
+            instance_key = list(metalinks_instance.keys())[0]
+            dict_list = []
+            for i in metalinks_instance[instance_key]['tag']:
+                dict_list.append(dict(labelKey=i.lower(),
+                                      localName=metalinks_instance[instance_key]['tag'][i].get(
+                                          'localname'),
+                                      labelName=metalinks_instance[instance_key]['tag'][i].get(
+                                          'lang').get('enus').get('role').get('label'),
+                                      terseLabel=metalinks_instance[instance_key]['tag'][i].get(
+                                          'lang').get('enus').get('role').get('terselabel'),
+                                      documentation=metalinks_instance[instance_key]['tag'][i].get('lang').get('enus').get('role').get('documentation'),))
+
+            df = pd.DataFrame.from_dict(dict_list)
+            return df
         except Exception as e:
             self.scrape_logger.error(
                 f'Failed to retrieve metalinks from {metalinks_url}. Error: {e}')
-            raise Exception(
-                f'Failed to retrieve metalinks from {metalinks_url}. Error: {e}')
-        metalinks_instance = response['instance']
-        instance_key = list(metalinks_instance.keys())[0]
-        dict_list = []
-        for i in metalinks_instance[instance_key]['tag']:
-            dict_list.append(dict(labelKey=i.lower(),
-                                  localName=metalinks_instance[instance_key]['tag'][i].get(
-                                      'localname'),
-                                  labelName=metalinks_instance[instance_key]['tag'][i].get(
-                                      'lang').get('en-us').get('role').get('label'),
-                                  terseLabel=metalinks_instance[instance_key]['tag'][i].get(
-                                      'lang').get('en-us').get('role').get('terseLabel'),
-                                  documentation=metalinks_instance[instance_key]['tag'][i].get('lang').get('en-us').get('role').get('documentation'),))
-
-        df = pd.DataFrame.from_dict(dict_list)
-        return df
+            return None
 
     def get_facts_for_each_filing(self, filing: dict) -> pd.DataFrame:
         """Get facts for each filing.
@@ -700,6 +691,9 @@ class TickerData(SECData):
         context = self.search_context(soup)
         metalinks = self.get_metalinks(
             filing['folder_url'] + '/MetaLinks.json')
+
+        if metalinks is None:
+            return None
         df = facts.merge(context, how='left', left_on='contextRef', right_on='contextId')\
             .merge(metalinks, how='left', left_on='factNameMerge', right_on='labelKey')
         df['ticker'] = self.ticker
@@ -721,12 +715,32 @@ class TickerData(SECData):
     Latest 10-Q: {self.latest_10Q['filingDate'].strftime('%Y-%m-%d') if self.latest_10Q else 'No filing found'}. Access via: {self.latest_10Q['folder_url'] if self.latest_10Q else None}
     Latest 10-K: {self.latest_10K['filingDate'].strftime('%Y-%m-%d') if self.latest_10K else 'No filing found'}. Access via: {self.latest_10K['folder_url'] if self.latest_10K else None}"""
 
-    def __str__(self) -> str:
-        return f"""{self.ticker}
-    CIK: {self.cik}
-    Latest filing: {self.latest_filing['filingDate'].strftime('%Y-%m-%d') if self.latest_filing else 'No filing found'} for Form {self.latest_filing['form'] if self.latest_filing else None}. Access via: {self.latest_filing['folder_url'] if self.latest_filing else None}
-    Latest 10-Q: {self.latest_10Q['filingDate'].strftime('%Y-%m-%d') if self.latest_10Q else 'No filing found'}. Access via: {self.latest_10Q['folder_url'] if self.latest_10Q else None}
-    Latest 10-K: {self.latest_10K['filingDate'].strftime('%Y-%m-%d') if self.latest_10K else 'No filing found'}. Access via: {self.latest_10K['folder_url'] if self.latest_10K else None}"""
+    def __repr_html__(self) -> str:
+        class_name = type(self).__name__
+        main_attrs = ['ticker', 'cik', 'submissions', 'filings']
+        available_methods = [method_name for method_name in dir(self) if callable(
+            getattr(self, method_name)) and not method_name.startswith("_")]
+        latest_filing_date = self.latest_filing['filingDate'].strftime(
+            '%Y-%m-%d') if self.latest_filing else 'No filing found'
+        latest_filing_form = self.latest_filing['form'] if self.latest_filing else None
+        latest_filing_folder_url = self.latest_filing['folder_url'] if self.latest_filing else None
+        latest_10Q_date = self.latest_10Q['filingDate'].strftime(
+            '%Y-%m-%d') if self.latest_10Q else 'No filing found'
+        latest_10Q_folder_url = self.latest_10Q['folder_url'] if self.latest_10Q else None
+        latest_10K_date = self.latest_10K['filingDate'].strftime(
+            '%Y-%m-%d') if self.latest_10K else 'No filing found'
+        latest_10K_folder_url = self.latest_10K['folder_url'] if self.latest_10K else None
+        return f"""
+        <div style="border: 1px solid #ccc; padding: 10px; margin: 10px;">
+            <h3>{self.submissions['name']}</h3>
+            <h5>{self.submissions['sicDescription']}</h5>
+            <p><strong>Ticker:</strong> {self.ticker}</p>
+            <p><strong>CIK:</strong> {self.cik}</p>
+            <p><strong>Latest filing:</strong> {latest_filing_date} for Form {latest_filing_form}. Access via: <a href="{latest_filing_folder_url}">{latest_filing_folder_url}</a></p>
+            <p><strong>Latest 10-Q:</strong> {latest_10Q_date}. Access via: <a href="{latest_10Q_folder_url}">{latest_10Q_folder_url}</a></p>
+            <p><strong>Latest 10-K:</strong> {latest_10K_date}. Access via: <a href="{latest_10K_folder_url}">{latest_10K_folder_url}</a></p>
+        </div>
+        """
 
 
 if __name__ == "__main__":
