@@ -34,10 +34,6 @@ tickers = sec.cik_list.astype(str).set_index('ticker')
 st.markdown(
     """
 
-# Download from SEC
-
----
-
 ### Choose a Company to download from SEC
 
 """)
@@ -67,5 +63,9 @@ if col1.button("Request from SEC"):
     # st.write(ticker_data.__dict__, unsafe_allow_html=True)
     with st.expander('Show filings'):
         st.dataframe(ticker_data._filings)
-        st.download_button(
-            label="Download Filings as csv", data=csv, file_name=f"{ticker_data.ticker}_filings.csv")
+        col3, col4 = st.columns([1, 1])
+        col3.download_button(
+            label="Download Submissions as csv", data=csv, file_name=f"{ticker_data.ticker}_filings.csv")
+        # col4.download_button(
+        #     label="Download Filings as json", data=ticker_data.submissions, file_name=f"{ticker_data.ticker}_submissions.json", mime="application/json")
+    # st.write(ticker_data.submissions)
