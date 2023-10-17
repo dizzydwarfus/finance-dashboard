@@ -611,8 +611,6 @@ class TickerData(SECData):
             dict_list.append(temp_dict)
 
         df = pd.DataFrame(dict_list, columns=columns.keys())
-        df['factNameMerge'] = df['factName'].str.replace(':', '_')
-
         return df
 
     def get_metalinks(self, metalinks_url: str) -> pd.DataFrame:
@@ -655,7 +653,7 @@ class TickerData(SECData):
                 f'Failed to retrieve metalinks from {metalinks_url}. Error: {e}')
             return None
 
-    def get_facts_for_each_filing(self, filing: dict) -> pd.DataFrame:
+    def get_facts_for_each_filing(self, filing: dict) -> dict:
         """Get facts for each filing.
 
         Args:
@@ -694,15 +692,19 @@ class TickerData(SECData):
 
         if metalinks is None:
             return None
+        context['segment'] = context['segment'].str.replace(
+            pat=r'[^a-zA-Z0-9]', repl='', regex=True).str.lower()
         df = facts.merge(context, how='left', left_on='contextRef', right_on='contextId')\
-            .merge(metalinks, how='left', left_on='factNameMerge', right_on='labelKey')
+            .merge(metalinks, how='left', left_on='segment', right_on='labelKey')
+
         df['ticker'] = self.ticker
         df['cik'] = self.cik
         df['accessionNumber'] = filing['accessionNumber']
 
         df = df.loc[~df['unitRef'].isnull(), columns_to_keep].replace({
             pd.NaT: None})
-        return df.to_dict('records')
+
+        return facts, context, metalinks, df.to_dict('records')
 
     def __repr__(self) -> str:
         class_name = type(self).__name__
