@@ -34,10 +34,14 @@ tickers = sec.cik_list.astype(str).set_index('ticker')
 
 st.markdown(
     """
+# SEC Scraper
 
 ### Choose a Company to download from SEC
 
 """)
+
+st.warning('This page is still under development, please use with caution. 🚧 Only filings that are in XML format (not HTML) can be parsed properly. HTML parsing is coming soon!')
+
 col1, col2 = st.columns([1, 3])
 ticker_choice = col1.selectbox("Company Name",
                                options=tickers['title'], key="ticker_list")
