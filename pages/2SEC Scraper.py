@@ -61,7 +61,7 @@ if upsert_filings:
 
 
 @st.cache_data
-def convert_df(df):
+def convert_df(df: pd.DataFrame):
     return df.to_csv(index=False).encode('utf-8')
 
 
@@ -104,6 +104,7 @@ with st.expander('Scrape Filings'):
             orient='records')[0]
         facts, context, metalinks, final_facts = ticker_data.get_facts_for_each_filing(
             filing_to_scrape)
+        csv_final_facts = convert_df(pd.DataFrame(final_facts))
         st.write('Facts')
         st.write(facts)
         st.write('Context')
@@ -112,3 +113,5 @@ with st.expander('Scrape Filings'):
         st.write(metalinks)
         st.write('Final Facts Table')
         st.write(pd.DataFrame(final_facts))
+        st.download_button(label="Download Facts as csv", data=csv_final_facts,
+                           file_name=f"{ticker_data.ticker}_facts.csv")

@@ -487,6 +487,7 @@ class TickerData(SECData):
             raise Exception(
                 f'Failed to parse file data from {file_url}. Error: {e}')
 
+    # TODO: replace search_xxx methods with strategy pattern
     def search_tags(self, soup: BeautifulSoup, pattern: str) -> BeautifulSoup:
         """Search for tags in BeautifulSoup object.
 
