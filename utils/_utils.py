@@ -366,7 +366,7 @@ def make_pretty(styler, use_on=None):
         styler.format(precision=0, na_rep='MISSING', thousands=' ')
         styler.format(precision=2, na_rep='MISSING', thousands=' ', subset=pd.IndexSlice[[
                       'grossProfitRatio', 'netIncomeRatio', 'operatingIncomeRatio', 'epsdiluted'], :])
-        styler.applymap(lambda x: 'color:red;' if (
+        styler.map(lambda x: 'color:red;' if (
             x < 0 if type(x) != str else None) else None)
     # styler.highlight_min(color='indianred', axis=0)
     # styler.highlight_max(color='green', axis=0)
@@ -381,7 +381,7 @@ def make_pretty(styler, use_on=None):
                                                                                })
     else:
         styler.format(na_rep='-', formatter='{:.0%}')
-        styler.applymap(lambda x: 'color:red;' if (
+        styler.map(lambda x: 'color:red;' if (
             x < 0 if type(x) != str else None) else None)
 
     return styler
@@ -391,7 +391,7 @@ def make_pretty(styler, use_on=None):
 
 # project financials based on average growth of past_n_years into the future_n_years
 def project_metric(df, metric, past_n_years, first_n_years, second_n_years, first_growth=None, second_growth=None):
-    projected = [df[metric][-1]]
+    projected = [df[metric].iloc[-1]]
     if first_growth == 0:
         avg_growth = df[metric].pct_change()[-past_n_years:].mean()
         for i in range(first_n_years+second_n_years):
@@ -460,7 +460,7 @@ def intrinsic_value(df, ebitda_margin, terminal_growth_rate, wacc, tax_rate, dep
         pv_terminal_value = [terminal_value * discount_factors[-1]]
         intrinsic_value = sum(pv_cash_flows) + sum(pv_terminal_value)
 
-        return intrinsic_value/df['weightedAverageShsOutDil'][-1]
+        return intrinsic_value/df['weightedAverageShsOutDil'].iloc[-1]
     else:
         # Calculate the terminal value
         last_year = projected_metric[-1]
@@ -476,7 +476,7 @@ def intrinsic_value(df, ebitda_margin, terminal_growth_rate, wacc, tax_rate, dep
             return intrinsic_value
 
         else:
-            return intrinsic_value/df['weightedAverageShsOutDil'][-1]
+            return intrinsic_value/df['weightedAverageShsOutDil'].iloc[-1]
 
 
 # function to create financial_statements page
