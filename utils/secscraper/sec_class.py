@@ -28,6 +28,18 @@ def convert_keys_to_lowercase(d):
     return new_dict
 
 
+def indexify_url(folder_url: str) -> str:
+    """Converts url to index url.
+
+    Args:
+        url (str): url to convert to index url
+
+    Returns:
+        str: index url
+    """
+    return folder_url + '/index.json'
+
+
 class SECData(MyLogger):
     """Class to retrieve data from SEC Edgar database.
 
@@ -67,6 +79,7 @@ class SECData(MyLogger):
     US_GAAP_TAXONOMY_URL = "https://xbrl.fasb.org/us-gaap/2023/elts/us-gaap-2023.xsd"
     ALLOWED_TAXONOMIES = ['us-gaap', 'ifrs-full', 'dei', 'srt']
     INDEX_EXTENSION = ['-index.html', '-index-headers.html']
+    DIRECTORY_INDEX = ['index.json', 'index.xml', 'index.html']
     FILE_EXTENSIONS = ['.xsd', '.htm', '_cal.xml',
                        '_def.xml', '_lab.xml', '_pre.xml', '_htm.xml', '.xml']
 
@@ -260,7 +273,7 @@ class SECData(MyLogger):
                               ).dt.days.div(30.4375).round(0)
         return df
 
-    def get_index(self, cik: str = None,) -> dict:
+    def get_cik_index(self, cik: str = None,) -> dict:
         """Each CIK directory and all child subdirectories contain three files to assist in 
         automated crawling of these directories. 
         These are not visible through directory browsing.
@@ -299,9 +312,9 @@ class SECData(MyLogger):
         sic_table = soup.find('table', {'class': 'list'})
         sic_list = []
         for row in sic_table.find_all('tr')[1:]:
-            sic_dict = {'SIC Code': None,
+            sic_dict = {'_id': None,
                         'Office': None, 'Industry Title': None}
-            sic_dict['SIC Code'] = row.text.split('\n')[1]
+            sic_dict['_id'] = row.text.split('\n')[1]
             sic_dict['Office'] = row.text.split('\n')[2]
             sic_dict['Industry Title'] = row.text.split('\n')[3]
             sic_list.append(sic_dict)
@@ -324,7 +337,7 @@ class TickerData(SECData):
         self._submissions = self.get_submissions(self.cik)
         self._filings = None
         self._forms = None
-        self._index = self.get_index(self.cik)
+        self._index = self.get_cik_index(self.cik)
         self._filing_folder_urls = None
         self._filing_urls = None
 
@@ -421,6 +434,20 @@ class TickerData(SECData):
                         f'Failed to instantiate filing urls for {self.ticker}...')
                     continue
         return filing_urls
+
+    def get_filing_folder_index(self, folder_url: str, return_df: bool = True) -> dict | pd.DataFrame:
+        """Get filing folder index from folder url.
+
+        Args:
+            folder_url (str): folder url to retrieve data from
+            return_df (bool, optional): Whether to return a DataFrame or dict. Defaults to True.
+
+        Returns:
+            index (dict): index dict or dataframe
+        """
+        index_url = indexify_url(folder_url)
+        index = self.rate_limited_request(index_url, headers=self.sec_headers)
+        return pd.DataFrame(index.json()['directory']['item']) if return_df else index.json()['directory']['item']
 
     def get_filings(self,) -> dict:
         """Get filings and urls to .txt from submissions dict.
