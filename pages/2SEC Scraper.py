@@ -24,14 +24,6 @@ def ticker_init(ticker):
 sec = sec_init()
 tickers = sec.cik_list.astype(str).set_index('ticker')
 
-# TODO: Sentiment analysis on tickers - https://www.alphavantage.co/documentation/ for
-# TODO: compare DCF calculated stock price, with current price (repeat for past years, to see trend)
-# TODO: show % difference for past DCF calculated values and calculate safety of margin, pick best metric from that.
-# TODO: show extra tab with historical stock price using yfinance
-# TODO: show technical indicators, and perform backtest
-# TODO: use ML model to predict stock price
-# TODO: Use LangChain+Open AI API to build researcher agent to research based on user prompt
-
 st.markdown(
     """
 # SEC Scraper
@@ -40,7 +32,12 @@ st.markdown(
 
 """)
 
-st.warning('This page is still under development, please use with caution. 🚧 Only filings that are in XML format (not HTML) can be parsed properly. HTML parsing is coming soon!')
+with st.expander('Important Disclaimer'):
+    st.warning('This page is still under development, please use with caution. 🚧 Only filings that are in XML format (not HTML) can be parsed properly. HTML parsing is coming soon!')
+    st.info(
+        'The SEC database is updated daily, so if you do not see the latest filings, please try again later.')
+    st.info(
+        'Idea is to turn this into a web app that can be used to immediately parse and analyse latest filing with chatbot integration.')
 
 col1, col2 = st.columns([1, 3])
 ticker_choice = col1.selectbox("Company Name",
