@@ -21,8 +21,10 @@ cycler==0.12.0
 dataclasses-json==0.6.1
 debugpy==1.8.0
 decorator==5.1.1
+distlib==0.3.7
 dnspython==2.4.2
 executing==2.0.0
+filelock==3.12.4
 fonttools==4.43.0
 frozenlist==1.4.0
 gitdb==4.0.10
@@ -62,6 +64,7 @@ parso==0.8.3
 patsy==0.5.3
 pickleshare==0.7.5
 Pillow==10.0.1
+pipenv==2023.10.20
 platformdirs==3.10.0
 plotly==5.17.0
 plotly-express==0.4.1
@@ -110,6 +113,7 @@ tzdata==2023.3
 tzlocal==5.0.1
 urllib3==2.0.5
 validators==0.22.0
+virtualenv==20.24.6
 watchdog==3.0.0
 wcwidth==0.2.8
 yarl==1.9.2
