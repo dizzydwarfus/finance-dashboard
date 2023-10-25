@@ -436,7 +436,7 @@ class TickerData(SECData):
                     continue
         return filing_urls
 
-    def get_filing_folder_index(self, folder_url: str, return_df: bool = True) -> dict | pd.DataFrame:
+    def get_filing_folder_index(self, folder_url: str, return_df: bool = True):
         """Get filing folder index from folder url.
 
         Args:
