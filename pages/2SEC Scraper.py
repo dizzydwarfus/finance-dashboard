@@ -2,6 +2,7 @@ import pandas as pd
 import streamlit as st
 from utils.database._connector import SECDatabase
 from utils.secscraper.sec_class import SECData, TickerData
+from utils._utils import get_filing_facts
 import json
 
 st.set_page_config(page_title="Investment Dashboard",
@@ -98,17 +99,23 @@ with st.expander('Scrape Filings'):
             "Choose a filing to scrape", options=filing_available['accessionNumber'], key='scraping_filing')
     if st.button('Scrape Facts') and filing_chosen:
         filing_to_scrape = filing_available.loc[filing_available['accessionNumber'] == filing_chosen].to_dict(
-            orient='records')[0]
-        facts, context, metalinks, final_facts = ticker_data.get_facts_for_each_filing(
-            filing_to_scrape)
-        csv_final_facts = convert_df(pd.DataFrame(final_facts))
+            orient='records')
+        labels, calc, defn, context, facts, metalinks, merged_facts, failed_folders = get_filing_facts(
+            ticker=ticker_data, filings_to_scrape=filing_to_scrape)
+        csv_final_facts = convert_df(merged_facts)
         st.write('Facts')
-        st.write(facts)
+        st.dataframe(facts)
         st.write('Context')
-        st.write(context)
+        st.dataframe(context)
+        st.write('Labels')
+        st.dataframe(labels)
+        st.write('Calc')
+        st.dataframe(calc)
+        st.write('Defn')
+        st.dataframe(defn)
         st.write('Metalinks')
-        st.write(metalinks)
+        st.dataframe(metalinks)
         st.write('Final Facts Table')
-        st.write(pd.DataFrame(final_facts))
+        st.dataframe(merged_facts)
         st.download_button(label="Download Facts as csv", data=csv_final_facts,
                            file_name=f"{ticker_data.ticker}_facts.csv")

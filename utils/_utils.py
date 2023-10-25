@@ -8,6 +8,7 @@ from pymongo import DESCENDING
 from pymongo.collection import Collection
 import datetime as dt
 import math
+from utils.secscraper.sec_class import SECData, TickerData
 
 
 @st.cache_resource
@@ -733,3 +734,154 @@ def create_financial_page(ticker, company_profile_info, col3, p: list, statement
 
 
 # TODO: Scrape from SEC.gov (limit of 10 requests per second)
+
+def get_filing_facts(ticker: TickerData, filings_to_scrape: list,):
+    """
+    Scrape facts, context, labels, definitions, calculations, metalinks from filings_to_scrape
+
+    ### Parameters
+    ----------
+    ticker : TickerData
+        TickerData object
+    filings_to_scrape : list
+        list of filings dict to scrape
+
+    ### Returns
+    -------
+    all_labels : pd.DataFrame
+        all labels scraped
+    all_calc : pd.DataFrame
+        all calculations scraped
+    all_defn : pd.DataFrame
+        all definitions scraped
+    all_context : pd.DataFrame
+        all contexts scraped
+    all_facts : pd.DataFrame
+        all facts scraped
+    all_metalinks : pd.DataFrame    
+        all metalinks scraped
+    all_merged_facts : pd.DataFrame
+        all merged facts scraped
+    failed_folders : list
+        list of failed folders
+    """
+    all_labels = pd.DataFrame()
+    all_calc = pd.DataFrame()
+    all_defn = pd.DataFrame()
+    all_context = pd.DataFrame()
+    all_facts = pd.DataFrame()
+    all_metalinks = pd.DataFrame()
+    all_merged_facts = pd.DataFrame()
+    failed_folders = []
+
+    ticker.scrape_logger.info('\n', filings_to_scrape, '\n')
+
+    for file in filings_to_scrape:
+        if (file.get('form') != '10-Q' or file.get('form') != '10-K') and file.get('filingDate') < dt.datetime(2009, 1, 1):
+            continue
+
+        accessionNumber = file.get('accessionNumber')
+        folder_url = file.get('folder_url')
+        file_url = file.get('file_url')
+        ticker.scrape_logger.info(
+            file.get('filingDate').strftime('%Y-%m-%d') + ': ' + folder_url)
+
+        soup = ticker.get_file_data(file_url=file_url)
+
+        # Scrape facts, context, metalinks
+        try:
+            metalinks = ticker.get_metalinks(
+                folder_url=folder_url + '/MetaLinks.json')
+            metalinks['accessionNumber'] = accessionNumber
+            all_metalinks = pd.concat(
+                [all_metalinks, metalinks], ignore_index=True)
+        except Exception as e:
+            ticker.scrape_logger.error(
+                f'Failed to scrape metalinks for {folder_url}...{e}')
+            failed_folders.append(dict(folder_url=folder_url, accessionNumber=accessionNumber,
+                                  error=f'Failed to scrape metalinks for {folder_url}...{e}', filingDate=file.get('filingDate')))
+            pass
+
+        try:
+            facts = ticker.search_facts(soup=soup)
+            facts['accessionNumber'] = accessionNumber
+            all_facts = pd.concat([all_facts, facts], ignore_index=True)
+        except Exception as e:
+            ticker.scrape_logger.error(
+                f'Failed to scrape facts for {folder_url}...{e}')
+            failed_folders.append(dict(folder_url=folder_url, accessionNumber=accessionNumber,
+                                  error=f'Failed to scrape facts for {folder_url}...{e}', filingDate=file.get('filingDate')))
+            pass
+        try:
+            context = ticker.search_context(soup=soup)
+            context['accessionNumber'] = accessionNumber
+            all_context = pd.concat([all_context, context], ignore_index=True)
+        except Exception as e:
+            ticker.scrape_logger.error(
+                f'Failed to scrape context for {folder_url}...{e}')
+            failed_folders.append(dict(folder_url=folder_url, accessionNumber=accessionNumber,
+                                  error=f'Failed to scrape context for {folder_url}...{e}', filingDate=file.get('filingDate')))
+            pass
+
+        index_df = ticker.get_filing_folder_index(folder_url=folder_url)
+
+        try:  # Scrape labels
+            labels = ticker.get_elements(folder_url=folder_url, index_df=index_df,
+                                         scrape_file_extension='_lab').query("`xlink:type` == 'resource'")
+            labels['xlink:role'] = labels['xlink:role'].str.split(
+                '/').apply(lambda x: x[-1])
+            labels['xlink:label'] = labels['xlink:label'].str.split(
+                '_').apply(lambda x: ':'.join(x[:2])).str.lower()
+            labels['accessionNumber'] = accessionNumber
+            all_labels = pd.concat([all_labels, labels], ignore_index=True)
+
+        except Exception as e:
+            ticker.scrape_logger.error(
+                f'Failed to scrape labels for {folder_url}...{e}')
+            failed_folders.append(dict(folder_url=folder_url, accessionNumber=accessionNumber,
+                                  error=f'Failed to scrape labels for {folder_url}...{e}', filingDate=file.get('filingDate')))
+            pass
+
+        try:  # Scrape calculations
+            calc = ticker.get_elements(folder_url=folder_url, index_df=index_df,
+                                       scrape_file_extension='_cal').query("`xlink:type` == 'arc'")
+            calc['accessionNumber'] = accessionNumber
+            all_calc = pd.concat([all_calc, calc], ignore_index=True)
+        except Exception as e:
+            ticker.scrape_logger.error(
+                f'Failed to scrape calc for {folder_url}...{e}')
+            failed_folders.append(dict(folder_url=folder_url, accessionNumber=accessionNumber,
+                                  error=f'Failed to scrape calc for {folder_url}...{e}', filingDate=file.get('filingDate')))
+            pass
+
+        try:  # Scrape definitions
+            defn = ticker.get_elements(folder_url=folder_url, index_df=index_df,
+                                       scrape_file_extension='_def').query("`xlink:type` == 'arc'")
+            defn['accessionNumber'] = accessionNumber
+            all_defn = pd.concat([all_defn, defn], ignore_index=True)
+        except Exception as e:
+            ticker.scrape_logger.error(
+                f'Failed to scrape defn for {folder_url}...{e}')
+            failed_folders.append(dict(folder_url=folder_url, accessionNumber=accessionNumber,
+                                  error=f'Failed to scrape defn for {folder_url}...{e}', filingDate=file.get('filingDate')))
+            pass
+
+        if len(facts) == 0:
+            ticker.scrape_logger.info(
+                f'No facts found for {ticker.ticker}({ticker.cik})-{folder_url}...\n')
+            continue
+
+        ticker.scrape_logger.info(
+            f'Merging facts with context and labels. Current facts length: {len(facts)}...')
+        merged_facts = facts.merge(context, how='left', left_on='contextRef', right_on='contextId')\
+            .merge(labels.query("`xlink:role` == 'label'"), how='left', left_on='factName', right_on='xlink:label')
+        merged_facts = merged_facts.drop(
+            ['accessionNumber_x', 'accessionNumber_y'], axis=1)
+        ticker.scrape_logger.info(
+            f'Successfully merged facts with context and labels. Merged facts length: {len(merged_facts)}...')
+        all_merged_facts = pd.concat(
+            [all_merged_facts, merged_facts], ignore_index=True)
+        ticker.scrape_logger.info(
+            f'Successfully scraped {ticker.ticker}({ticker.cik})-{folder_url}...\n')
+
+    return all_labels, all_calc, all_defn, all_context, all_facts, all_metalinks, all_merged_facts, failed_folders

@@ -77,11 +77,12 @@ class SECData(MyLogger):
     BASE_DIRECTORY_URL = "https://www.sec.gov/Archives/edgar/data/"
     SIC_LIST_URL = "https://www.sec.gov/corpfin/division-of-corporation-finance-standard-industrial-classification-sic-code-list"
     US_GAAP_TAXONOMY_URL = "https://xbrl.fasb.org/us-gaap/2023/elts/us-gaap-2023.xsd"
-    ALLOWED_TAXONOMIES = ['us-gaap', 'ifrs-full', 'dei', 'srt']
-    INDEX_EXTENSION = ['-index.html', '-index-headers.html']
-    DIRECTORY_INDEX = ['index.json', 'index.xml', 'index.html']
-    FILE_EXTENSIONS = ['.xsd', '.htm', '_cal.xml',
-                       '_def.xml', '_lab.xml', '_pre.xml', '_htm.xml', '.xml']
+    ALLOWED_TAXONOMIES = {'us-gaap', 'ifrs-full', 'dei', 'srt'}
+    INDEX_EXTENSION = {'-index.html', '-index-headers.html'}
+    DIRECTORY_INDEX = {'index.json', 'index.xml', 'index.html'}
+    FILE_EXTENSIONS = {'.xsd', '.htm', '_cal.xml',
+                       '_def.xml', '_lab.xml', '_pre.xml', '_htm.xml', '.xml'}
+    SCRAPE_FILE_EXTENSIONS = {'_lab', '_def', '_pre', '_cal'}
 
     def __init__(self, requester_company: str = 'Financial API', requester_name: str = 'API Caller', requester_email: str = 'apicaller@gmail.com', taxonomy: str = 'us-gaap',):
         super().__init__(name='sec-scraper', level='debug', log_file='././logs.log')
@@ -435,7 +436,7 @@ class TickerData(SECData):
                     continue
         return filing_urls
 
-    def get_filing_folder_index(self, folder_url: str, return_df: bool = True):
+    def get_filing_folder_index(self, folder_url: str, return_df: bool = True) -> dict | pd.DataFrame:
         """Get filing folder index from folder url.
 
         Args:
@@ -515,6 +516,30 @@ class TickerData(SECData):
                 f'Failed to parse file data from {file_url}. Error: {e}')
 
     # TODO: replace search_xxx methods with strategy pattern
+
+    def get_elements(self, folder_url: str, index_df: pd.DataFrame, scrape_file_extension: str) -> pd.DataFrame:
+        """Get elements from .xml files from folder_url.
+
+        Args:
+            folder_url (str): folder url to retrieve data from
+            index_df (pd.DataFrame): dataframe containing files in the filing folder
+            scrape_file_extension (str): .xml file extension to scrape
+
+        Returns:
+            pd.DataFrame: returns a dataframe containing the elements, attributes, text
+        """
+        xml = index_df.query(f"name.str.contains('{scrape_file_extension}')")
+        xml_content = self.rate_limited_request(
+            folder_url + '/' + xml['name'].iloc[0], headers=self.sec_headers).content
+
+        xml_soup = BeautifulSoup(xml_content, 'lxml-xml')
+        labels = xml_soup.find_all()
+        labels_list = []
+        for i in labels[1:]:
+            label_dict = dict(**i.attrs, labelText=i.text.strip())
+            labels_list.append(label_dict)
+        return pd.DataFrame(labels_list)
+
     def search_tags(self, soup: BeautifulSoup, pattern: str) -> BeautifulSoup:
         """Search for tags in BeautifulSoup object.
 
@@ -702,28 +727,29 @@ class TickerData(SECData):
                 'startDate': 'datetime64[ns]',
                 'endDate': 'datetime64[ns]',
                 'instant': 'datetime64[ns]',
-                'labelKey': str,
-                'localName': str,
-                'labelName': int,
-                'terseLabel': str,
-                'documentation': str,
+                # 'labelKey': str,
+                # 'localName': str,
+                # 'labelName': int,
+                # 'terseLabel': str,
+                # 'documentation': str,
                 'accessionNumber': str,
             }
         """
         columns_to_keep = ['factName', 'contextRef', 'decimals', 'factId', 'unitRef', 'value', 'segment', 'startDate',
-                           'endDate', 'instant', 'labelKey', 'localName', 'labelName', 'terseLabel', 'documentation', 'accessionNumber']
+                           'endDate', 'instant', 'accessionNumber']
         soup = self.get_file_data(filing['file_url'])
         facts = self.search_facts(soup)
         context = self.search_context(soup)
-        metalinks = self.get_metalinks(
-            filing['folder_url'] + '/MetaLinks.json')
+        # metalinks = self.get_metalinks(
+        #     filing['folder_url'] + '/MetaLinks.json')
 
-        if metalinks is None:
-            return None
+        # if metalinks is None:
+        #     return None
         context['segment'] = context['segment'].str.replace(
             pat=r'[^a-zA-Z0-9]', repl='', regex=True).str.lower()
-        df = facts.merge(context, how='left', left_on='contextRef', right_on='contextId')\
-            .merge(metalinks, how='left', left_on='segment', right_on='labelKey')
+        df = facts.merge(context, how='left',
+                         left_on='contextRef', right_on='contextId')
+        # .merge(metalinks, how='left', left_on='segment', right_on='labelKey')
 
         df['ticker'] = self.ticker
         df['cik'] = self.cik
@@ -732,7 +758,7 @@ class TickerData(SECData):
         df = df.loc[~df['unitRef'].isnull(), columns_to_keep].replace({
             pd.NaT: None})
 
-        return facts, context, metalinks, df.to_dict('records')
+        return facts, context, df.to_dict('records')
 
     def __repr__(self) -> str:
         class_name = type(self).__name__
