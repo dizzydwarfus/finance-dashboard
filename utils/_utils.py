@@ -774,8 +774,6 @@ def get_filing_facts(ticker: TickerData, filings_to_scrape: list,):
     all_merged_facts = pd.DataFrame()
     failed_folders = []
 
-    ticker.scrape_logger.info('\n', filings_to_scrape, '\n')
-
     for file in filings_to_scrape:
         if (file.get('form') != '10-Q' or file.get('form') != '10-K') and file.get('filingDate') < dt.datetime(2009, 1, 1):
             continue
@@ -830,8 +828,11 @@ def get_filing_facts(ticker: TickerData, filings_to_scrape: list,):
                                          scrape_file_extension='_lab').query("`xlink:type` == 'resource'")
             labels['xlink:role'] = labels['xlink:role'].str.split(
                 '/').apply(lambda x: x[-1])
-            labels['xlink:label'] = labels['xlink:label'].str.split(
-                '_').apply(lambda x: ':'.join(x[:2])).str.lower()
+            labels['xlink:label'] = labels['xlink:label'].str\
+                .replace('(lab_)|(_en-US)', '', regex=True).str\
+                .split('_')\
+                .apply(lambda x: ':'.join(x[:2]))\
+                .str.lower()
             labels['accessionNumber'] = accessionNumber
             all_labels = pd.concat([all_labels, labels], ignore_index=True)
 
@@ -873,12 +874,19 @@ def get_filing_facts(ticker: TickerData, filings_to_scrape: list,):
 
         ticker.scrape_logger.info(
             f'Merging facts with context and labels. Current facts length: {len(facts)}...')
-        merged_facts = facts.merge(context, how='left', left_on='contextRef', right_on='contextId')\
-            .merge(labels.query("`xlink:role` == 'label'"), how='left', left_on='factName', right_on='xlink:label')
-        merged_facts = merged_facts.drop(
-            ['accessionNumber_x', 'accessionNumber_y'], axis=1)
-        ticker.scrape_logger.info(
-            f'Successfully merged facts with context and labels. Merged facts length: {len(merged_facts)}...')
+        try:
+            merged_facts = facts.merge(context, how='left', left_on='contextRef', right_on='contextId')\
+                .merge(labels.query("`xlink:role` == 'label'"), how='left', left_on='factName', right_on='xlink:label')
+            merged_facts = merged_facts.drop(
+                ['accessionNumber_x', 'accessionNumber_y'], axis=1)
+            ticker.scrape_logger.info(
+                f'Successfully merged facts with context and labels. Merged facts length: {len(merged_facts)}...')
+        except Exception as e:
+            ticker.scrape_logger.error(
+                f'Failed to merge facts with context and labels for {folder_url}...{e}')
+            failed_folders.append(dict(folder_url=folder_url, accessionNumber=accessionNumber,
+                                  error=f'Failed to merge facts with context and labels for {folder_url}...{e}', filingDate=file.get('filingDate')))
+            pass
         all_merged_facts = pd.concat(
             [all_merged_facts, merged_facts], ignore_index=True)
         ticker.scrape_logger.info(

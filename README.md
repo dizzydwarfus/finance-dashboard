@@ -32,13 +32,13 @@ finance-dashboard/
 │   └── secrets.toml
 ├── pages/
 │   ├── 1Financial_Statements.py
-│   └── 2Summary.py
+│   └── 2SECScraper.py
 ├── utils/
 │   └── database
 │       └── _connector.py
 │   ├── _utils.py
 │   ├── logger.py
-│   └── sec-scraper\
+│   └── sec-scraper/
 │       ├── sec_class.py
 │       ├── sec_scraper_doc.md
 │       └── sec_api_test.ipynb
