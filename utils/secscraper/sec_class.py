@@ -82,6 +82,7 @@ class SECData(MyLogger):
     DIRECTORY_INDEX = {'index.json', 'index.xml', 'index.html'}
     FILE_EXTENSIONS = {'.xsd', '.htm', '_cal.xml',
                        '_def.xml', '_lab.xml', '_pre.xml', '_htm.xml', '.xml'}
+
     SCRAPE_FILE_EXTENSIONS = {'_lab', '_def', '_pre', '_cal'}
 
     def __init__(self, requester_company: str = 'Financial API', requester_name: str = 'API Caller', requester_email: str = 'apicaller@gmail.com', taxonomy: str = 'us-gaap',):

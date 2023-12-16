@@ -63,6 +63,19 @@ def convert_df(df: pd.DataFrame):
     return df.to_csv(index=False).encode('utf-8')
 
 
+@st.cache_data
+def convert_facts_df(df: pd.DataFrame):
+    start_end = df.pivot_table(
+        index=['labelText', 'segment', 'startDate', 'endDate',], values='value', aggfunc='sum')
+    instant = df.pivot_table(
+        index=['labelText', 'segment', 'instant',], values='value', aggfunc='sum')
+    with pd.ExcelWriter('./data.xlsx') as writer:
+        start_end.to_xlsx(writer, index=False,
+                          sheet_name='start_end').encode('utf-8')
+        instant.to_xlsx(writer, index=False,
+                        sheet_name='instant').encode('utf-8')
+
+
 csv = convert_df(ticker_data.filings)
 start_year = ticker_data.filings['filingDate'].dt.date.min()
 end_year = ticker_data.filings['filingDate'].dt.date.max()
@@ -117,22 +130,26 @@ with st.expander('Scrape Filings'):
             ticker=ticker_data, filings_to_scrape=filing_to_scrape)
         presented_facts = merged_facts.loc[~merged_facts['labelText'].isnull(), [
             'labelText', 'segment', 'startDate', 'endDate', 'instant', 'value', 'unitRef']]
-        # st.write('Facts')
-        # st.dataframe(facts)
-        # st.write('Context')
-        # st.dataframe(context)
-        # st.write('Labels')
-        # st.dataframe(labels)
-        # st.write('Calc')
-        # st.dataframe(calc)
-        # st.write('Defn')
-        # st.dataframe(defn)
-        # st.write('Metalinks')
-        # st.dataframe(metalinks)
-        # st.write('Final Facts Table')
-        # st.dataframe(merged_facts)
-        csv_final_facts = convert_df(presented_facts)
-        st.dataframe(presented_facts, use_container_width=True)
+
+        final_df = presented_facts.loc[(~presented_facts['value'].str.contains(
+            '[^0-9\.\-]|(^\d+\-\d+\-\d+$)')) & (presented_facts['value'] != "")].copy()
+        final_df['value'] = final_df['value'].astype(float)
+        final_df['segment'] = final_df['segment']\
+            .str.replace(f'{ticker.lower()}:', '')\
+            .str.replace(f'us-gaap:', '')\
+            .apply(lambda x: x[-1] if isinstance(x, list) else x)\
+            .str.replace(pat=r'([A-Z])', repl=r' \1', regex=True).str.strip()
+        # start_end = final_df.pivot_table(
+        #     index=['labelText', 'segment', 'startDate', 'endDate',], values='value', aggfunc='sum')
+        start_end = final_df.dropna(axis=0, subset=['startDate', 'endDate'])[['labelText', 'segment', 'unitRef',
+                                                                              'startDate', 'endDate', 'value']].sort_values(by=['labelText', 'segment', 'startDate', 'endDate',])
+        instant = final_df.dropna(axis=0, subset=['instant'])[
+            ['labelText', 'segment', 'unitRef', 'instant', 'value']].sort_values(by=['labelText', 'segment', 'instant',])
+
+        excel_final_facts = convert_df(final_df)
+
+        st.dataframe(start_end, use_container_width=True)
+        st.dataframe(instant, use_container_width=True)
         facts_period = f'{start_year}_to_{end_year}' if mode == 'Range' else date
-        st.download_button(label="Download Facts as csv", data=csv_final_facts,
+        st.download_button(label="Download Facts as CSV", data=excel_final_facts,
                            file_name=f"{ticker_data.ticker}_{form}_{facts_period}.csv")
