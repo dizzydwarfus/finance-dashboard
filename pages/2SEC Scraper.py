@@ -34,11 +34,11 @@ st.markdown(
 """)
 
 with st.expander('Important Disclaimer'):
-    st.warning('This page is still under development, please use with caution. 🚧 Only filings that are in XML format (not HTML) can be parsed properly. HTML parsing is coming soon!')
+    st.warning('This page is still under development, please use with caution.')
     st.info(
-        'The SEC database is updated daily, so if you do not see the latest filings, please try again later.')
+        'The SEC database is updated daily, so if you do not see the latest filings for a company, please try again later.')
     st.info(
-        'Idea is to turn this into a web app that can be used to immediately parse and analyse latest filing with chatbot integration.')
+        'The facts can be scraped from the filings, but the names of the facts are not standardized, but all facts with float values should be present. ')
 
 col1, col2 = st.columns([1, 3])
 ticker_choice = col1.selectbox("Company Name",
