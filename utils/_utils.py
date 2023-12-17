@@ -118,7 +118,8 @@ def get_statement(ticker: str, statement: str, api_key: str) -> dict:
 # download stock split
 def download_stocksplit(ticker: str, api_key: str) -> dict:
     r = requests.get(
-        f"https://financialmodelingprep.com/api/v3/historical-price-full/stock_split/{ticker}?apikey={api_key}"
+        f"https://financialmodelingprep.com/api/v3/historical-price-full/stock_split/{
+            ticker}?apikey={api_key}"
     )
     r = r.json()
     return r
@@ -140,7 +141,8 @@ def stock_price_api(ticker: str, api_key: str) -> dict:
 
 def realtime_price(ticker: str, api_key: str) -> dict:
     r = requests.get(
-        f"https://financialmodelingprep.com/api/v3/quote-short/{ticker}?apikey={api_key}"
+        f"https://financialmodelingprep.com/api/v3/quote-short/{
+            ticker}?apikey={api_key}"
     )
     r = r.json()
     return r
@@ -151,7 +153,8 @@ def realtime_price(ticker: str, api_key: str) -> dict:
 @st.cache_data(ttl=86400)
 def treasury(maturiy: str, api_key: str) -> dict:
     r = requests.get(
-        f"https://www.alphavantage.co/query?function=TREASURY_YIELD&interval=daily&maturity={maturiy}&apikey={api_key}"
+        f"https://www.alphavantage.co/query?function=TREASURY_YIELD&interval=daily&maturity={
+            maturiy}&apikey={api_key}"
     )
     r = r.json()
     return r
@@ -162,7 +165,8 @@ def treasury(maturiy: str, api_key: str) -> dict:
 @st.cache_data
 def stock_peers(ticker, api_key: str):
     r = requests.get(
-        f"https://financialmodelingprep.com/api/v4/stock_peers?symbol={ticker}&apikey={api_key}"
+        f"https://financialmodelingprep.com/api/v4/stock_peers?symbol={
+            ticker}&apikey={api_key}"
     )
     r = r.json()
     return r
@@ -484,37 +488,37 @@ def intrinsic_value(df, ebitda_margin, terminal_growth_rate, wacc, tax_rate, dep
 def create_financial_page(ticker, company_profile_info, col3, p: list, statements_type: list, terms_interested: dict, api_key: str):
 
     p[0].markdown(
-        f"""<span style='font-size:1.5em;'>CEO</span>  
+        f"""<span style='font-size:1.5em;'>CEO</span>
     :green[{company_profile_info['ceo']}]
 
     """, unsafe_allow_html=True)
 
     p[1].markdown(
-        f"""<span style='font-size:1.5em;'>Exchange</span>  
+        f"""<span style='font-size:1.5em;'>Exchange</span>
     :green[{company_profile_info['exchangeShortName']}]
 
     """, unsafe_allow_html=True)
 
     p[2].markdown(
-        f"""<span style='font-size:1.5em;'>Industry</span>  
+        f"""<span style='font-size:1.5em;'>Industry</span>
     :green[{company_profile_info['industry']}]
 
     """, unsafe_allow_html=True)
 
     p[0].markdown(
-        f"""<span style='font-size:1.5em;'>Country</span>  
+        f"""<span style='font-size:1.5em;'>Country</span>
     :green[{company_profile_info['country']}]
 
     """, unsafe_allow_html=True)
 
     p[1].markdown(
-        f"""<span style='font-size:1.5em;'>Number of Employees</span>  
+        f"""<span style='font-size:1.5em;'>Number of Employees</span>
     :green[{int(company_profile_info['fullTimeEmployees']):,}]
 
     """, unsafe_allow_html=True)
 
     p[2].markdown(
-        f"""<span style='font-size:1.5em;'>Sector</span>  
+        f"""<span style='font-size:1.5em;'>Sector</span>
     :green[{company_profile_info['sector']}]
 
     """, unsafe_allow_html=True)
@@ -638,13 +642,17 @@ def create_financial_page(ticker, company_profile_info, col3, p: list, statement
             second_growth = c5.number_input(
                 "Growth rate (next m years):", min_value=0.0, step=0.01, value=0.0)
             projected_revenue = project_metric(df, avg_gr_choices[0], past_n_years=historical_years, first_n_years=forecast_n_years, second_n_years=forecast_m_years,
-                                               first_growth=first_growth, second_growth=second_growth)  # Revenue forecast for the next five years based on growth of past n=10 years
+                                               # Revenue forecast for the next five years based on growth of past n=10 years
+                                               first_growth=first_growth, second_growth=second_growth)
             projected_eps = project_metric(df, avg_gr_choices[1], past_n_years=historical_years, first_n_years=forecast_n_years, second_n_years=forecast_m_years,
-                                           first_growth=first_growth, second_growth=second_growth)  # Revenue forecast for the next five years based on growth of past n=10 years
+                                           # Revenue forecast for the next five years based on growth of past n=10 years
+                                           first_growth=first_growth, second_growth=second_growth)
             projected_netincome = project_metric(df, avg_gr_choices[3], past_n_years=historical_years, first_n_years=forecast_n_years, second_n_years=forecast_m_years,
-                                                 first_growth=first_growth, second_growth=second_growth)  # Revenue forecast for the next five years based on growth of past n=10 years
+                                                 # Revenue forecast for the next five years based on growth of past n=10 years
+                                                 first_growth=first_growth, second_growth=second_growth)
             projected_dividends = project_metric(df, avg_gr_choices[2], past_n_years=historical_years, first_n_years=forecast_n_years, second_n_years=forecast_m_years,
-                                                 first_growth=first_growth, second_growth=second_growth)  # Revenue forecast for the next five years based on growth of past n=10 years
+                                                 # Revenue forecast for the next five years based on growth of past n=10 years
+                                                 first_growth=first_growth, second_growth=second_growth)
             # Depreciation as average of past n=historical_years years for the company
             depreciation = df['depreciationAndAmortization'][-historical_years:].mean()
             # Capital expenditures as average of past n=historical_years years for the company
@@ -735,7 +743,7 @@ def create_financial_page(ticker, company_profile_info, col3, p: list, statement
 
 # TODO: Scrape from SEC.gov (limit of 10 requests per second)
 
-def get_filing_facts(ticker: TickerData, filings_to_scrape: list,):
+def get_filing_facts(ticker: TickerData, filings_to_scrape: list, verbose=False):
     """
     Scrape facts, context, labels, definitions, calculations, metalinks from filings_to_scrape
 
@@ -887,9 +895,66 @@ def get_filing_facts(ticker: TickerData, filings_to_scrape: list,):
             failed_folders.append(dict(folder_url=folder_url, accessionNumber=accessionNumber,
                                   error=f'Failed to merge facts with context and labels for {folder_url}...{e}', filingDate=file.get('filingDate')))
             pass
+
         all_merged_facts = pd.concat(
             [all_merged_facts, merged_facts], ignore_index=True)
         ticker.scrape_logger.info(
             f'Successfully scraped {ticker.ticker}({ticker.cik})-{folder_url}...\n')
+        if verbose:
+            st.success(
+                ticker.ticker + ' ' + file.get('filingDate').strftime('%Y-%m-%d'))
+    all_merged_facts = all_merged_facts.loc[~all_merged_facts['labelText'].isnull(), [
+        'labelText', 'segment', 'startDate', 'endDate', 'instant', 'value', 'unitRef']]
 
     return all_labels, all_calc, all_defn, all_context, all_facts, all_metalinks, all_merged_facts, failed_folders
+
+
+def clean_values_in_facts(merged_facts: pd.DataFrame):
+    df = merged_facts.loc[(~merged_facts['value'].str.contains(
+        '[^0-9\.\-]|(^\d+\-\d+\-\d+$)')) & (merged_facts['value'] != "")].copy()
+    df['value'] = df['value'].astype(float)
+
+    return df
+
+
+def clean_values_in_segment(merged_facts: pd.DataFrame) -> pd.DataFrame:
+    """Segment column of merged facts is cleaned to remove "ticker:" and "us-gaap:" prepend, and to split camel case into separate words (e.g. "us-gaap:RevenuesBeforeTax" becomes "Revenues Before Tax"). 
+
+    Args:
+        merged_facts (pd.DataFrame): merged facts data frame from get_filing_facts.
+
+    Returns:
+        merged_facts (pd.DataFrame): merged facts data frame with segment column cleaned
+    """
+    prepends = [i[0] for i in merged_facts.loc[(merged_facts['segment'].str.contains(':')) & (
+        ~merged_facts['segment'].isna())]['segment'].str.extract(r'(.*:)').drop_duplicates().values]
+    pattern = '|'.join(prepends)
+
+    merged_facts['segment'] = merged_facts['segment']\
+        .str.replace(pat=pattern, repl='', regex=True)\
+        .str.replace(pat=r'([A-Z])', repl=r' \1', regex=True).str.strip()
+    # .apply(lambda x: x[-1] if isinstance(x, list) else x)\
+
+    return merged_facts
+
+
+def split_facts_into_start_instant(merged_facts: pd.DataFrame):
+    """Splits facts into start/end and instant
+
+    Args:
+        merged_facts (pd.DataFrame): merged facts data frame from get_filing_facts
+
+    Returns:
+        merged_facts: merged facts data frame without duplicates on the columns labelText, segment, startDate, endDate, instant, value
+        start_end: start/end facts data frame where startDate and endDate are not null
+        instant: instant facts data frame where instant is not null
+    """
+    merged_facts.drop_duplicates(subset=[
+        'labelText', 'segment', 'startDate', 'endDate', 'instant', 'value'], keep='last', inplace=True)
+
+    start_end = merged_facts.dropna(axis=0, subset=['startDate', 'endDate'])[['labelText', 'segment', 'unitRef',
+                                                                              'startDate', 'endDate', 'value']].sort_values(by=['labelText', 'segment', 'startDate', 'endDate',])
+    instant = merged_facts.dropna(axis=0, subset=['instant'])[
+        ['labelText', 'segment', 'unitRef', 'instant', 'value']].sort_values(by=['labelText', 'segment', 'instant',])
+
+    return merged_facts, start_end, instant

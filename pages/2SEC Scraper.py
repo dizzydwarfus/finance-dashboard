@@ -2,7 +2,7 @@ import pandas as pd
 import streamlit as st
 from utils.database._connector import SECDatabase
 from utils.secscraper.sec_class import SECData, TickerData
-from utils._utils import get_filing_facts
+from utils._utils import get_filing_facts, clean_values_in_facts, clean_values_in_segment, split_facts_into_start_instant
 import json
 
 st.set_page_config(page_title="Investment Dashboard",
@@ -89,8 +89,8 @@ col2.write(ticker_data.__repr_html__(), unsafe_allow_html=True)
 with st.expander('Scrape Filings'):
     filing_chosen = None
     filing_available = None
-    col5, col6, col7, col8, _, _, col9 = st.columns(
-        [1, 0.5, 0.5, 0.5, 1, 0.5, 1])
+    col5, col6, col7, col8, _, _ = st.columns(
+        [1, 0.5, 1, 1, 0.5, 0.5])
     form = col5.selectbox("Choose a filing to scrape", index=None,
                           options=sorted(ticker_data.forms), placeholder='Select a form...', key='scraping_form')
     mode = col6.radio("Select mode", options=[
@@ -128,28 +128,39 @@ with st.expander('Scrape Filings'):
     if st.button('Scrape Facts'):
         labels, calc, defn, context, facts, metalinks, merged_facts, failed_folders = get_filing_facts(
             ticker=ticker_data, filings_to_scrape=filing_to_scrape)
-        presented_facts = merged_facts.loc[~merged_facts['labelText'].isnull(), [
-            'labelText', 'segment', 'startDate', 'endDate', 'instant', 'value', 'unitRef']]
 
-        final_df = presented_facts.loc[(~presented_facts['value'].str.contains(
-            '[^0-9\.\-]|(^\d+\-\d+\-\d+$)')) & (presented_facts['value'] != "")].copy()
-        final_df['value'] = final_df['value'].astype(float)
-        final_df['segment'] = final_df['segment']\
-            .str.replace(f'{ticker.lower()}:', '')\
-            .str.replace(f'us-gaap:', '')\
-            .apply(lambda x: x[-1] if isinstance(x, list) else x)\
-            .str.replace(pat=r'([A-Z])', repl=r' \1', regex=True).str.strip()
-        # start_end = final_df.pivot_table(
-        #     index=['labelText', 'segment', 'startDate', 'endDate',], values='value', aggfunc='sum')
-        start_end = final_df.dropna(axis=0, subset=['startDate', 'endDate'])[['labelText', 'segment', 'unitRef',
-                                                                              'startDate', 'endDate', 'value']].sort_values(by=['labelText', 'segment', 'startDate', 'endDate',])
-        instant = final_df.dropna(axis=0, subset=['instant'])[
-            ['labelText', 'segment', 'unitRef', 'instant', 'value']].sort_values(by=['labelText', 'segment', 'instant',])
+        final_df = clean_values_in_facts(merged_facts)
+
+        final_df = clean_values_in_segment(merged_facts=final_df)
+
+        final_df, start_end, instant = split_facts_into_start_instant(final_df)
 
         excel_final_facts = convert_df(final_df)
 
-        st.dataframe(start_end, use_container_width=True)
-        st.dataframe(instant, use_container_width=True)
-        facts_period = f'{start_year}_to_{end_year}' if mode == 'Range' else date
+        # st.dataframe(start_end, use_container_width=True)
+        # st.dataframe(instant, use_container_width=True)
+        facts_period = f'{start_year}_to_{
+            end_year}' if mode == 'Range' else date
         st.download_button(label="Download Facts as CSV", data=excel_final_facts,
                            file_name=f"{ticker_data.ticker}_{form}_{facts_period}.csv")
+
+        if final_df not in st.session_state:
+            st.session_state['final_df'] = final_df
+        else:
+            st.session_state['final_df'] = final_df
+
+# st.write(st.session_state['final_df'])
+
+with st.expander('Show Facts'):
+    df_to_plot = st.session_state['final_df']
+
+    metric_options = df_to_plot['labelText'].unique()
+    metric = st.selectbox('Choose a metric', options=metric_options)
+
+    segment_options = df_to_plot.loc[df_to_plot['labelText']
+                                     == metric, 'segment'].unique()
+    segment = st.selectbox('Choose a segment', options=segment_options)
+
+    metric_df = df_to_plot.query(
+        f"labelText == '{metric}' and segment == '{segment}'")
+    st.dataframe(metric_df, use_container_width=True)
