@@ -139,8 +139,8 @@ with st.expander('Scrape Filings'):
 
         # st.dataframe(start_end, use_container_width=True)
         # st.dataframe(instant, use_container_width=True)
-        facts_period = f'{start_year}_to_{
-            end_year}' if mode == 'Range' else date
+        facts_period = f'{start_year}_to_{end_year}' if mode == 'Range' else date
+        
         st.download_button(label="Download Facts as CSV", data=excel_final_facts,
                            file_name=f"{ticker_data.ticker}_{form}_{facts_period}.csv")
 
