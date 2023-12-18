@@ -154,11 +154,11 @@ with st.expander('Show Facts'):
 
     df_to_plot = st.session_state['final_df']
 
-    metric_options = df_to_plot['labelText'].unique()
+    metric_options = df_to_plot['labelText'].sort_values().unique()
     metric = st.selectbox('Choose a metric', options=metric_options)
 
     segment_options = df_to_plot.loc[df_to_plot['labelText']
-                                     == metric, 'segment'].unique()
+                                     == metric, 'segment'].sort_values().unique()
     segment = st.selectbox('Choose a segment', options=segment_options)
 
     metric_df = df_to_plot.query(
