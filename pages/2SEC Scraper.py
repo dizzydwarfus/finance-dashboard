@@ -35,10 +35,8 @@ st.markdown(
 
 with st.expander('Important Disclaimer'):
     st.warning('This page is still under development, please use with caution.')
-    st.info(
-        'The SEC database is updated daily, so if you do not see the latest filings for a company, please try again later.')
-    st.info(
-        'The facts can be scraped from the filings, but the names of the facts are not standardized, but all facts with float values should be present. ')
+    st.info('The SEC database is updated daily, so if you do not see the latest filings for a company, please try again later.')
+    st.info('The facts can be scraped from the filings, but the names of the facts are not standardized, but all facts with float values should be present. ')
 
 col1, col2 = st.columns([1, 3])
 ticker_choice = col1.selectbox("Company Name",
@@ -89,8 +87,7 @@ col2.write(ticker_data.__repr_html__(), unsafe_allow_html=True)
 with st.expander('Scrape Filings'):
     filing_chosen = None
     filing_available = None
-    col5, col6, col7, col8, _, _ = st.columns(
-        [1, 0.5, 1, 1, 0.5, 0.5])
+    col5, col6, col7, col8, _, _ = st.columns([1, 0.5, 1, 1, 0.5, 0.5])
     form = col5.selectbox("Choose a filing to scrape", index=None,
                           options=sorted(ticker_data.forms), placeholder='Select a form...', key='scraping_form')
     mode = col6.radio("Select mode", options=[
@@ -122,8 +119,7 @@ with st.expander('Scrape Filings'):
     st.divider()
 
     if filing_available is not None:
-        filing_to_scrape = filing_available.to_dict(
-            orient='records')
+        filing_to_scrape = filing_available.to_dict(orient='records')
 
     if st.button('Scrape Facts'):
         labels, calc, defn, context, facts, metalinks, merged_facts, failed_folders = get_filing_facts(
@@ -140,7 +136,7 @@ with st.expander('Scrape Filings'):
         # st.dataframe(start_end, use_container_width=True)
         # st.dataframe(instant, use_container_width=True)
         facts_period = f'{start_year}_to_{end_year}' if mode == 'Range' else date
-        
+
         st.download_button(label="Download Facts as CSV", data=excel_final_facts,
                            file_name=f"{ticker_data.ticker}_{form}_{facts_period}.csv")
 

@@ -118,9 +118,7 @@ def get_statement(ticker: str, statement: str, api_key: str) -> dict:
 # download stock split
 def download_stocksplit(ticker: str, api_key: str) -> dict:
     r = requests.get(
-        f"https://financialmodelingprep.com/api/v3/historical-price-full/stock_split/{
-            ticker}?apikey={api_key}"
-    )
+        f"https://financialmodelingprep.com/api/v3/historical-price-full/stock_split/{ticker}?apikey={api_key}")
     r = r.json()
     return r
 
@@ -141,9 +139,7 @@ def stock_price_api(ticker: str, api_key: str) -> dict:
 
 def realtime_price(ticker: str, api_key: str) -> dict:
     r = requests.get(
-        f"https://financialmodelingprep.com/api/v3/quote-short/{
-            ticker}?apikey={api_key}"
-    )
+        f"https://financialmodelingprep.com/api/v3/quote-short/{ticker}?apikey={api_key}")
     r = r.json()
     return r
 
@@ -153,9 +149,7 @@ def realtime_price(ticker: str, api_key: str) -> dict:
 @st.cache_data(ttl=86400)
 def treasury(maturiy: str, api_key: str) -> dict:
     r = requests.get(
-        f"https://www.alphavantage.co/query?function=TREASURY_YIELD&interval=daily&maturity={
-            maturiy}&apikey={api_key}"
-    )
+        f"https://www.alphavantage.co/query?function=TREASURY_YIELD&interval=daily&maturity={maturiy}&apikey={api_key}")
     r = r.json()
     return r
 
@@ -165,9 +159,7 @@ def treasury(maturiy: str, api_key: str) -> dict:
 @st.cache_data
 def stock_peers(ticker, api_key: str):
     r = requests.get(
-        f"https://financialmodelingprep.com/api/v4/stock_peers?symbol={
-            ticker}&apikey={api_key}"
-    )
+        f"https://financialmodelingprep.com/api/v4/stock_peers?symbol={ticker}&apikey={api_key}")
     r = r.json()
     return r
 
@@ -220,8 +212,8 @@ def insert_to_mongoDB(collection, ticker, statement, second_key):
             x.pop('4. close')
             x.pop('5. volume')
 
-        ids = [x['index_id'] for i, x in file['Time Series (Daily)'].items() if x['index_id']
-               not in access_entry(collection, 'symbol', ticker, 'index_id')]
+        ids = [x['index_id'] for i, x in file['Time Series (Daily)'].items(
+        ) if x['index_id'] not in access_entry(collection, 'symbol', ticker, 'index_id')]
         try:
             collection.insert_many(
                 [x for i, x in file['Time Series (Daily)'].items() if x['index_id'] in ids])
@@ -288,15 +280,10 @@ def generate_plots(dataframe, arrangement: tuple, metric, terms_interested: dict
             # Add traces (graphs)
             fig.add_trace(
                 go.Bar(
-                    x=dataframe.index, y=dataframe[f'{n}'], texttemplate="$%{value:,}", textposition="inside", name=f"{n.capitalize()}"),
-                secondary_y=False,
-            )
+                    x=dataframe.index, y=dataframe[f'{n}'], texttemplate="$%{value:,}", textposition="inside", name=f"{n.capitalize()}"), secondary_y=False,)
 
             fig.add_trace(
-                go.Scatter(
-                    x=dataframe.index, y=growth, text=[i for i in growth], mode="lines+markers", opacity=0.3, marker=dict({'color': 'darkorange'}), name="Growth Y-o-Y"),
-                secondary_y=True,
-            )
+                go.Scatter(x=dataframe.index, y=growth, text=[i for i in growth], mode="lines+markers", opacity=0.3, marker=dict({'color': 'darkorange'}), name="Growth Y-o-Y"), secondary_y=True,)
 
             # Update figure title, legend, axes
             fig.update_layout(showlegend=False,
@@ -311,12 +298,11 @@ def generate_plots(dataframe, arrangement: tuple, metric, terms_interested: dict
                                      'font': {'size': 25}},
                               font={'size': 15})
             fig.update_yaxes(showgrid=False, zeroline=True, secondary_y=False)
-            fig.update_yaxes(
-                title_text="Growth Y-o-Y", secondary_y=True, showgrid=False, zeroline=False)
+            fig.update_yaxes(title_text="Growth Y-o-Y",
+                             secondary_y=True, showgrid=False, zeroline=False)
 
             # Plot the chart in its respective column based on loop
-            cols[m].plotly_chart(
-                fig, use_container_width=True,)
+            cols[m].plotly_chart(fig, use_container_width=True,)
 
 
 # generate plots for historical price
@@ -327,16 +313,10 @@ def historical_plots(dataframe, arrangement, date):
 
     # Add traces (graphs)
     fig.add_trace(
-        go.Candlestick(
-            x=dataframe.loc[(dataframe.index.date >= date[0]) & (dataframe.index.date < date[-1])].index, open=dataframe[f'open'], high=dataframe['high'], low=dataframe['low'], close=dataframe[f'close']),
-        secondary_y=False,
-    )
+        go.Candlestick(x=dataframe.loc[(dataframe.index.date >= date[0]) & (dataframe.index.date < date[-1])].index, open=dataframe[f'open'], high=dataframe['high'], low=dataframe['low'], close=dataframe[f'close']), secondary_y=False,)
 
     fig.add_trace(
-        go.Bar(
-            x=dataframe.loc[(dataframe.index.date >= date[0]) & (dataframe.index.date < date[-1])].index, y=dataframe['volume'], opacity=0.2, marker=dict({'color': 'darkorange'}), textposition="inside", name="Daily Volume"),
-        secondary_y=True,
-    )
+        go.Bar(x=dataframe.loc[(dataframe.index.date >= date[0]) & (dataframe.index.date < date[-1])].index, y=dataframe['volume'], opacity=0.2, marker=dict({'color': 'darkorange'}), textposition="inside", name="Daily Volume"), secondary_y=True,)
 
     # Update figure title, legend, axes
     fig.update_layout(height=1000,
@@ -352,11 +332,10 @@ def historical_plots(dataframe, arrangement, date):
                              'font': {'size': 25}},
                       font={'size': 15})
     fig.update_yaxes(showgrid=False, zeroline=True, secondary_y=False)
-    fig.update_yaxes(
-        title_text="Daily Volume", secondary_y=True, showgrid=False, zeroline=False)
+    fig.update_yaxes(title_text="Daily Volume",
+                     secondary_y=True, showgrid=False, zeroline=False)
 
-    cols[0].plotly_chart(
-        fig, use_container_width=True,)
+    cols[0].plotly_chart(fig, use_container_width=True,)
 
 
 # function to format pandas dataframe
