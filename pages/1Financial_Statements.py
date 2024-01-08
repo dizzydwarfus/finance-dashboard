@@ -1,6 +1,7 @@
 import streamlit as st
-from utils._utils import get_tickers, create_financial_page, read_profile, generate_statements_type, generate_terms, read_statement, get_api
+from utils._utils import create_financial_page, generate_statements_type, generate_terms, get_api
 from utils.database._connector import get_data
+from utils._mongo import read_profile, get_tickers
 #####################################################
 
 # Define dropdowns and set page config
@@ -9,8 +10,10 @@ from utils.database._connector import get_data
 fmp_api, alpha_vantage_api = get_api()
 
 balance_sheet_collection, income_collection, cash_collection, company_profile, historical, stock_split = get_data()
+
 statements_type = generate_statements_type(
     _income_collection=income_collection, _cash_collection=cash_collection, _balance_sheet_collection=balance_sheet_collection)
+
 terms_interested = generate_terms()
 tickers = get_tickers(balance_sheet_collection)
 
@@ -111,6 +114,13 @@ st.markdown(f"""
 p1, p2, p3 = st.columns([1, 1, 1])
 
 create_financial_page(ticker_list_box, companyA_info, st, [
-                      p1, p2, p3], statements_type=statements_type, terms_interested=terms_interested, api_key=alpha_vantage_api)
+                      p1, p2, p3], statements_type=statements_type, terms_interested=terms_interested, api_key=alpha_vantage_api, historical=historical)
+
+st.write(same_sector)
 
 st.markdown("***[Data provided by Financial Modeling Prep](https://financialmodelingprep.com/developer/docs/)***", unsafe_allow_html=True)
+
+#TODO: create a new tab to compare entry and exit positions with profit including tax rate
+#TODO: allow user to enter entry and exit date, amount to invest, with supposed tax rate on exit date
+#TODO: create function to calculate profit based on entry and exit date and amount invested
+#TODO: use plotly to visualize entry (green diamond) and exit (red diamond) positions on a candlestick/line chart

@@ -1,14 +1,16 @@
+# Built-in libraries
+import datetime as dt
+import math
+
+# Third-party libraries
 import streamlit as st
-import json
 import pandas as pd
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
-import requests
-from pymongo import DESCENDING
-from pymongo.collection import Collection
-import datetime as dt
-import math
-from utils.secscraper.sec_class import SECData, TickerData
+
+# Internal imports
+from utils._alphavantageAPI import treasury
+from utils._mongo import read_statement
 
 
 @st.cache_resource
@@ -16,12 +18,6 @@ def get_api():
     fmp_api = st.secrets["fmp_api"]
     alpha_vantage_api = st.secrets["rapidapi_key"]
     return fmp_api, alpha_vantage_api
-
-
-@st.cache_data
-def get_tickers(_collection: Collection) -> list:
-    tickers = list(set([i['symbol'] for i in _collection.find()]))
-    return tickers
 
 
 def generate_statements_type(**mongo_collections) -> dict:
@@ -52,24 +48,6 @@ def generate_terms():
     return terms_interested
 
 
-@st.cache_data
-def read_profile(ticker: str, _mongodb_collection: Collection) -> dict:
-
-    statement = [i for i in _mongodb_collection.find(
-        {'symbol': ticker}).sort('date', DESCENDING)]
-
-    return statement
-
-
-# @st.cache_data
-def read_statement(ticker, _mongodb_collection: Collection) -> list:
-
-    statement = [i for i in _mongodb_collection.find(
-        {'symbol': ticker}).sort('date', DESCENDING)]
-
-    return statement
-
-
 # generate key metrics table
 def generate_key_metrics(financial_statement: dict, _list_of_metrics: list) -> pd.DataFrame:
     l = []
@@ -95,169 +73,12 @@ def generate_key_metrics(financial_statement: dict, _list_of_metrics: list) -> p
     return df
 
 
-# download company financial statements
-@st.cache_data(ttl=86400)
-def get_statement(ticker: str, statement: str, api_key: str) -> dict:
-    """
-    Downloads statement or profile for a given company.
-
-    Parameters:
-    ticker (str): The stock ticker symbol for the company.
-    statement (str): The type of financial statement to download ['income-statement', 'balance-sheet-statement', 'cash-flow-statement', 'profile'].
-    api_key (str): The API key to use for authentication.
-
-    Returns:
-    dict: A dictionary containing the financial statement data for the specified company.
-    """
-    r = requests.get(
-        f"https://financialmodelingprep.com/api/v3/{statement}/{ticker}?apikey={api_key}")
-    r = r.json()
-    return r
-
-
-# download stock split
-def download_stocksplit(ticker: str, api_key: str) -> dict:
-    r = requests.get(
-        f"https://financialmodelingprep.com/api/v3/historical-price-full/stock_split/{ticker}?apikey={api_key}")
-    r = r.json()
-    return r
-
-
-# download stock price
-def stock_price_api(ticker: str, api_key: str) -> dict:
-    url = "https://alpha-vantage.p.rapidapi.com/query"
-    headers = {"X-RapidAPI-Key": api_key,
-               "X-RapidAPI-Host": "alpha-vantage.p.rapidapi.com"}
-    querystring = {"function": "TIME_SERIES_DAILY",
-                   "symbol": f"{ticker}", "outputsize": "full", "datatype": "json"}
-    response = requests.request(
-        "GET", url=url, headers=headers, params=querystring)
-    return response.json()
-
-# download company real-time stock price
-
-
-def realtime_price(ticker: str, api_key: str) -> dict:
-    r = requests.get(
-        f"https://financialmodelingprep.com/api/v3/quote-short/{ticker}?apikey={api_key}")
-    r = r.json()
-    return r
-
-# retrieve latest treasury yield
-
-
-@st.cache_data(ttl=86400)
-def treasury(maturiy: str, api_key: str) -> dict:
-    r = requests.get(
-        f"https://www.alphavantage.co/query?function=TREASURY_YIELD&interval=daily&maturity={maturiy}&apikey={api_key}")
-    r = r.json()
-    return r
-
-# download company stock peers
-
-
-@st.cache_data
-def stock_peers(ticker, api_key: str):
-    r = requests.get(
-        f"https://financialmodelingprep.com/api/v4/stock_peers?symbol={ticker}&apikey={api_key}")
-    r = r.json()
-    return r
-
-
 # define index for each json
 def define_id(json_file):
     for i in json_file:
         i['index_id'] = f"{i['symbol']}_{i['date']}"
 
-
-# access entries in collection
-def access_entry(_collection_name, entry_name, entry_value, return_value):
-    data = _collection_name.find({entry_name: entry_value})
-
-    data = [i[return_value] for i in data]
-
-    return data
-
-
-# Function to insert file to database
-def insert_to_mongoDB(collection, ticker, statement, second_key):
-    if statement == 'profile':
-        file = read_profile(ticker, collection)
-        # file2 = stock_peers(ticker)
-        file[0]['index_id'] = f"{file[0]['symbol']}_{file[0][second_key]}"
-
-        if st.session_state['profile_update']:
-            collection.delete_one({'symbol': ticker})
-        try:
-            collection.insert_one(file[0])
-            # collection.insert_one(file2[0])
-            return st.success(f"{ticker} {statement} updated!", icon="✅")
-        except:
-            return st.error(f"{ticker} {statement} already exists", icon="🚨")
-
-    elif statement == 'stock_price':
-        file = stock_price_api(ticker)
-        for i, x in file['Time Series (Daily)'].items():
-            x['index_id'] = f"{ticker}_{i}"
-            x['symbol'] = f"{ticker}"
-            x[second_key] = dt.datetime.strptime(i, '%Y-%m-%d')
-            x['open'] = x['1. open']
-            x['high'] = x['2. high']
-            x['low'] = x['3. low']
-            x['close'] = x['4. close']
-            x['volume'] = x['5. volume']
-            x.pop('1. open')
-            x.pop('2. high')
-            x.pop('3. low')
-            x.pop('4. close')
-            x.pop('5. volume')
-
-        ids = [x['index_id'] for i, x in file['Time Series (Daily)'].items(
-        ) if x['index_id'] not in access_entry(collection, 'symbol', ticker, 'index_id')]
-        try:
-            collection.insert_many(
-                [x for i, x in file['Time Series (Daily)'].items() if x['index_id'] in ids])
-            return st.success(f"{ticker} {statement} updated!", icon="✅")
-
-        except:
-            return st.error(f"{ticker} {statement} already exists", icon="🚨")
-
-    elif statement == 'stock_split':
-        file = download_stocksplit(ticker)
-        for i in file['historical']:
-            i['index_id'] = f"{file['symbol']}_{i[second_key]}"
-            i['symbol'] = f"{file['symbol']}"
-            i[second_key] = dt.datetime.strptime(i['date'], '%Y-%m-%d')
-
-        ids = [i['index_id'] for i in file['historical'] if i['index_id']
-               not in access_entry(collection, 'symbol', ticker, 'index_id')]
-
-        try:
-            collection.insert_many(
-                [i for i in file['historical'] if i['index_id'] in ids])
-            return st.success(f"{ticker} {statement} updated!", icon="✅")
-
-        except:
-            return st.error(f"{ticker} {statement} already exists", icon="🚨")
-    else:
-        file = get_statement(ticker, statement)
-
-        if len(file) <= 1:
-            pass
-        else:
-            for i in file:
-                i['index_id'] = f"{i['symbol']}_{i[second_key]}"
-
-            ids = [i['index_id'] for i in file if i['index_id']
-                   not in access_entry(collection, 'symbol', ticker, 'index_id')]
-
-            try:
-                collection.insert_many(
-                    [i for i in file if i['index_id'] in ids])
-                return st.success(f"{ticker} {statement} updated!", icon="✅")
-            except:
-                return st.error(f"{ticker} {statement} already exists", icon="🚨")
-
+    return json_file
 
 # function to generate growth over time plots
 @st.cache_data
@@ -464,7 +285,7 @@ def intrinsic_value(df, ebitda_margin, terminal_growth_rate, wacc, tax_rate, dep
 
 
 # function to create financial_statements page
-def create_financial_page(ticker, company_profile_info, col3, p: list, statements_type: list, terms_interested: dict, api_key: str):
+def create_financial_page(ticker, company_profile_info, col3, p: list, statements_type: list, terms_interested: dict, api_key: str, historical):
 
     p[0].markdown(
         f"""<span style='font-size:1.5em;'>CEO</span>
@@ -505,8 +326,8 @@ def create_financial_page(ticker, company_profile_info, col3, p: list, statement
     # historical, income_tab, cash_tab, balance_tab, key_metrics_tab, charts_tab = col3.tabs(
     #     ["Historical", "Income Statement", "Cash Flow", "Balance Sheet", "Key Metrics", "Charts"], )
 
-    income_tab, cash_tab, balance_tab, key_metrics_tab, charts_tab, DCF_tab = col3.tabs(
-        ["Income Statement", "Cash Flow", "Balance Sheet", "Key Metrics", "Charts", "DCF Calculator"], )
+    historical_tab, income_tab, cash_tab, balance_tab, key_metrics_tab, charts_tab, DCF_tab = col3.tabs(
+        ["Historical","Income Statement", "Cash Flow", "Balance Sheet", "Key Metrics", "Charts", "DCF Calculator"], )
 
     for i, x in enumerate([income_tab, cash_tab, balance_tab]):
         with x:
@@ -559,11 +380,12 @@ def create_financial_page(ticker, company_profile_info, col3, p: list, statement
         generate_plots(master_table_unformatted, [
                        1], chart_select, terms_interested=terms_interested)
 
-    # with historical_tab:
-    #     df_historical = pd.DataFrame.from_records([x for i,x in enumerate(historical.find({'symbol':ticker}))], index='date').sort_index()
-    #     date_select = st.slider("Select date range:", min_value=df_historical.index.date[0], max_value=df_historical.index.date[-1], value=(df_historical.index.date[-365],df_historical.index.date[-1]))
-    #     historical_plots(df_historical, [1], date_select)
+    with historical_tab:
+        df_historical = pd.DataFrame.from_records([x for i,x in enumerate(historical.find({'symbol':ticker}))], index='date').sort_index()
+        date_select = st.slider("Select date range:", min_value=df_historical.index.date[0], max_value=df_historical.index.date[-1], value=(df_historical.index.date[-365],df_historical.index.date[-1]))
+        historical_plots(df_historical, [1], date_select)
 
+        #TODO: insert input for entry, exit, amount, and calculate return with tax rate
     with DCF_tab:
         con1, con2, con3, con2_3 = st.container(
         ), st.container(), st.container(), st.container()
@@ -718,222 +540,3 @@ def create_financial_page(ticker, company_profile_info, col3, p: list, statement
 
         except:
             pass
-
-
-# TODO: Scrape from SEC.gov (limit of 10 requests per second)
-
-def get_filing_facts(ticker: TickerData, filings_to_scrape: list, verbose=False):
-    """
-    Scrape facts, context, labels, definitions, calculations, metalinks from filings_to_scrape
-
-    ### Parameters
-    ----------
-    ticker : TickerData
-        TickerData object
-    filings_to_scrape : list
-        list of filings dict to scrape
-
-    ### Returns
-    -------
-    all_labels : pd.DataFrame
-        all labels scraped
-    all_calc : pd.DataFrame
-        all calculations scraped
-    all_defn : pd.DataFrame
-        all definitions scraped
-    all_context : pd.DataFrame
-        all contexts scraped
-    all_facts : pd.DataFrame
-        all facts scraped
-    all_metalinks : pd.DataFrame    
-        all metalinks scraped
-    all_merged_facts : pd.DataFrame
-        all merged facts scraped
-    failed_folders : list
-        list of failed folders
-    """
-    all_labels = pd.DataFrame()
-    all_calc = pd.DataFrame()
-    all_defn = pd.DataFrame()
-    all_context = pd.DataFrame()
-    all_facts = pd.DataFrame()
-    all_metalinks = pd.DataFrame()
-    all_merged_facts = pd.DataFrame()
-    failed_folders = []
-
-    for file in filings_to_scrape:
-        if (file.get('form') != '10-Q' or file.get('form') != '10-K') and file.get('filingDate') < dt.datetime(2009, 1, 1):
-            continue
-
-        accessionNumber = file.get('accessionNumber')
-        folder_url = file.get('folder_url')
-        file_url = file.get('file_url')
-        ticker.scrape_logger.info(
-            file.get('filingDate').strftime('%Y-%m-%d') + ': ' + folder_url)
-
-        soup = ticker.get_file_data(file_url=file_url)
-
-        # Scrape facts, context, metalinks
-        try:
-            metalinks = ticker.get_metalinks(
-                folder_url=folder_url + '/MetaLinks.json')
-            metalinks['accessionNumber'] = accessionNumber
-            all_metalinks = pd.concat(
-                [all_metalinks, metalinks], ignore_index=True)
-        except Exception as e:
-            ticker.scrape_logger.error(
-                f'Failed to scrape metalinks for {folder_url}...{e}')
-            failed_folders.append(dict(folder_url=folder_url, accessionNumber=accessionNumber,
-                                  error=f'Failed to scrape metalinks for {folder_url}...{e}', filingDate=file.get('filingDate')))
-            pass
-
-        try:
-            facts = ticker.search_facts(soup=soup)
-            facts['accessionNumber'] = accessionNumber
-            all_facts = pd.concat([all_facts, facts], ignore_index=True)
-        except Exception as e:
-            ticker.scrape_logger.error(
-                f'Failed to scrape facts for {folder_url}...{e}')
-            failed_folders.append(dict(folder_url=folder_url, accessionNumber=accessionNumber,
-                                  error=f'Failed to scrape facts for {folder_url}...{e}', filingDate=file.get('filingDate')))
-            pass
-        try:
-            context = ticker.search_context(soup=soup)
-            context['accessionNumber'] = accessionNumber
-            all_context = pd.concat([all_context, context], ignore_index=True)
-        except Exception as e:
-            ticker.scrape_logger.error(
-                f'Failed to scrape context for {folder_url}...{e}')
-            failed_folders.append(dict(folder_url=folder_url, accessionNumber=accessionNumber,
-                                  error=f'Failed to scrape context for {folder_url}...{e}', filingDate=file.get('filingDate')))
-            pass
-
-        index_df = ticker.get_filing_folder_index(folder_url=folder_url)
-
-        try:  # Scrape labels
-            labels = ticker.get_elements(folder_url=folder_url, index_df=index_df,
-                                         scrape_file_extension='_lab').query("`xlink:type` == 'resource'")
-            labels['xlink:role'] = labels['xlink:role'].str.split(
-                '/').apply(lambda x: x[-1])
-            labels['xlink:label'] = labels['xlink:label'].str\
-                .replace('(lab_)|(_en-US)', '', regex=True).str\
-                .split('_')\
-                .apply(lambda x: ':'.join(x[:2]))\
-                .str.lower()
-            labels['accessionNumber'] = accessionNumber
-            all_labels = pd.concat([all_labels, labels], ignore_index=True)
-
-        except Exception as e:
-            ticker.scrape_logger.error(
-                f'Failed to scrape labels for {folder_url}...{e}')
-            failed_folders.append(dict(folder_url=folder_url, accessionNumber=accessionNumber,
-                                  error=f'Failed to scrape labels for {folder_url}...{e}', filingDate=file.get('filingDate')))
-            pass
-
-        try:  # Scrape calculations
-            calc = ticker.get_elements(folder_url=folder_url, index_df=index_df,
-                                       scrape_file_extension='_cal').query("`xlink:type` == 'arc'")
-            calc['accessionNumber'] = accessionNumber
-            all_calc = pd.concat([all_calc, calc], ignore_index=True)
-        except Exception as e:
-            ticker.scrape_logger.error(
-                f'Failed to scrape calc for {folder_url}...{e}')
-            failed_folders.append(dict(folder_url=folder_url, accessionNumber=accessionNumber,
-                                  error=f'Failed to scrape calc for {folder_url}...{e}', filingDate=file.get('filingDate')))
-            pass
-
-        try:  # Scrape definitions
-            defn = ticker.get_elements(folder_url=folder_url, index_df=index_df,
-                                       scrape_file_extension='_def').query("`xlink:type` == 'arc'")
-            defn['accessionNumber'] = accessionNumber
-            all_defn = pd.concat([all_defn, defn], ignore_index=True)
-        except Exception as e:
-            ticker.scrape_logger.error(
-                f'Failed to scrape defn for {folder_url}...{e}')
-            failed_folders.append(dict(folder_url=folder_url, accessionNumber=accessionNumber,
-                                  error=f'Failed to scrape defn for {folder_url}...{e}', filingDate=file.get('filingDate')))
-            pass
-
-        if len(facts) == 0:
-            ticker.scrape_logger.info(
-                f'No facts found for {ticker.ticker}({ticker.cik})-{folder_url}...\n')
-            continue
-
-        ticker.scrape_logger.info(
-            f'Merging facts with context and labels. Current facts length: {len(facts)}...')
-        try:
-            merged_facts = facts.merge(context, how='left', left_on='contextRef', right_on='contextId')\
-                .merge(labels.query("`xlink:role` == 'label'"), how='left', left_on='factName', right_on='xlink:label')
-            merged_facts = merged_facts.drop(
-                ['accessionNumber_x', 'accessionNumber_y'], axis=1)
-            ticker.scrape_logger.info(
-                f'Successfully merged facts with context and labels. Merged facts length: {len(merged_facts)}...')
-        except Exception as e:
-            ticker.scrape_logger.error(
-                f'Failed to merge facts with context and labels for {folder_url}...{e}')
-            failed_folders.append(dict(folder_url=folder_url, accessionNumber=accessionNumber,
-                                  error=f'Failed to merge facts with context and labels for {folder_url}...{e}', filingDate=file.get('filingDate')))
-            pass
-
-        all_merged_facts = pd.concat(
-            [all_merged_facts, merged_facts], ignore_index=True)
-        ticker.scrape_logger.info(
-            f'Successfully scraped {ticker.ticker}({ticker.cik})-{folder_url}...\n')
-        if verbose:
-            st.success(
-                ticker.ticker + ' ' + file.get('filingDate').strftime('%Y-%m-%d'))
-    all_merged_facts = all_merged_facts.loc[~all_merged_facts['labelText'].isnull(), [
-        'labelText', 'segment', 'startDate', 'endDate', 'instant', 'value', 'unitRef']]
-
-    return all_labels, all_calc, all_defn, all_context, all_facts, all_metalinks, all_merged_facts, failed_folders
-
-
-def clean_values_in_facts(merged_facts: pd.DataFrame):
-    df = merged_facts.loc[(~merged_facts['value'].str.contains(
-        '[^0-9\.\-]|(^\d+\-\d+\-\d+$)')) & (merged_facts['value'] != "")].copy()
-    df['value'] = df['value'].astype(float)
-
-    return df
-
-
-def clean_values_in_segment(merged_facts: pd.DataFrame) -> pd.DataFrame:
-    """Segment column of merged facts is cleaned to remove "ticker:" and "us-gaap:" prepend, and to split camel case into separate words (e.g. "us-gaap:RevenuesBeforeTax" becomes "Revenues Before Tax"). 
-
-    Args:
-        merged_facts (pd.DataFrame): merged facts data frame from get_filing_facts.
-
-    Returns:
-        merged_facts (pd.DataFrame): merged facts data frame with segment column cleaned
-    """
-    prepends = [i[0] for i in merged_facts.loc[(merged_facts['segment'].str.contains(':')) & (
-        ~merged_facts['segment'].isna())]['segment'].str.extract(r'(.*:)').drop_duplicates().values]
-    pattern = '|'.join(prepends)
-
-    merged_facts['segment'] = merged_facts['segment']\
-        .str.replace(pat=pattern, repl='', regex=True)\
-        .str.replace(pat=r'([A-Z])', repl=r' \1', regex=True).str.strip()
-    # .apply(lambda x: x[-1] if isinstance(x, list) else x)\
-
-    return merged_facts
-
-
-def split_facts_into_start_instant(merged_facts: pd.DataFrame):
-    """Splits facts into start/end and instant
-
-    Args:
-        merged_facts (pd.DataFrame): merged facts data frame from get_filing_facts
-
-    Returns:
-        merged_facts: merged facts data frame without duplicates on the columns labelText, segment, startDate, endDate, instant, value
-        start_end: start/end facts data frame where startDate and endDate are not null
-        instant: instant facts data frame where instant is not null
-    """
-    merged_facts.drop_duplicates(subset=[
-        'labelText', 'segment', 'startDate', 'endDate', 'instant', 'value'], keep='last', inplace=True)
-
-    start_end = merged_facts.dropna(axis=0, subset=['startDate', 'endDate'])[['labelText', 'segment', 'unitRef',
-                                                                              'startDate', 'endDate', 'value']].sort_values(by=['labelText', 'segment', 'startDate', 'endDate',])
-    instant = merged_facts.dropna(axis=0, subset=['instant'])[
-        ['labelText', 'segment', 'unitRef', 'instant', 'value']].sort_values(by=['labelText', 'segment', 'instant',])
-
-    return merged_facts, start_end, instant

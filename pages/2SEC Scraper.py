@@ -2,8 +2,7 @@ import pandas as pd
 import streamlit as st
 from utils.database._connector import SECDatabase
 from utils.secscraper.sec_class import SECData, TickerData
-from utils._utils import get_filing_facts, clean_values_in_facts, clean_values_in_segment, split_facts_into_start_instant
-import json
+from utils.secscraper._utils import get_filing_facts, clean_values_in_facts, clean_values_in_segment, split_facts_into_start_instant, get_monthly_period
 
 st.set_page_config(page_title="Investment Dashboard",
                    page_icon=":moneybag:",
@@ -125,6 +124,8 @@ with st.expander('Scrape Filings'):
         labels, calc, defn, context, facts, metalinks, merged_facts, failed_folders = get_filing_facts(
             ticker=ticker_data, filings_to_scrape=filing_to_scrape)
 
+        final_df = get_monthly_period(merged_facts)
+        
         final_df = clean_values_in_facts(merged_facts)
 
         final_df = clean_values_in_segment(merged_facts=final_df)
@@ -159,6 +160,7 @@ with st.expander('Show Facts'):
 
     segment_options = df_to_plot.loc[df_to_plot['labelText']
                                      == metric, 'segment'].sort_values().unique()
+    
     segment = st.selectbox('Choose a segment', options=segment_options)
 
     metric_df = df_to_plot.query(

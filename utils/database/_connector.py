@@ -2,7 +2,7 @@ import streamlit as st
 from pymongo import MongoClient, ASCENDING
 from pymongo import MongoClient, ASCENDING, IndexModel, UpdateOne
 from pymongo.errors import OperationFailure
-from utils.logger import MyLogger
+from utils._logger import MyLogger
 import datetime as dt
 
 

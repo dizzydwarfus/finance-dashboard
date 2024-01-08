@@ -7,7 +7,7 @@ from ratelimit import limits, sleep_and_retry
 from bs4 import BeautifulSoup
 from tqdm import trange
 import re
-from utils.logger import MyLogger
+from utils._logger import MyLogger
 
 
 def convert_keys_to_lowercase(d):

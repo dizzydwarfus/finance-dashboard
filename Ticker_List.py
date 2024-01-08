@@ -1,9 +1,22 @@
 
-import pandas as pd
+# Built-in imports
 import json
+from functools import partial
+
+# Third-party imports
+import pandas as pd
 import streamlit as st
-from utils._utils import get_tickers, insert_to_mongoDB
+
+# Internal imports
+from utils._mongo import get_tickers, insert_to_mongoDB
 from utils.database._connector import get_data
+from utils._utils import get_api
+
+
+fmp_api, alpha_vantage_api = get_api()
+
+mongo_insert = partial(insert_to_mongoDB, fmp_api=fmp_api,
+                       alpha_vantage_api=alpha_vantage_api)
 #####################################################
 
 # Set page config
@@ -63,17 +76,7 @@ if etoro_list is not None:
 # Append manual entries to list: tickers
 if manual_list != "" and manual_list not in tickers:
     tickers.extend(manual_list)
-    # col2.write(tickers)
 
-# def is_non_zero_file(fpath):
-#     return os.path.isfile(fpath) and os.path.getsize(fpath) > 0
-
-
-# def no_file(fpath):
-#     return not os.path.isfile(fpath) or os.path.getsize(fpath) == 0
-
-
-# st.write(st.session_state)
 
 # Check list of tickers in database instead of locally
 balance_list = balance_sheet_collection.distinct('symbol')
@@ -187,18 +190,20 @@ historical_download = col12.checkbox(
     "Enable download of historical price data", key='historical_price')
 stock_split_download = col13.checkbox(
     "Enable download of stock split data", key='stock_split_data')
+
+
 if st.button("Download Statements :ledger:"):
     if manual_download:
         for i, x in enumerate(eval(list_tickers)):
 
-            insert_to_mongoDB(income_collection, x, 'income-statement', 'date')
-            insert_to_mongoDB(balance_sheet_collection, x,
-                              'balance-sheet-statement', 'date')
-            insert_to_mongoDB(cash_collection, x,
-                              'cash-flow-statement', 'date')
-            insert_to_mongoDB(company_profile, x, 'profile', 'ipoDate')
-            insert_to_mongoDB(historical, x, 'stock_price', 'date')
-            insert_to_mongoDB(stock_split, x, 'stock_split', 'date')
+            mongo_insert(collection=income_collection, ticker=x, statement='income-statement', second_key='date',)
+            mongo_insert(collection=balance_sheet_collection, ticker=x,
+                              statement='balance-sheet-statement', second_key='date',)
+            mongo_insert(collection=cash_collection, ticker=x,
+                              statement='cash-flow-statement', second_key='date',)
+            mongo_insert(collection=company_profile, ticker=x, statement='profile', second_key='ipoDate',)
+            # mongo_insert(collection=historical, ticker=x, statement='stock_price', second_key='date',)
+            # mongo_insert(collection=stock_split, ticker=x, statement='stock_split', second_key='date')
 
             # current += step
 
@@ -209,35 +214,33 @@ if st.button("Download Statements :ledger:"):
 
     elif profile_update:
         for i, x in enumerate(eval(list_tickers)):
-            insert_to_mongoDB(company_profile, x, 'profile', 'ipoDate')
+            mongo_insert(collection=company_profile, ticker=x, statement='profile', second_key='ipoDate')
 
         if i == len(eval(list_tickers))-1:
             st.success(f"All downloads are completed.", icon="💯")
 
     elif historical_download:
         for i, x in enumerate(eval(list_tickers)):
-            insert_to_mongoDB(historical, x, 'stock_price', 'date')
+            mongo_insert(collection=historical, ticker=x, statement='stock_price', second_key='date')
 
         if i == len(eval(list_tickers))-1:
             st.success(f"All downloads are completed.", icon="💯")
 
     elif stock_split_download:
         for i, x in enumerate(eval(list_tickers)):
-            insert_to_mongoDB(stock_split, x, 'stock_split', 'date')
+            mongo_insert(collection=stock_split, ticker=x, statement='stock_split', second_key='date')
 
         if i == len(eval(list_tickers))-1:
             st.success(f"All downloads are completed.", icon="💯")
     else:
         for i, x in enumerate(missing_tickers):
 
-            insert_to_mongoDB(income_collection, x, 'income-statement', 'date')
-            insert_to_mongoDB(balance_sheet_collection, x,
-                              'balance-sheet-statement', 'date')
-            insert_to_mongoDB(cash_collection, x,
-                              'cash-flow-statement', 'date')
-            insert_to_mongoDB(company_profile, x, 'profile', 'ipoDate')
-            insert_to_mongoDB(historical, x, 'stock_price', 'date')
-            insert_to_mongoDB(stock_split, x, 'stock_split', 'date')
+            mongo_insert(collection=income_collection, ticker=x, statement='income-statement', second_key='date')
+            mongo_insert(collection=balance_sheet_collection, ticker=x, statement='balance-sheet-statement', second_key='date')
+            mongo_insert(collection=cash_collection, ticker=x, statement='cash-flow-statement', second_key='date')
+            mongo_insert(collection=company_profile, ticker=x, statement='profile', second_key='ipoDate')
+            mongo_insert(collection=historical, ticker=x, statement='stock_price', second_key='date')
+            mongo_insert(collection=stock_split, ticker=x, statement='stock_split', second_key='date')
 
             # current += step
 
