@@ -12,11 +12,6 @@ from utils._mongo import get_tickers, insert_to_mongoDB
 from utils.database._connector import get_data
 from utils._utils import get_api
 
-
-fmp_api, alpha_vantage_api = get_api()
-
-mongo_insert = partial(insert_to_mongoDB, fmp_api=fmp_api,
-                       alpha_vantage_api=alpha_vantage_api)
 #####################################################
 
 # Set page config
@@ -26,6 +21,11 @@ if 'state' not in st.session_state:
     st.session_state['state'] = st.set_page_config(page_title="Investment Dashboard",
                                                    page_icon=":moneybag:",
                                                    layout="wide")
+
+fmp_api, alpha_vantage_api = get_api()
+
+mongo_insert = partial(insert_to_mongoDB, fmp_api=fmp_api,
+                       alpha_vantage_api=alpha_vantage_api)
 
 #####################################################
 
@@ -196,12 +196,14 @@ if st.button("Download Statements :ledger:"):
     if manual_download:
         for i, x in enumerate(eval(list_tickers)):
 
-            mongo_insert(collection=income_collection, ticker=x, statement='income-statement', second_key='date',)
+            mongo_insert(collection=income_collection, ticker=x,
+                         statement='income-statement', second_key='date',)
             mongo_insert(collection=balance_sheet_collection, ticker=x,
-                              statement='balance-sheet-statement', second_key='date',)
+                         statement='balance-sheet-statement', second_key='date',)
             mongo_insert(collection=cash_collection, ticker=x,
-                              statement='cash-flow-statement', second_key='date',)
-            mongo_insert(collection=company_profile, ticker=x, statement='profile', second_key='ipoDate',)
+                         statement='cash-flow-statement', second_key='date',)
+            mongo_insert(collection=company_profile, ticker=x,
+                         statement='profile', second_key='ipoDate',)
             # mongo_insert(collection=historical, ticker=x, statement='stock_price', second_key='date',)
             # mongo_insert(collection=stock_split, ticker=x, statement='stock_split', second_key='date')
 
@@ -214,33 +216,42 @@ if st.button("Download Statements :ledger:"):
 
     elif profile_update:
         for i, x in enumerate(eval(list_tickers)):
-            mongo_insert(collection=company_profile, ticker=x, statement='profile', second_key='ipoDate')
+            mongo_insert(collection=company_profile, ticker=x,
+                         statement='profile', second_key='ipoDate')
 
         if i == len(eval(list_tickers))-1:
             st.success(f"All downloads are completed.", icon="💯")
 
     elif historical_download:
         for i, x in enumerate(eval(list_tickers)):
-            mongo_insert(collection=historical, ticker=x, statement='stock_price', second_key='date')
+            mongo_insert(collection=historical, ticker=x,
+                         statement='stock_price', second_key='date')
 
         if i == len(eval(list_tickers))-1:
             st.success(f"All downloads are completed.", icon="💯")
 
     elif stock_split_download:
         for i, x in enumerate(eval(list_tickers)):
-            mongo_insert(collection=stock_split, ticker=x, statement='stock_split', second_key='date')
+            mongo_insert(collection=stock_split, ticker=x,
+                         statement='stock_split', second_key='date')
 
         if i == len(eval(list_tickers))-1:
             st.success(f"All downloads are completed.", icon="💯")
     else:
         for i, x in enumerate(missing_tickers):
 
-            mongo_insert(collection=income_collection, ticker=x, statement='income-statement', second_key='date')
-            mongo_insert(collection=balance_sheet_collection, ticker=x, statement='balance-sheet-statement', second_key='date')
-            mongo_insert(collection=cash_collection, ticker=x, statement='cash-flow-statement', second_key='date')
-            mongo_insert(collection=company_profile, ticker=x, statement='profile', second_key='ipoDate')
-            mongo_insert(collection=historical, ticker=x, statement='stock_price', second_key='date')
-            mongo_insert(collection=stock_split, ticker=x, statement='stock_split', second_key='date')
+            mongo_insert(collection=income_collection, ticker=x,
+                         statement='income-statement', second_key='date')
+            mongo_insert(collection=balance_sheet_collection, ticker=x,
+                         statement='balance-sheet-statement', second_key='date')
+            mongo_insert(collection=cash_collection, ticker=x,
+                         statement='cash-flow-statement', second_key='date')
+            mongo_insert(collection=company_profile, ticker=x,
+                         statement='profile', second_key='ipoDate')
+            mongo_insert(collection=historical, ticker=x,
+                         statement='stock_price', second_key='date')
+            mongo_insert(collection=stock_split, ticker=x,
+                         statement='stock_split', second_key='date')
 
             # current += step
 

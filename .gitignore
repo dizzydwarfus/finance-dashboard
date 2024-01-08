@@ -2,6 +2,7 @@
 __pycache__/
 *.py[cod]
 *$py.class
+.DS_Store
 
 # Distribution / packaging
 .Python
@@ -83,3 +84,6 @@ Pipfile.lock
 *.pickle
 
 sec_api_test (old).ipynb
+
+# Poetry files
+*.lock
