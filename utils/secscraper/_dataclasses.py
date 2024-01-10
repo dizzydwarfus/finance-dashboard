@@ -2,6 +2,7 @@
 from dataclasses import dataclass
 import datetime as dt
 import re
+from typing import Union
 
 # Third party libraries
 from bs4.element import Tag
@@ -21,7 +22,7 @@ class Context:
         return self.context_tag.attrs.get('id')
 
     @property
-    def entity(self) -> str | None:
+    def entity(self) -> Union[str, None]:
         """Get entity
 
         Returns:
@@ -31,7 +32,7 @@ class Context:
             0] if self.context_tag.find("entity") is not None else None
 
     @property
-    def startDate(self) -> dt.datetime | None:
+    def startDate(self) -> Union[dt.datetime, None]:
         """Get start date
 
         Returns:
@@ -42,7 +43,7 @@ class Context:
         return dt.datetime.strptime(start, '%Y-%m-%d') if start is not None else None
 
     @property
-    def endDate(self) -> dt.datetime | None:
+    def endDate(self) -> Union[dt.datetime, None]:
         """Get end date
 
         Returns:
@@ -53,7 +54,7 @@ class Context:
         return dt.datetime.strptime(end, '%Y-%m-%d') if end is not None else None
 
     @property
-    def instant(self):
+    def instant(self) -> Union[dt.datetime, None]:
         """Get instant date
 
         Returns:
@@ -64,7 +65,7 @@ class Context:
         return dt.datetime.strptime(instant, '%Y-%m-%d') if instant is not None else None
 
     @property
-    def segment(self) -> dict | None:
+    def segment(self) -> Union[dict, None]:
         """Get segments and tags classifying the segment and store in dict
 
         Returns:
@@ -135,7 +136,7 @@ class LinkLabels:
     label_tag: Tag
 
     @property
-    def linkLabelId(self) -> str | None:
+    def linkLabelId(self) -> Union[str, None]:
         """Get labelId
 
         Returns:
@@ -144,7 +145,7 @@ class LinkLabels:
         return self.label_tag.attrs.get('id')
 
     @property
-    def xlinkLabel(self) -> str | None:
+    def xlinkLabel(self) -> Union[str, None]:
         """Get linkLabel
 
         Returns:
@@ -153,7 +154,7 @@ class LinkLabels:
         return self.label_tag.attrs.get('xlink:label')
 
     @property
-    def xlinkRole(self) -> str | None:
+    def xlinkRole(self) -> Union[str, None]:
         """Get linkRole
 
         Returns:
@@ -162,7 +163,7 @@ class LinkLabels:
         return self.label_tag.attrs.get('xlink:role')
 
     @property
-    def xlinkType(self) -> str | None:
+    def xlinkType(self) -> Union[str, None]:
         """Get linkType
 
         Returns:
@@ -171,7 +172,7 @@ class LinkLabels:
         return self.label_tag.attrs.get('xlink:type')
 
     @property
-    def xlmnsXml(self) -> str | None:
+    def xlmnsXml(self) -> Union[str, None]:
         """Get xlmnsXml
 
         Returns:
@@ -180,7 +181,7 @@ class LinkLabels:
         return self.label_tag.attrs.get('xmlns:xml')
 
     @property
-    def xlmLang(self) -> str | None:
+    def xlmLang(self) -> Union[str, None]:
         """Get xlmLang
 
         Returns:
@@ -189,7 +190,7 @@ class LinkLabels:
         return self.label_tag.attrs.get('xml:lang')
 
     @property
-    def labelName(self) -> str | None:
+    def labelName(self) -> Union[str, None]:
         """Get labelName
 
         Returns:
@@ -229,7 +230,7 @@ class Facts:
     fact_tag: Tag
 
     @property
-    def factName(self):
+    def factName(self) -> Union[str, None]:
         """Get factName
 
         Returns:
@@ -238,7 +239,7 @@ class Facts:
         return self.fact_tag.name
 
     @property
-    def factId(self):
+    def factId(self) -> Union[str, None]:
         """Get factId
 
         Returns:
@@ -247,7 +248,7 @@ class Facts:
         return self.fact_tag.attrs.get('id')
 
     @property
-    def contextRef(self):
+    def contextRef(self) -> Union[str, None]:
         """Get contextRef
 
         Returns:
@@ -256,7 +257,7 @@ class Facts:
         return self.fact_tag.attrs.get('contextref')
 
     @property
-    def unitRef(self):
+    def unitRef(self) -> Union[str, None]:
         """Get unitRef
 
         Returns:
@@ -274,7 +275,7 @@ class Facts:
         return self.fact_tag.attrs.get('decimals')
 
     @property
-    def factValue(self):
+    def factValue(self) -> Union[str, int, None]:
         """Get factValue
 
         Returns:
