@@ -132,9 +132,9 @@ with st.expander('Scrape Filings'):
 
         final_df = clean_values_in_facts(merged_facts)
 
-        final_df = clean_values_in_segment(merged_facts=final_df)
+        # final_df = clean_values_in_segment(merged_facts=final_df)
 
-        final_df, start_end, instant = split_facts_into_start_instant(final_df)
+        # final_df, start_end, instant = split_facts_into_start_instant(final_df)
 
         excel_final_facts = convert_df(final_df)
 
@@ -144,6 +144,7 @@ with st.expander('Scrape Filings'):
                            file_name=f"{ticker_data.ticker}_{form}_{facts_period}.csv")
 
         st.session_state['final_df'] = final_df
+        st.session_state['scraped_form'] = form
         st.success('Scraping Completed ✅')
 
 
@@ -157,76 +158,93 @@ with st.expander('Show Facts'):
     metric_options = df_to_plot['labelText'].sort_values().unique()
     metrics = st.multiselect('Choose metric(s)', options=metric_options)
 
-    segment_options = df_to_plot.loc[df_to_plot['labelText'].isin(
-        metrics), 'segment'].sort_values().unique()
+    # segment_options = df_to_plot.loc[df_to_plot['labelText'].isin(
+    #     metrics), 'segment'].sort_values().unique()
 
-    segments = st.multiselect('Choose segment(s)', options=segment_options)
+    # segments = st.multiselect('Choose segment(s)', options=segment_options)
+
+    def get_periods(df: pd.DataFrame):
+        if st.session_state['scraped_form'] == '10-Q':
+            # return df.loc[df['Months Ended'] == 'Three Months Ended']
+            return df
+        elif st.session_state['scraped_form'] == '10-K':
+            # return df.loc[df['Months Ended'] == 'Twelve Months Ended']
+            return df
+        else:
+            return df
+    periods = get_periods(df_to_plot)['Months Ended'].unique().tolist()
+    st.write(periods)
     st.divider()
 
     metric_df = df_to_plot[df_to_plot['labelText'].isin(
-        metrics) & df_to_plot['segment'].isin(segments)]
+        metrics)\
+        # & df_to_plot['segment'].isin(segments)\
+        & df_to_plot['Months Ended'].isin(periods)]
+    try:
+        # Pivot the DataFrame
+        pivot_df = metric_df.pivot(
+            index=['endDate', 'Months Ended'], columns='segment', values='factValue')
 
-    # Pivot the DataFrame
-    pivot_df = metric_df.pivot(
-        index=['endDate', 'Months Ended'], columns='segment', values='value')
+        # Calculate the difference
+        diff_df = pivot_df.diff()
 
-    # Calculate the difference
-    diff_df = pivot_df.diff()
+        # Melt the DataFrame back to the original format
+        melt_df = diff_df.reset_index().melt(id_vars=['endDate', 'Months Ended'],
+                                             var_name='segment', value_name='change')
 
-    # Melt the DataFrame back to the original format
-    melt_df = diff_df.reset_index().melt(id_vars=['endDate', 'Months Ended'],
-                                         var_name='segment', value_name='change')
+        # Merge the difference back to the original DataFrame
+        # Create a new column 'color' that indicates whether the value has increased or decreased
+        metric_df['color'] = 'neutral'
+        metric_df.loc[metric_df['change'] > 0, 'color'] = 'increase'
+        metric_df.loc[metric_df['change'] < 0, 'color'] = 'decrease'
+        metric_df = metric_df.merge(melt_df, on=['endDate', 'segment'])
 
-    # Merge the difference back to the original DataFrame
-    metric_df = metric_df.merge(melt_df, on=['endDate', 'segment'])
-
+    except Exception as e:
+        st.error(e, icon='🚨')
+    finally:
+        st.dataframe(metric_df, use_container_width=True)
     # st.dataframe(pivot_df, use_container_width=True)
     # st.dataframe(diff_df, use_container_width=True)
     # st.dataframe(melt_df, use_container_width=True)
 
-    # Create a new column 'color' that indicates whether the value has increased or decreased
-    metric_df['color'] = 'neutral'
-    metric_df.loc[metric_df['change'] > 0, 'color'] = 'increase'
-    metric_df.loc[metric_df['change'] < 0, 'color'] = 'decrease'
-    st.dataframe(metric_df, use_container_width=True)
-
-    # Create a line plot
-    fig = px.line(metric_df, x='endDate', y='value',
-                  color='segment', line_group='segment',
-                  hover_data={'change': ':,'},)
-    # Overlay a scatter plot for the individual points
-    fig.add_trace(
-        go.Scatter(
-            x=metric_df['endDate'],
-            y=metric_df['value'],
-            mode='markers',
-            marker=dict(
-                color=metric_df['color'].map(
-                    {'increase': 'green', 'decrease': 'red', 'neutral': 'grey'}),
-                size=15,
-                symbol=metric_df['color'].map(
-                    {'increase': 'triangle-up', 'decrease': 'triangle-down', 'neutral': 'circle'})
-            ),
-            hoverinfo='skip',
-            showlegend=False
-        )
-    )
-    for trace in fig.data:
-        print(trace)
-    # Customize the layout
-    fig.update_layout(
-        title='Metrics over time',
-        xaxis_title='End Date',
-        yaxis_title='Value',
-        legend_title='Segment',
-        font=dict(
-            family='Courier New, monospace',
-            size=18,
-            color='RebeccaPurple'
-        ),
-        hovermode='x unified'
-    )
-    fig.update_xaxes(autorange=True)
-    fig.update_yaxes(autorange=True, rangemode="tozero")
-    # Show the plot
-    st.plotly_chart(fig, use_container_width=True)
+    # # Create a line plot
+    # fig = px.line(metric_df, x='endDate', y='factValue',
+    #               color='segment', line_group='segment',
+    #               #   hover_data={'change': ':,'},
+    #               )
+    # # Overlay a scatter plot for the individual points
+    # fig.add_trace(
+    #     go.Scatter(
+    #         x=metric_df['endDate'],
+    #         y=metric_df['factValue'],
+    #         mode='markers',
+    #         marker=dict(
+    #             color=metric_df['color'].map(
+    #                 {'increase': 'green', 'decrease': 'red', 'neutral': 'grey'}),
+    #             size=15,
+    #             symbol=metric_df['color'].map(
+    #                 {'increase': 'triangle-up', 'decrease': 'triangle-down', 'neutral': 'circle'})
+    #         ),
+    #         hoverinfo='skip',
+    #         showlegend=False
+    #     )
+    # )
+    # for trace in fig.data:
+    #     print(trace)
+    # # Customize the layout
+    # fig.update_layout(
+    #     title='Metrics over time',
+    #     xaxis_title='End Date',
+    #     yaxis_title='Value',
+    #     legend_title='Segment',
+    #     font=dict(
+    #         family='Courier New, monospace',
+    #         size=18,
+    #         color='RebeccaPurple'
+    #     ),
+    #     hovermode='x unified'
+    # )
+    # fig.update_xaxes(autorange=True)
+    # fig.update_yaxes(autorange=True, rangemode="tozero")
+    # # Show the plot
+    # st.plotly_chart(fig, use_container_width=True)

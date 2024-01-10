@@ -1,12 +1,20 @@
+# Built-in libraries
 import logging
 import requests
-import pandas as pd
 import json
+import re
+from abc import ABC, abstractmethod
+from typing import List
+
+# Third-party libraries
+import pandas as pd
 import xml.etree.ElementTree as ET
 from ratelimit import limits, sleep_and_retry
 from bs4 import BeautifulSoup
+from bs4.element import Tag
 from tqdm import trange
-import re
+
+# Internal imports
 from utils._logger import MyLogger
 
 
@@ -38,6 +46,27 @@ def indexify_url(folder_url: str) -> str:
         str: index url
     """
     return folder_url + '/index.json'
+
+
+class SearchStrategy(ABC):
+    @abstractmethod
+    def get_pattern(self) -> str:
+        pass
+
+
+class ContextSearchStrategy(SearchStrategy):
+    def get_pattern(self) -> str:
+        return '^context$'
+
+
+class LinkLabelSearchStrategy(SearchStrategy):
+    def get_pattern(self) -> str:
+        return '^link:label$'
+
+
+class FactSearchStrategy(SearchStrategy):
+    def get_pattern(self) -> str:
+        return '^us-gaap:'
 
 
 class SECData(MyLogger):
@@ -332,8 +361,9 @@ class TickerData(SECData):
     file name for xml is always '{ticker}-{reportDate}.{extension}
     """
 
-    def __init__(self, ticker: str, requester_company: str = 'Financial API', requester_name: str = 'API Caller', requester_email: str = 'apicaller@gmail.com', taxonomy: str = 'us-gaap',):
+    def __init__(self, ticker: str, requester_company: str = 'Financial API', requester_name: str = 'API Caller', requester_email: str = 'apicaller@gmail.com', taxonomy: str = 'us-gaap', search_strategy: SearchStrategy = None):
         super().__init__(requester_company, requester_name, requester_email, taxonomy)
+        self.search_strategy = search_strategy
         self.ticker = ticker.upper()
         self.cik = self.get_ticker_cik(self.ticker)
         self._submissions = self.get_submissions(self.cik)
@@ -392,6 +422,9 @@ class TickerData(SECData):
             self._forms = self.filings['form'].unique()
         return self._forms
 
+    def set_search_strategy(self, search_strategy: SearchStrategy):
+        self.search_strategy = search_strategy
+
     def _get_filing_folder_urls(self,) -> list:
         """Get filing folder urls from index dict.
 
@@ -405,37 +438,6 @@ class TickerData(SECData):
         filing_folder_urls = [self.BASE_SEC_URL + self._index['directory']['name'] + '/' + folder['name']
                               for folder in self._index['directory']['item'] if folder['type'] == 'folder.gif']
         return filing_folder_urls
-
-    def _get_filing_urls(self,) -> list:
-        """(DEPRECATED)
-        ---The filing urls are implemented in the get_filings method.---
-
-        Get filing urls from filing folder urls.
-
-        Args:
-            filing_folder_urls (list): list of filing folder urls
-
-        Returns:
-            filing_urls (list): list of filing urls to .txt files
-        """
-        filing_urls = []
-        with trange(len(self.filing_folder_urls), desc=f'Instantiating filing urls for {self.ticker}...') as t:
-            for i in t:
-                self.scrape_logger.info(t)
-                try:
-                    soup = self.get_file_data(self.filing_folder_urls[i])
-                    for link in soup.find_all('a'):
-                        if link.get('href').endswith('.txt'):
-                            filing_urls.append(
-                                self.BASE_SEC_URL + link.get('href'))
-                except Exception as e:
-                    self.scrape_logger.error(
-                        f'Failed to instantiate filing urls for {self.ticker}...')
-                    self.scrape_logger.error(e)
-                    t.write(
-                        f'Failed to instantiate filing urls for {self.ticker}...')
-                    continue
-        return filing_urls
 
     def get_filing_folder_index(self, folder_url: str, return_df: bool = True):
         """Get filing folder index from folder url.
@@ -516,8 +518,6 @@ class TickerData(SECData):
             raise Exception(
                 f'Failed to parse file data from {file_url}. Error: {e}')
 
-    # TODO: replace search_xxx methods with strategy pattern
-
     def get_elements(self, folder_url: str, index_df: pd.DataFrame, scrape_file_extension: str) -> pd.DataFrame:
         """Get elements from .xml files from folder_url.
 
@@ -541,8 +541,8 @@ class TickerData(SECData):
             labels_list.append(label_dict)
         return pd.DataFrame(labels_list)
 
-    def search_tags(self, soup: BeautifulSoup, pattern: str) -> BeautifulSoup:
-        """Search for tags in BeautifulSoup object.
+    def search_tags(self, soup: BeautifulSoup, pattern: str = None) -> List[Tag]:
+        """Search for tags in BeautifulSoup object. Strategy can be set using self.set_search_strategy method.
 
         Args:
             soup (BeautifulSoup): BeautifulSoup object
@@ -551,121 +551,24 @@ class TickerData(SECData):
         Returns:
             soup: BeautifulSoup object
         """
+        if self.search_strategy is None and pattern is None:
+            raise Exception('Search strategy not set and no pattern provided.')
+        if pattern is None:
+            pattern = self.search_strategy.get_pattern()
         return soup.find_all(re.compile(pattern))
 
-    def search_context(self, soup: BeautifulSoup) -> pd.DataFrame:
-        """Search for context in company .txt filing. 
-        Context provides information about the entity, segment, and time period for facts in the filing.
+    # To add more search methods, add a SearchStrategy abstract class with get_pattern method and add a method here
+    def search_context(self, soup: BeautifulSoup) -> List[Tag]:
+        self.set_search_strategy(ContextSearchStrategy())
+        return self.search_tags(soup)
 
-        Args:
-            soup (BeautifulSoup): BeautifulSoup object
+    def search_linklabels(self, soup: BeautifulSoup) -> List[Tag]:
+        self.set_search_strategy(LinkLabelSearchStrategy())
+        return self.search_tags(soup)
 
-        Returns:
-            df: DataFrame containing context information with columns 
-            {
-                'contextId': str,
-                'entity': str,
-                'segment': str,
-                'startDate': 'datetime64[ns]',
-                'endDate': 'datetime64[ns]',
-                'instant': 'datetime64[ns]'
-            }
-        """
-        contexts = self.search_tags(soup, '^context$')
-        dict_list = []
-        columns = {'contextId': str, 'entity': str, 'segment': str,
-                   'startDate': 'datetime64[ns]', 'endDate': 'datetime64[ns]', 'instant': 'datetime64[ns]'}
-        for tag in contexts:
-            temp_dict = {}
-            temp_dict['contextId'] = tag.attrs.get('id')
-            temp_dict['entity'] = tag.find("entity").text.split()[
-                0] if tag.find("entity") is not None else None
-            temp_dict['segment'] = tag.find("segment").text.strip(
-            ) if tag.find("segment") is not None else None
-            temp_dict['startDate'] = tag.find("startdate").text if tag.find(
-                "startdate") is not None else None
-            temp_dict['endDate'] = tag.find("enddate").text if tag.find(
-                "enddate") is not None else None
-            temp_dict['instant'] = tag.find("instant").text if tag.find(
-                "instant") is not None else None
-            dict_list.append(temp_dict)
-
-        df = pd.DataFrame(dict_list, columns=columns.keys()).astype(columns)
-        return df
-
-    def search_linklabels(self, soup: BeautifulSoup) -> pd.DataFrame:
-        """Search for link labels in company .txt filing. 
-        Link labels provide information about the relationship between facts and their corresponding concepts.
-
-        Args:
-            soup (BeautifulSoup): BeautifulSoup object
-
-        Returns:
-            df: DataFrame containing link label information with columns 
-            {
-                'linkLabelId': str,
-                'xlinkLabel': str,
-                'xlinkRole': str,
-                'xlinkType': str,
-                'xlmnsXml': str,
-                'xmlLang': str,
-                'label': str
-            }
-        """
-        links = self.search_tags(soup, '^link:label$')
-        dict_list = []
-        columns = {'linkLabelId': str, 'xlinkLabel': str, 'xlinkRole': str,
-                   'xlinkType': str, 'xlmnsXml': str, 'xmlLang': str, 'label': str}
-
-        for tag in links:
-            temp_dict = {}
-            temp_dict['linkLabelId'] = tag.attrs.get('id')
-            temp_dict['xlinkLabel'] = tag.attrs.get('xlink:label')
-            temp_dict['xlinkRole'] = tag.attrs.get('xlink:role')
-            temp_dict['xlinkType'] = tag.attrs.get('xlink:type')
-            temp_dict['xlmnsXml'] = tag.attrs.get('xmlns:xml')
-            temp_dict['xmlLang'] = tag.attrs.get('xml:lang')
-            temp_dict['label'] = tag.text if tag.text is not None else None
-            dict_list.append(temp_dict)
-
-        df = pd.DataFrame(dict_list, columns=columns.keys()).astype(columns)
-        return df
-
-    def search_facts(self, soup: BeautifulSoup) -> pd.DataFrame:
-        """Search for facts in company .txt filing. 
-        Facts provide the actual data values for the XBRL disclosures.
-
-        Args:
-            soup (BeautifulSoup): BeautifulSoup object
-
-        Returns:
-            df: DataFrame containing fact information with columns 
-            {
-                'factName': str,
-                'contextRef': str,
-                'decimals': int,
-                'factId': str,
-                'unitRef': str,
-                'value': str
-            }
-        """
-        facts = self.search_tags(soup, '^us-gaap:')
-        dict_list = []
-        columns = {'factName': str, 'contextRef': str, 'decimals': int, 'factId': str,
-                   'unitRef': str, 'value': str}
-
-        for tag in facts:
-            temp_dict = {}
-            temp_dict['factName'] = tag.name
-            temp_dict['contextRef'] = tag.attrs.get('contextref')
-            temp_dict['decimals'] = tag.attrs.get('decimals')
-            temp_dict['factId'] = tag.attrs.get('id')
-            temp_dict['unitRef'] = tag.attrs.get('unitref')
-            temp_dict['value'] = tag.text
-            dict_list.append(temp_dict)
-
-        df = pd.DataFrame(dict_list, columns=columns.keys())
-        return df
+    def search_facts(self, soup: BeautifulSoup) -> List[Tag]:
+        self.set_search_strategy(FactSearchStrategy())
+        return self.search_tags(soup)
 
     def get_metalinks(self, metalinks_url: str) -> pd.DataFrame:
         """Get metalinks from metalinks url.
@@ -706,60 +609,6 @@ class TickerData(SECData):
             self.scrape_logger.error(
                 f'Failed to retrieve metalinks from {metalinks_url}. Error: {e}')
             return None
-
-    def get_facts_for_each_filing(self, filing: dict) -> dict:
-        """Get facts for each filing.
-
-        Args:
-            filing_url (str): filing url to retrieve data from (link to .txt file in filing directory)
-            folder_url (str): folder url to retrieve data from (link to filing directory)
-        Returns:
-            df: DataFrame containing facts information with columns 
-            {
-                'factName': str,
-                'contextRef': str,
-                'decimals': int,
-                'factId': str,
-                'unitRef': str,
-                'value': str,
-                'contextId': str,
-                'entity': str,
-                'segment': str,
-                'startDate': 'datetime64[ns]',
-                'endDate': 'datetime64[ns]',
-                'instant': 'datetime64[ns]',
-                # 'labelKey': str,
-                # 'localName': str,
-                # 'labelName': int,
-                # 'terseLabel': str,
-                # 'documentation': str,
-                'accessionNumber': str,
-            }
-        """
-        columns_to_keep = ['factName', 'contextRef', 'decimals', 'factId', 'unitRef', 'value', 'segment', 'startDate',
-                           'endDate', 'instant', 'accessionNumber']
-        soup = self.get_file_data(filing['file_url'])
-        facts = self.search_facts(soup)
-        context = self.search_context(soup)
-        # metalinks = self.get_metalinks(
-        #     filing['folder_url'] + '/MetaLinks.json')
-
-        # if metalinks is None:
-        #     return None
-        context['segment'] = context['segment'].str.replace(
-            pat=r'[^a-zA-Z0-9]', repl='', regex=True).str.lower()
-        df = facts.merge(context, how='left',
-                         left_on='contextRef', right_on='contextId')
-        # .merge(metalinks, how='left', left_on='segment', right_on='labelKey')
-
-        df['ticker'] = self.ticker
-        df['cik'] = self.cik
-        df['accessionNumber'] = filing['accessionNumber']
-
-        df = df.loc[~df['unitRef'].isnull(), columns_to_keep].replace({
-            pd.NaT: None})
-
-        return facts, context, df.to_dict('records')
 
     def __repr__(self) -> str:
         class_name = type(self).__name__

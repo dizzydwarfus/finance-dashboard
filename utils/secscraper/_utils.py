@@ -1,4 +1,4 @@
-# Third-party imports
+# Third-party libraries
 import pandas as pd
 import numpy as np
 import datetime as dt
@@ -6,6 +6,7 @@ import streamlit as st
 
 # Internal imports
 from utils.secscraper.sec_class import TickerData
+from utils.secscraper._dataclasses import Context, Facts, LinkLabels
 
 
 def get_filing_facts(ticker: TickerData, filings_to_scrape: list, verbose=False):
@@ -59,8 +60,45 @@ def get_filing_facts(ticker: TickerData, filings_to_scrape: list, verbose=False)
 
         soup = ticker.get_file_data(file_url=file_url)
 
-        # Scrape facts, context, metalinks
-        try:
+        try:  # Scrape facts
+            facts_list = []
+            facts = ticker.search_facts(soup=soup)
+            for fact_tag in facts:
+                facts_list.append(Facts(fact_tag=fact_tag).to_dict())
+            facts_df = pd.DataFrame(facts_list)
+            facts_df['accessionNumber'] = accessionNumber
+            all_facts = pd.concat([all_facts, facts_df], ignore_index=True)
+        except Exception as e:
+            ticker.scrape_logger.error(
+                f'Failed to scrape facts for {folder_url}...{e}')
+            failed_folders.append(dict(folder_url=folder_url, accessionNumber=accessionNumber,
+                                  error=f'Failed to scrape facts for {folder_url}...{e}', filingDate=file.get('filingDate')))
+            pass
+
+        if len(facts_list) == 0:
+            ticker.scrape_logger.info(
+                f'No facts found for {ticker.ticker}({ticker.cik})-{folder_url}...\n')
+            continue
+
+        try:  # Scrape context
+            context_list = []
+            contexts = ticker.search_context(soup=soup)
+            for tag in contexts:
+                context_list.append(Context(context_tag=tag).to_dict())
+            context_df = pd.DataFrame(context_list)
+            context_df['accessionNumber'] = accessionNumber
+            all_context = pd.concat(
+                [all_context, context_df], ignore_index=True)
+        except Exception as e:
+            ticker.scrape_logger.error(
+                f'Failed to scrape context for {folder_url}...{e}')
+            failed_folders.append(dict(folder_url=folder_url, accessionNumber=accessionNumber,
+                                  error=f'Failed to scrape context for {folder_url}...{e}', filingDate=file.get('filingDate')))
+            pass
+
+        index_df = ticker.get_filing_folder_index(folder_url=folder_url)
+
+        try:  # Scrape metalinks
             metalinks = ticker.get_metalinks(
                 folder_url=folder_url + '/MetaLinks.json')
             metalinks['accessionNumber'] = accessionNumber
@@ -72,29 +110,6 @@ def get_filing_facts(ticker: TickerData, filings_to_scrape: list, verbose=False)
             failed_folders.append(dict(folder_url=folder_url, accessionNumber=accessionNumber,
                                   error=f'Failed to scrape metalinks for {folder_url}...{e}', filingDate=file.get('filingDate')))
             pass
-
-        try:
-            facts = ticker.search_facts(soup=soup)
-            facts['accessionNumber'] = accessionNumber
-            all_facts = pd.concat([all_facts, facts], ignore_index=True)
-        except Exception as e:
-            ticker.scrape_logger.error(
-                f'Failed to scrape facts for {folder_url}...{e}')
-            failed_folders.append(dict(folder_url=folder_url, accessionNumber=accessionNumber,
-                                  error=f'Failed to scrape facts for {folder_url}...{e}', filingDate=file.get('filingDate')))
-            pass
-        try:
-            context = ticker.search_context(soup=soup)
-            context['accessionNumber'] = accessionNumber
-            all_context = pd.concat([all_context, context], ignore_index=True)
-        except Exception as e:
-            ticker.scrape_logger.error(
-                f'Failed to scrape context for {folder_url}...{e}')
-            failed_folders.append(dict(folder_url=folder_url, accessionNumber=accessionNumber,
-                                  error=f'Failed to scrape context for {folder_url}...{e}', filingDate=file.get('filingDate')))
-            pass
-
-        index_df = ticker.get_filing_folder_index(folder_url=folder_url)
 
         try:  # Scrape labels
             labels = ticker.get_elements(folder_url=folder_url, index_df=index_df,
@@ -140,15 +155,10 @@ def get_filing_facts(ticker: TickerData, filings_to_scrape: list, verbose=False)
                                   error=f'Failed to scrape defn for {folder_url}...{e}', filingDate=file.get('filingDate')))
             pass
 
-        if len(facts) == 0:
-            ticker.scrape_logger.info(
-                f'No facts found for {ticker.ticker}({ticker.cik})-{folder_url}...\n')
-            continue
-
         ticker.scrape_logger.info(
-            f'Merging facts with context and labels. Current facts length: {len(facts)}...')
+            f'Merging facts with context and labels. Current facts length: {len(facts_list)}...')
         try:
-            merged_facts = facts.merge(context, how='left', left_on='contextRef', right_on='contextId')\
+            merged_facts = facts_df.merge(context_df, how='left', left_on='contextRef', right_on='contextId')\
                 .merge(labels.query("`xlink:role` == 'label'"), how='left', left_on='factName', right_on='xlink:label')
             merged_facts = merged_facts.drop(
                 ['accessionNumber_x', 'accessionNumber_y'], axis=1)
@@ -169,15 +179,15 @@ def get_filing_facts(ticker: TickerData, filings_to_scrape: list, verbose=False)
             st.success(
                 ticker.ticker + ' ' + file.get('filingDate').strftime('%Y-%m-%d'))
     all_merged_facts = all_merged_facts.loc[~all_merged_facts['labelText'].isnull(), [
-        'labelText', 'segment', 'startDate', 'endDate', 'instant', 'value', 'unitRef']]
+        'labelText', 'segment', 'startDate', 'endDate', 'instant', 'factValue', 'unitRef']]
 
     return all_labels, all_calc, all_defn, all_context, all_facts, all_metalinks, all_merged_facts, failed_folders
 
 
 def clean_values_in_facts(merged_facts: pd.DataFrame):
-    df = merged_facts.loc[(~merged_facts['value'].str.contains(
-        '[^0-9\.\-]|(^\d+\-\d+\-\d+$)')) & (merged_facts['value'] != "")].copy()
-    df['value'] = df['value'].astype(float)
+    df = merged_facts.loc[(~merged_facts['factValue'].str.contains(
+        '[^0-9\.\-]|(^\d+\-\d+\-\d+$)')) & (merged_facts['factValue'] != "")].copy()
+    df['factValue'] = df['factValue'].astype(float)
 
     return df
 
@@ -215,17 +225,19 @@ def split_facts_into_start_instant(merged_facts: pd.DataFrame):
         instant: instant facts data frame where instant is not null
     """
     merged_facts.drop_duplicates(subset=[
-        'labelText', 'segment', 'startDate', 'endDate', 'instant', 'value'], keep='last', inplace=True)
+        'labelText', 'segment', 'startDate', 'endDate', 'instant', 'factValue'], keep='last', inplace=True)
 
     start_end = merged_facts.dropna(axis=0, subset=['startDate', 'endDate'])[['labelText', 'segment', 'unitRef',
-                                                                              'startDate', 'endDate', 'value']].sort_values(by=['labelText', 'segment', 'startDate', 'endDate',])
+                                                                              'startDate', 'endDate', 'factValue']].sort_values(by=['labelText', 'segment', 'startDate', 'endDate',])
     instant = merged_facts.dropna(axis=0, subset=['instant'])[
-        ['labelText', 'segment', 'unitRef', 'instant', 'value']].sort_values(by=['labelText', 'segment', 'instant',])
+        ['labelText', 'segment', 'unitRef', 'instant', 'factValue']].sort_values(by=['labelText', 'segment', 'instant',])
 
     return merged_facts, start_end, instant
 
+
 def get_monthly_period(df: pd.DataFrame) -> pd.DataFrame:
-    df['period'] = pd.to_timedelta(df['endDate'] - df['startDate']).dt.days / 30.25
+    df['period'] = pd.to_timedelta(
+        df['endDate'] - df['startDate']).dt.days / 30.25
     df['period'] = df['period'].round(0)
     df['Months Ended'] = np.select(
         [

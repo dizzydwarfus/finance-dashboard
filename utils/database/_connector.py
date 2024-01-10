@@ -1,9 +1,14 @@
+# Built-in libraries
+import datetime as dt
+
+# Third party libraries
 import streamlit as st
 from pymongo import MongoClient, ASCENDING
 from pymongo import MongoClient, ASCENDING, IndexModel, UpdateOne
 from pymongo.errors import OperationFailure
+
+# Internal imports
 from utils._logger import MyLogger
-import datetime as dt
 
 
 @st.cache_resource
@@ -77,7 +82,7 @@ class SECDatabase(MyLogger):
             raise Exception('Please provide either a CIK or ticker.')
 
     def insert_submission(self, submission: dict):
-        """Insert submissions into SEC database.
+        """Insert submissions into SEC database. CIK is the primary key.
 
         Args:
             ticker (TickerData): TickerData object
@@ -100,7 +105,7 @@ class SECDatabase(MyLogger):
         return None
 
     def insert_filings(self, cik: str, filings: list):
-        """Insert filings into SEC database. Each submission has many filings.
+        """Insert filings into SEC database. Each submission has many filings. Accession number is the primary key.
 
         Args:
             ticker (TickerData): TickerData object
