@@ -105,7 +105,8 @@ class SECData(MyLogger):
     BASE_SEC_URL = "https://www.sec.gov/"
     BASE_DIRECTORY_URL = "https://www.sec.gov/Archives/edgar/data/"
     SIC_LIST_URL = "https://www.sec.gov/corpfin/division-of-corporation-finance-standard-industrial-classification-sic-code-list"
-    US_GAAP_TAXONOMY_URL = "https://xbrl.fasb.org/us-gaap/2023/elts/us-gaap-2023.xsd"
+    US_GAAP_TAXONOMY_URL = "http://xbrl.fasb.org/us-gaap/2024/elts/us-gaap-2024.xsd"
+    SRT_TAXONOMY_URL = "http://xbrl.fasb.org/srt/2024/elts/srt-std-2024.xsd"
     ALLOWED_TAXONOMIES = {'us-gaap', 'ifrs-full', 'dei', 'srt'}
     INDEX_EXTENSION = {'-index.html', '-index-headers.html'}
     DIRECTORY_INDEX = {'index.json', 'index.xml', 'index.html'}
@@ -127,7 +128,8 @@ class SECData(MyLogger):
                                  "Accept-Encoding": "gzip, deflate",
                                  "Host": "data.sec.gov"}
         self._cik_list = None
-        self._tags = None
+        self._us_gaap_tags = None
+        self._srt_tags = None
         if taxonomy not in self.ALLOWED_TAXONOMIES:
             raise ValueError(
                 f"Taxonomy {taxonomy} is not supported. Please use one of the following taxonomies: {self.ALLOWED_TAXONOMIES}")
@@ -140,10 +142,16 @@ class SECData(MyLogger):
         return self._cik_list
 
     @property
-    def tags(self,):
-        if self._tags is None:
-            self._tags = self.get_usgaap_tags()
-        return self._tags
+    def us_gaap_tags(self,):
+        if self._us_gaap_tags is None:
+            self._us_gaap_tags = self.get_tags(xsd_url=self.US_GAAP_TAXONOMY_URL)
+        return self._us_gaap_tags
+    
+    @property
+    def srt_tags(self,):
+        if self._srt_tags is None:
+            self._srt_tags = self.get_tags(xsd_url=self.SRT_TAXONOMY_URL)
+        return self._srt_tags
 
     @sleep_and_retry
     @limits(calls=10, period=1)
@@ -194,17 +202,16 @@ class SECData(MyLogger):
         cik = f"{ticker_cik.iloc[0]:010d}"
         return cik
 
-    def get_usgaap_tags(self, xsd_url: str = US_GAAP_TAXONOMY_URL):
+    def get_tags(self, xsd_url: str = US_GAAP_TAXONOMY_URL):
         """Get the list of tags (elements) in us-gaap taxonomy or provide a different xsd_url to get tags from a different taxonomy.
 
         Returns:
             list of tags
         """
-        response = self.rate_limited_request(xsd_url, headers=self.sec_headers)
-        xsd_content = response.text
-        root = ET.fromstring(xsd_content)
+        url = requests.get(xsd_url).content
+        us_gaap_df = pd.DataFrame([element.attrs for element in BeautifulSoup(url, 'lxml').find_all('xs:element')])
 
-        return [element.attrib['name'] for element in root.findall(".//{http://www.w3.org/2001/XMLSchema}element")]
+        return us_gaap_df
 
     def get_submissions(self, cik: str = None, submission_file: str = None) -> dict:
         if cik is not None:
@@ -352,7 +359,6 @@ class SECData(MyLogger):
 
         return sic_list
 
-
 class TickerData(SECData):
     """Inherited from SECData class. Retrieves data from SEC Edgar database based on ticker.
     url is constructed based on the following: https://www.sec.gov/Archives/edgar/data/{cik}/{ascension_number}/{file_name}
@@ -361,8 +367,8 @@ class TickerData(SECData):
     file name for xml is always '{ticker}-{reportDate}.{extension}
     """
 
-    def __init__(self, ticker: str, requester_company: str = 'Financial API', requester_name: str = 'API Caller', requester_email: str = 'apicaller@gmail.com', taxonomy: str = 'us-gaap', search_strategy: SearchStrategy = None):
-        super().__init__(requester_company, requester_name, requester_email, taxonomy)
+    def __init__(self, ticker: str, requester_company: str = 'Financial API', requester_name: str = 'API Caller', requester_email: str = 'apicaller@gmail.com', taxonomy: str = 'us-gaap',search_strategy: SearchStrategy = None):
+        super().__init__(requester_company, requester_name, requester_email, taxonomy,)
         self.search_strategy = search_strategy
         self.ticker = ticker.upper()
         self.cik = self.get_ticker_cik(self.ticker)

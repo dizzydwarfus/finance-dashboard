@@ -172,6 +172,7 @@ with st.expander('Show Facts'):
             return df
         else:
             return df
+        
     periods = get_periods(df_to_plot)['Months Ended'].unique().tolist()
     st.write(periods)
     st.divider()
