@@ -116,11 +116,12 @@ p1, p2, p3 = st.columns([1, 1, 1])
 create_financial_page(ticker_list_box, companyA_info, st, [
                       p1, p2, p3], statements_type=statements_type, terms_interested=terms_interested, api_key=alpha_vantage_api, historical=historical)
 
-st.write(same_sector)
+with st.expander('Companies in the same sector'):
+    st.write(same_sector)
 
 st.markdown("***[Data provided by Financial Modeling Prep](https://financialmodelingprep.com/developer/docs/)***", unsafe_allow_html=True)
 
-#TODO: create a new tab to compare entry and exit positions with profit including tax rate
-#TODO: allow user to enter entry and exit date, amount to invest, with supposed tax rate on exit date
-#TODO: create function to calculate profit based on entry and exit date and amount invested
-#TODO: use plotly to visualize entry (green diamond) and exit (red diamond) positions on a candlestick/line chart
+# TODO: create a new tab to compare entry and exit positions with profit including tax rate
+# TODO: allow user to enter entry and exit date, amount to invest, with supposed tax rate on exit date
+# TODO: create function to calculate profit based on entry and exit date and amount invested
+# TODO: use plotly to visualize entry (green diamond) and exit (red diamond) positions on a candlestick/line chart

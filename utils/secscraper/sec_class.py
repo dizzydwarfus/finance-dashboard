@@ -144,9 +144,12 @@ class SECData(MyLogger):
     @property
     def us_gaap_tags(self,):
         if self._us_gaap_tags is None:
-            self._us_gaap_tags = self.get_tags(xsd_url=self.US_GAAP_TAXONOMY_URL)
+            self._us_gaap_tags = self.get_tags(
+                xsd_url=self.US_GAAP_TAXONOMY_URL)
+            self.us_gaap_tags['id'] = self.us_gaap_tags['id'].str.split(
+                '_', n=1).str.join(':').str.lower()
         return self._us_gaap_tags
-    
+
     @property
     def srt_tags(self,):
         if self._srt_tags is None:
@@ -209,7 +212,8 @@ class SECData(MyLogger):
             list of tags
         """
         url = requests.get(xsd_url).content
-        us_gaap_df = pd.DataFrame([element.attrs for element in BeautifulSoup(url, 'lxml').find_all('xs:element')])
+        us_gaap_df = pd.DataFrame(
+            [element.attrs for element in BeautifulSoup(url, 'lxml').find_all('xs:element')])
 
         return us_gaap_df
 
@@ -359,6 +363,7 @@ class SECData(MyLogger):
 
         return sic_list
 
+
 class TickerData(SECData):
     """Inherited from SECData class. Retrieves data from SEC Edgar database based on ticker.
     url is constructed based on the following: https://www.sec.gov/Archives/edgar/data/{cik}/{ascension_number}/{file_name}
@@ -367,7 +372,7 @@ class TickerData(SECData):
     file name for xml is always '{ticker}-{reportDate}.{extension}
     """
 
-    def __init__(self, ticker: str, requester_company: str = 'Financial API', requester_name: str = 'API Caller', requester_email: str = 'apicaller@gmail.com', taxonomy: str = 'us-gaap',search_strategy: SearchStrategy = None):
+    def __init__(self, ticker: str, requester_company: str = 'Financial API', requester_name: str = 'API Caller', requester_email: str = 'apicaller@gmail.com', taxonomy: str = 'us-gaap', search_strategy: SearchStrategy = None):
         super().__init__(requester_company, requester_name, requester_email, taxonomy,)
         self.search_strategy = search_strategy
         self.ticker = ticker.upper()

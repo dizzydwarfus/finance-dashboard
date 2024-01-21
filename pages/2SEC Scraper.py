@@ -2,15 +2,21 @@ import pandas as pd
 import streamlit as st
 from utils.database._connector import SECDatabase
 from utils.secscraper.sec_class import SECData, TickerData
-from utils.secscraper._utils import get_filing_facts, clean_values_in_facts, clean_values_in_segment, split_facts_into_start_instant, get_monthly_period
+from utils.secscraper._utils import reverse_standard_mapping, get_filing_facts, clean_values_in_facts, clean_values_in_segment, split_facts_into_start_instant, get_monthly_period, translate_labels_to_standard_names
 import plotly.express as px
 import plotly.graph_objects as go
+
+# Internal Imports
+from utils.secscraper._mapping import STANDARD_NAME_MAPPING
 
 st.set_page_config(page_title="Investment Dashboard",
                    page_icon=":moneybag:",
                    layout="wide")
 
 mongo = SECDatabase(st.secrets['mongosec']['host'])
+
+reversed_mapping = reverse_standard_mapping(
+    standard_name_mapping=STANDARD_NAME_MAPPING)
 
 
 @st.cache_resource(ttl=86400)  # wrapper to cache the function
@@ -132,9 +138,14 @@ with st.expander('Scrape Filings'):
 
         final_df = clean_values_in_facts(merged_facts)
 
-        # final_df = clean_values_in_segment(merged_facts=final_df)
+        final_df = clean_values_in_segment(
+            merged_facts=final_df, labels_df=labels)
 
-        # final_df, start_end, instant = split_facts_into_start_instant(final_df)
+        final_df = translate_labels_to_standard_names(
+            merged_facts=final_df, standard_name_mapping=reversed_mapping)
+
+        final_df = final_df.drop_duplicates().sort_values(
+            by=['standardName', 'labelText_segmentAxis', 'labelText_segmentValue', 'startDate', 'endDate'])
 
         excel_final_facts = convert_df(final_df)
 
@@ -155,13 +166,13 @@ with st.expander('Show Facts'):
 
     df_to_plot = st.session_state['final_df']
 
-    metric_options = df_to_plot['labelText'].sort_values().unique()
+    metric_options = df_to_plot['standardName'].sort_values().unique()
     metrics = st.multiselect('Choose metric(s)', options=metric_options)
 
-    # segment_options = df_to_plot.loc[df_to_plot['labelText'].isin(
-    #     metrics), 'segment'].sort_values().unique()
+    segment_options = df_to_plot.loc[df_to_plot['labelText'].isin(
+        metrics), 'labelText_segmentAxis'].sort_values().unique()
 
-    # segments = st.multiselect('Choose segment(s)', options=segment_options)
+    segments = st.multiselect('Choose segment(s)', options=segment_options)
 
     def get_periods(df: pd.DataFrame):
         if st.session_state['scraped_form'] == '10-Q':
@@ -172,33 +183,31 @@ with st.expander('Show Facts'):
             return df
         else:
             return df
-        
-    periods = get_periods(df_to_plot)['Months Ended'].unique().tolist()
-    st.write(periods)
-    st.divider()
 
-    metric_df = df_to_plot[df_to_plot['labelText'].isin(
+    periods = get_periods(df_to_plot)['Months Ended'].unique().tolist()
+
+    metric_df = df_to_plot[df_to_plot['standardName'].isin(
         metrics)\
         # & df_to_plot['segment'].isin(segments)\
         & df_to_plot['Months Ended'].isin(periods)]
     try:
         # Pivot the DataFrame
         pivot_df = metric_df.pivot(
-            index=['endDate', 'Months Ended'], columns='segment', values='factValue')
+            index=['endDate', 'Months Ended'], columns='labelText_segmentAxis', values='factValue')
 
         # Calculate the difference
         diff_df = pivot_df.diff()
 
         # Melt the DataFrame back to the original format
         melt_df = diff_df.reset_index().melt(id_vars=['endDate', 'Months Ended'],
-                                             var_name='segment', value_name='change')
+                                             var_name='labelText_segmentAxis', value_name='change')
 
         # Merge the difference back to the original DataFrame
         # Create a new column 'color' that indicates whether the value has increased or decreased
         metric_df['color'] = 'neutral'
         metric_df.loc[metric_df['change'] > 0, 'color'] = 'increase'
         metric_df.loc[metric_df['change'] < 0, 'color'] = 'decrease'
-        metric_df = metric_df.merge(melt_df, on=['endDate', 'segment'])
+        metric_df = metric_df.merge(melt_df, on=['endDate', 'segmentAxis'])
 
     except Exception as e:
         st.error(e, icon='🚨')

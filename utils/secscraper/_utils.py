@@ -9,6 +9,15 @@ from utils.secscraper.sec_class import TickerData
 from utils.secscraper._dataclasses import Context, Facts, LinkLabels
 
 
+def reverse_standard_mapping(standard_name_mapping: dict):
+    reverse_mapping = {}
+    for standard_name, xbrl_tags in standard_name_mapping.items():
+        for tag in xbrl_tags:
+            reverse_mapping[tag] = standard_name
+
+    return reverse_mapping
+
+
 def get_filing_facts(ticker: TickerData, filings_to_scrape: list, verbose=False):
     """
     Scrape facts, context, labels, definitions, calculations, metalinks from filings_to_scrape
@@ -116,10 +125,11 @@ def get_filing_facts(ticker: TickerData, filings_to_scrape: list, verbose=False)
                                          scrape_file_extension='_lab').query("`xlink:type` == 'resource'")
             labels['xlink:role'] = labels['xlink:role'].str.split(
                 '/').apply(lambda x: x[-1])
-            labels['xlink:label'] = labels['xlink:label'].str\
-                .replace('(lab_)|(_en-US)', '', regex=True).str\
-                .split('_')\
-                .apply(lambda x: ':'.join(x[:2]))\
+            labels['xlink:labelOriginal'] = labels['xlink:label']
+            labels['xlink:label'] = labels['xlink:label']\
+                .str.replace('(lab_)|(_en-US)', '', regex=True)\
+                    .str.split('_')\
+                        .apply(lambda x: ':'.join(x[:2]))\
                 .str.lower()
             labels['accessionNumber'] = accessionNumber
             all_labels = pd.concat([all_labels, labels], ignore_index=True)
@@ -162,6 +172,7 @@ def get_filing_facts(ticker: TickerData, filings_to_scrape: list, verbose=False)
                 .merge(labels.query("`xlink:role` == 'label'"), how='left', left_on='factName', right_on='xlink:label')
             merged_facts = merged_facts.drop(
                 ['accessionNumber_x', 'accessionNumber_y'], axis=1)
+
             ticker.scrape_logger.info(
                 f'Successfully merged facts with context and labels. Merged facts length: {len(merged_facts)}...')
         except Exception as e:
@@ -173,26 +184,53 @@ def get_filing_facts(ticker: TickerData, filings_to_scrape: list, verbose=False)
 
         all_merged_facts = pd.concat(
             [all_merged_facts, merged_facts], ignore_index=True)
+
         ticker.scrape_logger.info(
             f'Successfully scraped {ticker.ticker}({ticker.cik})-{folder_url}...\n')
         if verbose:
             st.success(
                 ticker.ticker + ' ' + file.get('filingDate').strftime('%Y-%m-%d'))
+
     all_merged_facts = all_merged_facts.loc[~all_merged_facts['labelText'].isnull(), [
         'labelText', 'segment', 'startDate', 'endDate', 'instant', 'factValue', 'unitRef']]
 
     return all_labels, all_calc, all_defn, all_context, all_facts, all_metalinks, all_merged_facts, failed_folders
 
 
+def translate_labels_to_standard_names(merged_facts: pd.DataFrame, standard_name_mapping: dict):
+    merged_facts['standardName'] = merged_facts['labelText'].apply(
+        lambda x: standard_name_mapping.get(x, x))
+
+    return merged_facts
+
+
 def clean_values_in_facts(merged_facts: pd.DataFrame):
-    df = merged_facts.loc[(~merged_facts['factValue'].str.contains(
-        '[^0-9\.\-]|(^\d+\-\d+\-\d+$)')) & (merged_facts['factValue'] != "")].copy()
+    df = merged_facts.loc[
+        ~(merged_facts['factValue'].str.contains(
+            '[^0-9\.\-]|(^\d+\-\d+\-\d+$)'))
+        & (merged_facts['factValue'] != "")
+        & (merged_facts['factValue'] != "-")
+    ].copy()
+
     df['factValue'] = df['factValue'].astype(float)
 
     return df
 
 
-def clean_values_in_segment(merged_facts: pd.DataFrame) -> pd.DataFrame:
+def segment_breakdown_levels(final_df: pd.DataFrame) -> int:
+    dict_len = 0
+    for i in final_df['segment']:
+        if isinstance(i, dict):
+            curr_len = len(list(i.items()))
+            if curr_len > dict_len:
+                dict_len = curr_len
+                if curr_len > 1:
+                    print(list(i.items()))
+
+    return dict_len
+
+
+def clean_values_in_segment(merged_facts: pd.DataFrame, labels_df: pd.DataFrame) -> pd.DataFrame:
     """Segment column of merged facts is cleaned to remove "ticker:" and "us-gaap:" prepend, and to split camel case into separate words (e.g. "us-gaap:RevenuesBeforeTax" becomes "Revenues Before Tax"). 
 
     Args:
@@ -201,14 +239,31 @@ def clean_values_in_segment(merged_facts: pd.DataFrame) -> pd.DataFrame:
     Returns:
         merged_facts (pd.DataFrame): merged facts data frame with segment column cleaned
     """
-    prepends = [i[0] for i in merged_facts.loc[(merged_facts['segment'].str.contains(':')) & (
-        ~merged_facts['segment'].isna())]['segment'].str.extract(r'(.*:)').drop_duplicates().values]
-    pattern = '|'.join(prepends)
+    merged_facts['segmentAxis'] = merged_facts['segment']\
+        .apply(lambda x: list(x.keys())[0] if isinstance(x, dict) else "")\
+        .str.lower()\
+        # .apply(lambda x: x.split(':')[1] if x != "" else "")\
+    # .str.replace(pat=r'([A-Z])', repl=r' \1', regex=True).str.strip()
 
-    merged_facts['segment'] = merged_facts['segment']\
-        .str.replace(pat=pattern, repl='', regex=True)\
-        .str.replace(pat=r'([A-Z])', repl=r' \1', regex=True).str.strip()
-    # .apply(lambda x: x[-1] if isinstance(x, list) else x)\
+    merged_facts['segmentValue'] = merged_facts['segment']\
+        .apply(lambda x: list(x.values())[0] if isinstance(x, dict) else "")\
+        .str.lower()\
+        # .apply(lambda x: x.split(':')[1] if x.find(':') >= 0 else "")\
+    # .str.replace(pat=r'([A-Z])', repl=r' \1', regex=True).str.strip()
+
+    merged_facts.drop('segment', axis=1, inplace=True)
+
+    # Merge with labels to get standard names for segment labels
+    labels_df = labels_df.query("`xlink:role` == 'label'")[
+        ['xlink:label', 'labelText']]
+    merged_facts = merged_facts.merge(labels_df, how='left', left_on='segmentAxis', right_on='xlink:label', suffixes=('', '_segmentAxis'))\
+        .merge(labels_df, how='left', left_on='segmentValue', right_on='xlink:label', suffixes=('', '_segmentValue'))
+
+    # Fill in missing labelText values with segmentValue
+    merged_facts['labelText_segmentValue'].fillna(
+        merged_facts['segmentValue'], inplace=True)
+    merged_facts.drop(['segmentAxis', 'segmentValue', 'xlink:label',
+                      'xlink:label_segmentValue'], axis=1, inplace=True)
 
     return merged_facts
 
