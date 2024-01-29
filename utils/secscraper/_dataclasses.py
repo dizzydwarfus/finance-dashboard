@@ -2,7 +2,7 @@
 from dataclasses import dataclass
 import datetime as dt
 import re
-from typing import Union
+from typing import Union, List
 
 # Third party libraries
 from bs4.element import Tag
