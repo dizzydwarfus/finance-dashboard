@@ -1,5 +1,6 @@
 # Built-in libraries
 import datetime as dt
+from typing import List
 
 # Third party libraries
 import streamlit as st
@@ -38,6 +39,8 @@ class SECDatabase(MyLogger):
         self.tickerfilings = self.db.TickerFilings
         self.sicdb = self.db.SICList
         self.factsdb = self.db.Facts
+        self.labelsdb = self.db.Labels
+
         try:
             self.tickerdata.create_indexes(
                 [IndexModel([('cik', ASCENDING)], unique=True)])
@@ -130,6 +133,12 @@ class SECDatabase(MyLogger):
                 f'Failed to insert filings for {cik}...{e}')
             return cik
         return None
+
+    def create_facts_update_request(self, accessionNumber: str, facts: List[dict]):
+        update = UpdateOne({'accessionNumber': accessionNumber}, {
+                           '$set': {'facts': facts,
+                                    'lastUpdated': dt.datetime.now()}}, upsert=True)
+        return update
 
     def insert_facts(self, accession: str, facts: list):
         """Insert facts into SEC database. Each filing has many facts.

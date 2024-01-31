@@ -28,8 +28,9 @@ class Context:
         Returns:
             str: entity
         """
-        return self.context_tag.find("entity").text.split()[
-            0] if self.context_tag.find("entity") is not None else None
+        pattern = re.compile(".*entity.*")
+        return self.context_tag.find(pattern).text.split()[
+            0] if self.context_tag.find(pattern) is not None else None
 
     @property
     def startDate(self) -> Union[dt.datetime, None]:
@@ -38,8 +39,9 @@ class Context:
         Returns:
             dt.datetime: start date
         """
-        start = self.context_tag.find("startdate").text if self.context_tag.find(
-            "startdate") is not None else None
+        pattern = re.compile(".*startdate.*")
+        start = self.context_tag.find(pattern).text if self.context_tag.find(
+            pattern) is not None else None
         return dt.datetime.strptime(start, '%Y-%m-%d') if start is not None else None
 
     @property
@@ -49,8 +51,9 @@ class Context:
         Returns:
             dt.datetime: end date
         """
-        end = self.context_tag.find("enddate").text if self.context_tag.find(
-            "enddate") is not None else None
+        pattern = re.compile(".*enddate.*")
+        end = self.context_tag.find(pattern).text if self.context_tag.find(
+            pattern) is not None else None
         return dt.datetime.strptime(end, '%Y-%m-%d') if end is not None else None
 
     @property
@@ -60,8 +63,9 @@ class Context:
         Returns:
             dt.datetime: instant date
         """
-        instant = self.context_tag.find("instant").text if self.context_tag.find(
-            "instant") is not None else None
+        pattern = re.compile(".*instant.*")
+        instant = self.context_tag.find(pattern).text if self.context_tag.find(
+            pattern) is not None else None
         return dt.datetime.strptime(instant, '%Y-%m-%d') if instant is not None else None
 
     @property
@@ -71,14 +75,17 @@ class Context:
         Returns:
             dict: dict containing segment and tags classifying the segment
         """
-        segment = self.context_tag.find("segment")
+        segment_pattern = re.compile(".*segment.*")
+        segment_breakdown_pattern = re.compile("^xbrldi:.*")
+
+        segment = self.context_tag.find(segment_pattern)
 
         if segment is None:
             return None
 
         segment_dict = {}
 
-        segment_breakdown = segment.find_all(re.compile('^xbrldi:.*'))
+        segment_breakdown = segment.find_all(segment_breakdown_pattern)
 
         for i in segment_breakdown:
             segment_dict[i.attrs.get('dimension')] = i.text
@@ -99,7 +106,7 @@ class Context:
         Returns:
             int: length of segment
         """
-        segment = self.context_tag.find("segment")
+        segment = self.context_tag.find(re.compile(".*segment.*"))
 
         if segment is None:
             return 0

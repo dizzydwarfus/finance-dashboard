@@ -56,6 +56,7 @@ def get_filing_facts(ticker: TickerData, filings_to_scrape: list, verbose=False)
     all_metalinks = pd.DataFrame()
     all_merged_facts = pd.DataFrame()
     failed_folders = []
+    fact_update_requests = []
 
     for file in filings_to_scrape:
         if (file.get('form') != '10-Q' or file.get('form') != '10-K') and file.get('filingDate') < dt.datetime(2009, 1, 1):
@@ -75,6 +76,7 @@ def get_filing_facts(ticker: TickerData, filings_to_scrape: list, verbose=False)
             for fact_tag in facts:
                 facts_list.append(Facts(fact_tag=fact_tag).to_dict())
             facts_df = pd.DataFrame(facts_list)
+
             facts_df['accessionNumber'] = accessionNumber
             all_facts = pd.concat([all_facts, facts_df], ignore_index=True)
         except Exception as e:
@@ -206,8 +208,8 @@ def translate_labels_to_standard_names(merged_facts: pd.DataFrame, standard_name
 
 def clean_values_in_facts(merged_facts: pd.DataFrame):
     df = merged_facts.loc[
-        ~(merged_facts['factValue'].str.contains(
-            '[^0-9\.\-]|(^\d+\-\d+\-\d+$)'))
+        (merged_facts['factValue'].str.contains(
+            '^-?\d+(\.\d+)?$'))
         & (merged_facts['factValue'] != "")
         & (merged_facts['factValue'] != "-")
     ].copy()

@@ -56,7 +56,7 @@ class SearchStrategy(ABC):
 
 class ContextSearchStrategy(SearchStrategy):
     def get_pattern(self) -> str:
-        return '^context$'
+        return 'context'
 
 
 class LinkLabelSearchStrategy(SearchStrategy):
