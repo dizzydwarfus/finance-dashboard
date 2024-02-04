@@ -1,8 +1,8 @@
 [tool.poetry]
-name = "finance dashboard"
+name = "finance_dashboard"
 version = "0.1.0"
 description = "Finance Dashboard built on top of streamlit, pandas, and beautifulsoup"
-authors = ["Lian Zhen Yang"]
+authors = ["dizzydwarfus"]
 readme = "README.md"
 
 [tool.poetry.dependencies]

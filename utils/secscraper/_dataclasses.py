@@ -11,6 +11,12 @@ from bs4.element import Tag
 @dataclass
 class Context:
     context_tag: Tag
+    entity_pattern: str = ".*identifier.*"
+    startDate_pattern: str = ".*startdate.*"
+    endDate_pattern: str = ".*enddate.*"
+    instant_pattern: str = ".*instant.*"
+    segment_pattern: str = ".*segment.*"
+    segment_breakdown_pattern: str = ".*xbrldi:.*"
 
     @property
     def contextId(self) -> str:
@@ -20,54 +26,25 @@ class Context:
             str: contextId
         """
         return self.context_tag.attrs.get('id')
-
+    
     @property
     def entity(self) -> Union[str, None]:
-        """Get entity
-
-        Returns:
-            str: entity
-        """
-        pattern = re.compile(".*entity.*")
-        return self.context_tag.find(pattern).text.split()[
-            0] if self.context_tag.find(pattern) is not None else None
-
+        pattern = re.compile(self.entity_pattern)
+        result = self.context_tag.find(pattern)
+        return result.text if result is not None else None
+    
     @property
-    def startDate(self) -> Union[dt.datetime, None]:
-        """Get start date
-
-        Returns:
-            dt.datetime: start date
-        """
-        pattern = re.compile(".*startdate.*")
-        start = self.context_tag.find(pattern).text if self.context_tag.find(
-            pattern) is not None else None
-        return dt.datetime.strptime(start, '%Y-%m-%d') if start is not None else None
-
+    def startDate(self) -> str:
+        return self.search_dates(self.startDate_pattern)
+    
     @property
-    def endDate(self) -> Union[dt.datetime, None]:
-        """Get end date
-
-        Returns:
-            dt.datetime: end date
-        """
-        pattern = re.compile(".*enddate.*")
-        end = self.context_tag.find(pattern).text if self.context_tag.find(
-            pattern) is not None else None
-        return dt.datetime.strptime(end, '%Y-%m-%d') if end is not None else None
-
+    def endDate(self) -> str:
+        return self.search_dates(self.endDate_pattern)
+    
     @property
-    def instant(self) -> Union[dt.datetime, None]:
-        """Get instant date
-
-        Returns:
-            dt.datetime: instant date
-        """
-        pattern = re.compile(".*instant.*")
-        instant = self.context_tag.find(pattern).text if self.context_tag.find(
-            pattern) is not None else None
-        return dt.datetime.strptime(instant, '%Y-%m-%d') if instant is not None else None
-
+    def instant(self) -> str:
+        return self.search_dates(self.instant_pattern)
+    
     @property
     def segment(self) -> Union[dict, None]:
         """Get segments and tags classifying the segment and store in dict
@@ -75,8 +52,8 @@ class Context:
         Returns:
             dict: dict containing segment and tags classifying the segment
         """
-        segment_pattern = re.compile(".*segment.*")
-        segment_breakdown_pattern = re.compile("^xbrldi:.*")
+        segment_pattern = re.compile(self.segment_pattern)
+        segment_breakdown_pattern = re.compile(self.segment_breakdown_pattern)
 
         segment = self.context_tag.find(segment_pattern)
 
@@ -92,13 +69,44 @@ class Context:
 
         return segment_dict
 
+    def search_dates(self, pattern: str) -> Union[str, None]:
+        """Search for pattern in context tag
+
+        Args:
+            pattern (str): pattern to search for
+
+        Returns:
+            Union[str, None]: result of search
+        """
+        pattern = re.compile(pattern)
+        result = self.context_tag.find(pattern)
+
+        if result is None:
+            return None
+        
+        result = result.text
+
+        if result == '':
+            return None
+        
+        return dt.datetime.strptime(result, '%Y-%m-%d')
+    
     def to_dict(self) -> dict:
         """Convert context to dict
 
         Returns:
             dict: dict containing context information
         """
-        return dict(contextId=self.contextId, entity=self.entity, segment=self.segment, startDate=self.startDate, endDate=self.endDate, instant=self.instant)
+        context_dict = {
+            'contextId': self.contextId,
+            'entity': self.entity,
+            'segment': self.segment,
+            'startDate': self.startDate,
+            'endDate': self.endDate,
+            'instant': self.instant,
+            'segmentLength': self.get_segment_length()
+        }
+        return context_dict
 
     def get_segment_length(self) -> int:
         """Get length of segment

@@ -1,13 +1,13 @@
+# Third-party Libraries
 import pandas as pd
 import streamlit as st
+
+# Internal Imports
 from utils.database._connector import SECDatabase
 from utils.secscraper.sec_class import SECData, TickerData
 from utils.secscraper._utils import reverse_standard_mapping, get_filing_facts, clean_values_in_facts, clean_values_in_segment, split_facts_into_start_instant, get_monthly_period, translate_labels_to_standard_names
-import plotly.express as px
-import plotly.graph_objects as go
-
-# Internal Imports
 from utils.secscraper._mapping import STANDARD_NAME_MAPPING
+from utils._sec_page_utils import filter_dataframe, get_unique_sorted_options
 
 st.set_page_config(page_title="Investment Dashboard",
                    page_icon=":moneybag:",
@@ -95,12 +95,11 @@ with st.expander('Scrape Filings'):
     filing_chosen = None
     filing_available = None
     col5, col6, col7, col8, _, _ = st.columns([1, 0.5, 1, 1, 0.5, 0.5])
-    form = col5.selectbox("Choose a filing to scrape", index=None,
+    form = col5.multiselect("Choose a filing to scrape",
                           options=sorted(ticker_data.forms), placeholder='Select a form...', key='scraping_form')
     mode = col6.radio("Select mode", options=[
                       "Range", "Single"], key='filing_mode')
-    year_options = ticker_data.filings[ticker_data.filings['form']
-                                       == form]['filingDate'].dt.year.unique()
+    year_options = ticker_data.filings[ticker_data.filings['form'].isin(form)]['filingDate'].dt.year.unique()
 
     if mode == "Range":
         start_year = col7.selectbox(
@@ -108,16 +107,16 @@ with st.expander('Scrape Filings'):
 
         end_year = col8.selectbox(
             "Choose a End Year", options=year_options, key='end_year',)
-        filing_available = ticker_data.filings[(ticker_data.filings['form'] == form) & (
+        filing_available = ticker_data.filings[(ticker_data.filings['form'].isin(form)) & (
             ticker_data.filings['filingDate'].dt.year >= start_year) & (ticker_data.filings['filingDate'].dt.year <= end_year)]
 
     elif mode == "Single":
         date_options = ticker_data.filings[(
-            ticker_data.filings['form'] == form)]['filingDate'].dt.date.unique()
+            ticker_data.filings['form'].isin(form))]['filingDate'].dt.date.unique()
         date = col7.selectbox(
             "Choose a date", options=date_options, key='scraping_date')
         if form and date:
-            filing_available = ticker_data.filings.loc[(ticker_data.filings['form'] == form) & (
+            filing_available = ticker_data.filings.loc[(ticker_data.filings['form'].isin(form)) & (
                 ticker_data.filings['filingDate'].dt.date == date)]
 
     st.divider()
@@ -134,18 +133,18 @@ with st.expander('Scrape Filings'):
         labels, calc, defn, context, facts, metalinks, merged_facts, failed_folders = get_filing_facts(
             ticker=ticker_data, filings_to_scrape=filing_to_scrape)
 
-        final_df = get_monthly_period(merged_facts)
+        final_df = get_monthly_period(merged_facts) # introduces columns 'period' and 'monthsEnded'
 
-        final_df = clean_values_in_facts(merged_facts)
+        final_df = clean_values_in_facts(merged_facts) # remove non-numeric values from 'factValue' column
 
         final_df = clean_values_in_segment(
-            merged_facts=final_df, labels_df=labels)
+            merged_facts=final_df, labels_df=labels) # convert segment axis and segment values to readable names
 
         final_df = translate_labels_to_standard_names(
-            merged_facts=final_df, standard_name_mapping=reversed_mapping)
+            merged_facts=final_df, standard_name_mapping=reversed_mapping) # translate labels to standard names
 
-        final_df = final_df.drop_duplicates().sort_values(
-            by=['standardName', 'labelText_segmentAxis', 'labelText_segmentValue', 'startDate', 'endDate'])
+        final_df = final_df.drop_duplicates(subset=['standardName', 'segmentAxis', 'segmentValue', 'startDate', 'endDate', 'instant', 'factValue']).sort_values(
+            by=['standardName', 'segmentAxis', 'segmentValue', 'startDate', 'endDate'])
 
         excel_final_facts = convert_df(final_df)
 
@@ -164,97 +163,33 @@ with st.expander('Show Facts'):
         st.warning('Please scrape facts first')
         st.stop()
 
+    col1, col2, col3, col4, _, _ = st.columns([1, 1, 1, 1, 0.5, 0.5])
+
+    # Initial DataFrame from session state
     df_to_plot = st.session_state['final_df']
 
-    metric_options = df_to_plot['standardName'].sort_values().unique()
-    metrics = st.multiselect('Choose metric(s)', options=metric_options)
+    # Metric selection
+    metric_options = get_unique_sorted_options(df_to_plot, 'standardName')
+    metrics = col1.multiselect('Choose Metric(s)', options=metric_options)
+    df_to_plot = filter_dataframe(df_to_plot, 'standardName', metrics)
 
-    segment_options = df_to_plot.loc[df_to_plot['labelText'].isin(
-        metrics), 'labelText_segmentAxis'].sort_values().unique()
+    # Segment selection based on filtered metrics
+    segment_options = get_unique_sorted_options(df_to_plot[df_to_plot['standardName'].isin(metrics)], 'segmentAxis')
+    segments = col2.multiselect('Choose Segment(s)', options=segment_options)
+    df_to_plot = filter_dataframe(df_to_plot, 'segmentAxis', segments)
 
-    segments = st.multiselect('Choose segment(s)', options=segment_options)
+    # Segment value selection based on filtered segments
+    segment_suboptions = get_unique_sorted_options(df_to_plot[df_to_plot['segmentAxis'].isin(segments)], 'segmentValue')
+    segment_values = col3.multiselect('Choose Segment Value(s)', options=segment_suboptions)
+    df_to_plot = filter_dataframe(df_to_plot, 'segmentValue', segment_values)
 
-    def get_periods(df: pd.DataFrame):
-        if st.session_state['scraped_form'] == '10-Q':
-            # return df.loc[df['Months Ended'] == 'Three Months Ended']
-            return df
-        elif st.session_state['scraped_form'] == '10-K':
-            # return df.loc[df['Months Ended'] == 'Twelve Months Ended']
-            return df
-        else:
-            return df
+    # Months ended selection based on current DataFrame state
+    months_ended_options = get_unique_sorted_options(df_to_plot, 'monthsEnded')
+    months_ended = col4.multiselect('Choose Months Ended', options=months_ended_options)
+    df_to_plot = filter_dataframe(df_to_plot, 'monthsEnded', months_ended)
+    
+    st.dataframe(df_to_plot, use_container_width=True)
 
-    periods = get_periods(df_to_plot)['Months Ended'].unique().tolist()
-
-    metric_df = df_to_plot[df_to_plot['standardName'].isin(
-        metrics)\
-        # & df_to_plot['segment'].isin(segments)\
-        & df_to_plot['Months Ended'].isin(periods)]
-    try:
-        # Pivot the DataFrame
-        pivot_df = metric_df.pivot(
-            index=['endDate', 'Months Ended'], columns='labelText_segmentAxis', values='factValue')
-
-        # Calculate the difference
-        diff_df = pivot_df.diff()
-
-        # Melt the DataFrame back to the original format
-        melt_df = diff_df.reset_index().melt(id_vars=['endDate', 'Months Ended'],
-                                             var_name='labelText_segmentAxis', value_name='change')
-
-        # Merge the difference back to the original DataFrame
-        # Create a new column 'color' that indicates whether the value has increased or decreased
-        metric_df['color'] = 'neutral'
-        metric_df.loc[metric_df['change'] > 0, 'color'] = 'increase'
-        metric_df.loc[metric_df['change'] < 0, 'color'] = 'decrease'
-        metric_df = metric_df.merge(melt_df, on=['endDate', 'segmentAxis'])
-
-    except Exception as e:
-        st.error(e, icon='🚨')
-    finally:
-        st.dataframe(metric_df, use_container_width=True)
-    # st.dataframe(pivot_df, use_container_width=True)
-    # st.dataframe(diff_df, use_container_width=True)
-    # st.dataframe(melt_df, use_container_width=True)
-
-    # # Create a line plot
-    # fig = px.line(metric_df, x='endDate', y='factValue',
-    #               color='segment', line_group='segment',
-    #               #   hover_data={'change': ':,'},
-    #               )
-    # # Overlay a scatter plot for the individual points
-    # fig.add_trace(
-    #     go.Scatter(
-    #         x=metric_df['endDate'],
-    #         y=metric_df['factValue'],
-    #         mode='markers',
-    #         marker=dict(
-    #             color=metric_df['color'].map(
-    #                 {'increase': 'green', 'decrease': 'red', 'neutral': 'grey'}),
-    #             size=15,
-    #             symbol=metric_df['color'].map(
-    #                 {'increase': 'triangle-up', 'decrease': 'triangle-down', 'neutral': 'circle'})
-    #         ),
-    #         hoverinfo='skip',
-    #         showlegend=False
-    #     )
-    # )
-    # for trace in fig.data:
-    #     print(trace)
-    # # Customize the layout
-    # fig.update_layout(
-    #     title='Metrics over time',
-    #     xaxis_title='End Date',
-    #     yaxis_title='Value',
-    #     legend_title='Segment',
-    #     font=dict(
-    #         family='Courier New, monospace',
-    #         size=18,
-    #         color='RebeccaPurple'
-    #     ),
-    #     hovermode='x unified'
-    # )
-    # fig.update_xaxes(autorange=True)
-    # fig.update_yaxes(autorange=True, rangemode="tozero")
-    # # Show the plot
+    # metric_df = prepare_metric_df_for_graph(metric_df)
+    # fig = plot_metric_df(metric_df)
     # st.plotly_chart(fig, use_container_width=True)

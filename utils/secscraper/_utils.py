@@ -1,8 +1,12 @@
+# Built-in Libraries
+from typing import Literal
+
 # Third-party libraries
 import pandas as pd
 import numpy as np
 import datetime as dt
 import streamlit as st
+
 
 # Internal imports
 from utils.secscraper.sec_class import TickerData
@@ -96,7 +100,8 @@ def get_filing_facts(ticker: TickerData, filings_to_scrape: list, verbose=False)
             contexts = ticker.search_context(soup=soup)
             for tag in contexts:
                 context_list.append(Context(context_tag=tag).to_dict())
-            context_df = pd.DataFrame(context_list)
+            context_df = pd.DataFrame(context_list).drop_duplicates(
+                subset=['contextId'], keep='first')
             context_df['accessionNumber'] = accessionNumber
             all_context = pd.concat(
                 [all_context, context_df], ignore_index=True)
@@ -184,9 +189,16 @@ def get_filing_facts(ticker: TickerData, filings_to_scrape: list, verbose=False)
                                   error=f'Failed to merge facts with context and labels for {folder_url}...{e}', filingDate=file.get('filingDate')))
             pass
 
-        all_merged_facts = pd.concat(
-            [all_merged_facts, merged_facts], ignore_index=True)
-
+        try:
+            all_merged_facts = pd.concat(
+                [all_merged_facts, merged_facts], ignore_index=True)
+        except Exception as e:
+            ticker.scrape_logger.error(
+                f'Failed to concatenate merged facts for {folder_url}...{e}')
+            failed_folders.append(dict(folder_url=folder_url, accessionNumber=accessionNumber,
+                                  error=f'Failed to concatenate merged facts for {folder_url}...{e}', filingDate=file.get('filingDate')))
+            pass
+        
         ticker.scrape_logger.info(
             f'Successfully scraped {ticker.ticker}({ticker.cik})-{folder_url}...\n')
         if verbose:
@@ -199,11 +211,26 @@ def get_filing_facts(ticker: TickerData, filings_to_scrape: list, verbose=False)
     return all_labels, all_calc, all_defn, all_context, all_facts, all_metalinks, all_merged_facts, failed_folders
 
 
-def translate_labels_to_standard_names(merged_facts: pd.DataFrame, standard_name_mapping: dict):
-    merged_facts['standardName'] = merged_facts['labelText'].apply(
-        lambda x: standard_name_mapping.get(x, x))
-
-    return merged_facts
+def get_monthly_period(df: pd.DataFrame) -> pd.DataFrame:
+    df['period'] = pd.to_timedelta(
+        df['endDate'] - df['startDate']).dt.days / 30.25
+    df['period'] = df['period'].round(0)
+    df['monthsEnded'] = np.select(
+        [
+            df['period'] == 3,
+            df['period'] == 6,
+            df['period'] == 9,
+            df['period'] == 12,
+        ],
+        [
+            "Three Months Ended",
+            "Six Months Ended",
+            "Nine Months Ended",
+            "Twelve Months Ended",
+        ],
+        default=None
+    )
+    return df
 
 
 def clean_values_in_facts(merged_facts: pd.DataFrame):
@@ -219,17 +246,6 @@ def clean_values_in_facts(merged_facts: pd.DataFrame):
     return df
 
 
-def segment_breakdown_levels(final_df: pd.DataFrame) -> int:
-    dict_len = 0
-    for i in final_df['segment']:
-        if isinstance(i, dict):
-            curr_len = len(list(i.items()))
-            if curr_len > dict_len:
-                dict_len = curr_len
-                if curr_len > 1:
-                    print(list(i.items()))
-
-    return dict_len
 
 
 def clean_values_in_segment(merged_facts: pd.DataFrame, labels_df: pd.DataFrame) -> pd.DataFrame:
@@ -241,33 +257,58 @@ def clean_values_in_segment(merged_facts: pd.DataFrame, labels_df: pd.DataFrame)
     Returns:
         merged_facts (pd.DataFrame): merged facts data frame with segment column cleaned
     """
-    merged_facts['segmentAxis'] = merged_facts['segment']\
-        .apply(lambda x: list(x.keys())[0] if isinstance(x, dict) else "")\
-        .str.lower()\
-        # .apply(lambda x: x.split(':')[1] if x != "" else "")\
-    # .str.replace(pat=r'([A-Z])', repl=r' \1', regex=True).str.strip()
+    # Get labels dict to translate segment values
+    def join_segments(x: dict, segment_type: Literal['key','value']) -> str:
+        if x is not None and isinstance(x, dict):
+            try:
+                if segment_type == 'key':
+                    result = ", ".join(list(x.keys()))
+                elif segment_type == 'value':
+                    result = ", ".join(list(x.values()))
+                return result
+            except Exception as e:
+                pass
+                print(f'Error: {e} on {x}')
+        else:
+            return None
+        
+    labels_df = labels_df.query("`xlink:role` == 'label'")[['xlink:label', 'labelText']]\
+        .set_index('xlink:label')\
+            .to_dict()['labelText']
 
-    merged_facts['segmentValue'] = merged_facts['segment']\
-        .apply(lambda x: list(x.values())[0] if isinstance(x, dict) else "")\
-        .str.lower()\
-        # .apply(lambda x: x.split(':')[1] if x.find(':') >= 0 else "")\
-    # .str.replace(pat=r'([A-Z])', repl=r' \1', regex=True).str.strip()
+    merged_facts['segment_modified'] = merged_facts['segment'].apply(lambda x: {labels_df.get(i.lower()): labels_df.get(j.lower()) for i, j in x.items()} if isinstance(x, dict) else None)
 
-    merged_facts.drop('segment', axis=1, inplace=True)
+    merged_facts['segmentAxis'] = merged_facts['segment_modified']\
+        .apply(lambda x: join_segments(x, segment_type='key'))
 
-    # Merge with labels to get standard names for segment labels
-    labels_df = labels_df.query("`xlink:role` == 'label'")[
-        ['xlink:label', 'labelText']]
-    merged_facts = merged_facts.merge(labels_df, how='left', left_on='segmentAxis', right_on='xlink:label', suffixes=('', '_segmentAxis'))\
-        .merge(labels_df, how='left', left_on='segmentValue', right_on='xlink:label', suffixes=('', '_segmentValue'))
+    merged_facts['segmentValue'] = merged_facts['segment_modified']\
+        .apply(lambda x: join_segments(x, segment_type='value'))
 
-    # Fill in missing labelText values with segmentValue
-    merged_facts['labelText_segmentValue'].fillna(
-        merged_facts['segmentValue'], inplace=True)
-    merged_facts.drop(['segmentAxis', 'segmentValue', 'xlink:label',
-                      'xlink:label_segmentValue'], axis=1, inplace=True)
+    merged_facts.drop(['segment', 'segment_modified'], axis=1, inplace=True)
 
     return merged_facts
+
+
+def translate_labels_to_standard_names(merged_facts: pd.DataFrame, standard_name_mapping: dict):
+    merged_facts['standardName'] = merged_facts['labelText'].apply(
+        lambda x: standard_name_mapping.get(x, x))
+    
+    merged_facts = merged_facts[['standardName', 'segmentAxis', 'segmentValue', 'startDate', 'endDate', 'period', 'monthsEnded', 'instant', 'factValue', 'unitRef', 'labelText']]
+
+    return merged_facts
+
+
+def segment_breakdown_levels(final_df: pd.DataFrame) -> int:
+    dict_len = 0
+    for i in final_df['segment']:
+        if isinstance(i, dict):
+            curr_len = len(list(i.items()))
+            if curr_len > dict_len:
+                dict_len = curr_len
+                if curr_len > 1:
+                    print(list(i.items()))
+
+    return dict_len
 
 
 def split_facts_into_start_instant(merged_facts: pd.DataFrame):
@@ -291,24 +332,3 @@ def split_facts_into_start_instant(merged_facts: pd.DataFrame):
 
     return merged_facts, start_end, instant
 
-
-def get_monthly_period(df: pd.DataFrame) -> pd.DataFrame:
-    df['period'] = pd.to_timedelta(
-        df['endDate'] - df['startDate']).dt.days / 30.25
-    df['period'] = df['period'].round(0)
-    df['Months Ended'] = np.select(
-        [
-            df['period'] == 3,
-            df['period'] == 6,
-            df['period'] == 9,
-            df['period'] == 12,
-        ],
-        [
-            "Three Months Ended",
-            "Six Months Ended",
-            "Nine Months Ended",
-            "Twelve Months Ended",
-        ],
-        default=None
-    )
-    return df
