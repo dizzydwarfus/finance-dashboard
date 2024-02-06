@@ -91,7 +91,12 @@ col1.download_button(
 col2.write(ticker_data.__repr_html__(), unsafe_allow_html=True)
 # st.write(ticker_data.__dict__, unsafe_allow_html=True)
 
-with st.expander('Scrape Filings'):
+with st.container(border=True):
+    st.markdown(
+        """
+    # Scrape Filings
+    """)
+
     filing_chosen = None
     filing_available = None
     col5, col6, col7, col8, _, _ = st.columns([1, 0.5, 1, 1, 0.5, 0.5])
@@ -158,7 +163,12 @@ with st.expander('Scrape Filings'):
         st.success('Scraping Completed ✅')
 
 
-with st.expander('Show Facts'):
+with st.container(border=True):
+    st.markdown(
+        """
+    # Analyze Facts
+    """)
+
     if 'final_df' not in st.session_state:
         st.warning('Please scrape facts first')
         st.stop()
@@ -187,7 +197,7 @@ with st.expander('Show Facts'):
     months_ended_options = get_unique_sorted_options(df_to_plot, 'monthsEnded')
     months_ended = col4.multiselect('Choose Months Ended', options=months_ended_options)
     df_to_plot = filter_dataframe(df_to_plot, 'monthsEnded', months_ended)
-    
+
     st.dataframe(df_to_plot, use_container_width=True)
 
     # metric_df = prepare_metric_df_for_graph(metric_df)
