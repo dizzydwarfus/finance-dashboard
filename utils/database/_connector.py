@@ -5,7 +5,7 @@ from typing import List
 # Third party libraries
 import streamlit as st
 from pymongo import MongoClient, ASCENDING
-from pymongo import MongoClient, ASCENDING, IndexModel, UpdateOne
+from pymongo import IndexModel, UpdateOne
 from pymongo.errors import OperationFailure
 
 # Internal imports

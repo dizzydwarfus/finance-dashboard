@@ -1,5 +1,4 @@
 # Built-in libraries
-import logging
 import requests
 import json
 import re
@@ -8,11 +7,9 @@ from typing import List
 
 # Third-party libraries
 import pandas as pd
-import xml.etree.ElementTree as ET
 from ratelimit import limits, sleep_and_retry
 from bs4 import BeautifulSoup
 from bs4.element import Tag
-from tqdm import trange
 
 # Internal imports
 from utils._logger import MyLogger
@@ -623,9 +620,9 @@ class TickerData(SECData):
 
     def __repr__(self) -> str:
         class_name = type(self).__name__
-        main_attrs = ['ticker', 'cik', 'submissions', 'filings']
-        available_methods = [method_name for method_name in dir(self) if callable(
-            getattr(self, method_name)) and not method_name.startswith("_")]
+        # main_attrs = ['ticker', 'cik', 'submissions', 'filings']
+        # available_methods = [method_name for method_name in dir(self) if callable(
+        #     getattr(self, method_name)) and not method_name.startswith("_")]
         return f"""{class_name}({self.ticker})
     CIK: {self.cik}
     Latest filing: {self.latest_filing['filingDate'].strftime('%Y-%m-%d') if self.latest_filing else 'No filing found'} for Form {self.latest_filing['form'] if self.latest_filing else None}. Access via: {self.latest_filing['folder_url'] if self.latest_filing else None}
@@ -633,10 +630,10 @@ class TickerData(SECData):
     Latest 10-K: {self.latest_10K['filingDate'].strftime('%Y-%m-%d') if self.latest_10K else 'No filing found'}. Access via: {self.latest_10K['folder_url'] if self.latest_10K else None}"""
 
     def __repr_html__(self) -> str:
-        class_name = type(self).__name__
-        main_attrs = ['ticker', 'cik', 'submissions', 'filings']
-        available_methods = [method_name for method_name in dir(self) if callable(
-            getattr(self, method_name)) and not method_name.startswith("_")]
+        # class_name = type(self).__name__
+        # main_attrs = ['ticker', 'cik', 'submissions', 'filings']
+        # available_methods = [method_name for method_name in dir(self) if callable(
+        #     getattr(self, method_name)) and not method_name.startswith("_")]
         latest_filing_date = self.latest_filing['filingDate'].strftime(
             '%Y-%m-%d') if self.latest_filing else 'No filing found'
         latest_filing_form = self.latest_filing['form'] if self.latest_filing else None

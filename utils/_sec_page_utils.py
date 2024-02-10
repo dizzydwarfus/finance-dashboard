@@ -24,14 +24,14 @@ def prepare_metric_df_for_graph(metric_df: pd.DataFrame) -> pd.DataFrame:
         try:
             # Pivot the DataFrame
             pivot_df = metric_df.pivot(
-                index=['endDate', 'monthsEnded'], columns='labelText_segmentAxis', values='factValue')
+                index=['endDate', 'monthsEnded'], columns='segmentAxis', values='factValue')
 
             # Calculate the difference
             diff_df = pivot_df.diff()
 
             # Melt the DataFrame back to the original format
             melt_df = diff_df.reset_index().melt(id_vars=['endDate', 'monthsEnded'],
-                                                var_name='labelText_segmentAxis', value_name='change')
+                                                var_name='segmentAxis', value_name='change')
 
             # Merge the difference back to the original DataFrame
             # Create a new column 'color' that indicates whether the value has increased or decreased
@@ -46,33 +46,38 @@ def prepare_metric_df_for_graph(metric_df: pd.DataFrame) -> pd.DataFrame:
 
 def plot_metric_df(metric_df):
     # Create a line plot
-    fig = px.line(metric_df, x='endDate', y='factValue',
-                  color='labelText_segmentAxis', line_group='labelText_segmentAxis',
+    if metric_df['instant'] is not None:
+         date_col = 'instant'
+    else:
+         date_col = 'endDate'
+
+    fig = px.line(metric_df, x=date_col, y='factValue',
+                  color='segmentValue', line_group='segmentValue',
                   #   hover_data={'change': ':,'},
                   )
     # Overlay a scatter plot for the individual points
-    fig.add_trace(
-        go.Scatter(
-            x=metric_df['endDate'],
-            y=metric_df['factValue'],
-            mode='markers',
-            marker=dict(
-                color=metric_df['color'].map(
-                    {'increase': 'green', 'decrease': 'red', 'neutral': 'grey'}),
-                size=15,
-                symbol=metric_df['color'].map(
-                    {'increase': 'triangle-up', 'decrease': 'triangle-down', 'neutral': 'circle'})
-            ),
-            hoverinfo='skip',
-            showlegend=False
-        )
-    )
+    # fig.add_trace(
+    #     go.Scatter(
+    #         x=metric_df[date_col],
+    #         y=metric_df['factValue'],
+    #         mode='markers',
+    #         marker=dict(
+    #             # color=metric_df['color'].map(
+    #             #     {'increase': 'green', 'decrease': 'red', 'neutral': 'grey'}),
+    #             size=10,
+    #             # symbol=metric_df['color'].map(
+    #             #     {'increase': 'triangle-up', 'decrease': 'triangle-down', 'neutral': 'circle'})
+    #         ),
+    #         hoverinfo='skip',
+    #         showlegend=False
+    #     )
+    # )
     for trace in fig.data:
         print(trace)
     # Customize the layout
     fig.update_layout(
         title='Metrics over time',
-        xaxis_title='End Date',
+        xaxis_title='Date',
         yaxis_title='Value',
         legend_title='Segment',
         font=dict(

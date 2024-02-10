@@ -6,11 +6,23 @@ STANDARD_NAME_MAPPING = {
             'Revenue, Net',
             'Sales Revenue Net',
             'Sales Revenue, Net',],
-    'Cost of Goods or Services':
+    'Cost of Goods Sold':
         [
+            'Cost of Goods Sold',
+            'Cost Of Goods Sold',
+        ],
+    'Cost of Services':
+        [
+            'Cost of Services',
+            'Cost Of Services',
+        ],
+    'Cost of Revenue':
+        [
+            'Cost of sales',
+            'Cost of Revenue',
+            'Cost Of Revenue',
             'Cost of Goods and Services Sold',
             'Cost Of Goods And Services Sold',
-            'Cost of sales',
         ],
     'Gross Profit':
         [
@@ -18,7 +30,7 @@ STANDARD_NAME_MAPPING = {
         ],
     'Operating Expenses':
         [
-            '',
+            'Operating Expenses',
         ],
     'Operating Income':
         [
@@ -55,6 +67,16 @@ STANDARD_NAME_MAPPING = {
     'Total Cash':
         [
             '',
+        ],
+    'Accounts Receivable':
+        [
+            'Accounts Receivable Net Current',
+            'Accounts Receivable, Net, Current',
+        ],
+    'Accounts Payable':
+        [
+            'Accounts Payable Current',
+            'Accounts Payable, Current'
         ],
     'Net Receivables':
         [
@@ -93,10 +115,6 @@ STANDARD_NAME_MAPPING = {
             '',
         ],
     'Total Assets':
-        [
-            '',
-        ],
-    'Accounts Payable':
         [
             '',
         ],
@@ -271,5 +289,22 @@ STANDARD_NAME_MAPPING = {
     'EV to Operating cash flow':
         [
             '',
+        ],
+    'Geographical':
+        [
+            'Statement Geographical [Axis]',
+            'Statement, Geographical [Axis]',
+            'Geographical [Axis]',
+        ],
+    'Product and Service':
+        [
+            'Product Or Service [Axis]',
+            'Products and Services [Axis]',
+            'Product and Service [Axis]',
+        ],
+    'Business Segment':
+        [
+            'Statement Business Segments [Axis]',
+            'Segment [Axis]',
         ],
 }

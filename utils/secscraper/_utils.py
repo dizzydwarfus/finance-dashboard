@@ -10,7 +10,7 @@ import streamlit as st
 
 # Internal imports
 from utils.secscraper.sec_class import TickerData
-from utils.secscraper._dataclasses import Context, Facts, LinkLabels
+from utils.secscraper._dataclasses import Context, Facts
 
 
 def reverse_standard_mapping(standard_name_mapping: dict):
@@ -60,7 +60,6 @@ def get_filing_facts(ticker: TickerData, filings_to_scrape: list, verbose=False)
     all_metalinks = pd.DataFrame()
     all_merged_facts = pd.DataFrame()
     failed_folders = []
-    fact_update_requests = []
 
     for file in filings_to_scrape:
         if (file.get('form') != '10-Q' or file.get('form') != '10-K') and file.get('filingDate') < dt.datetime(2009, 1, 1):
@@ -198,7 +197,7 @@ def get_filing_facts(ticker: TickerData, filings_to_scrape: list, verbose=False)
             failed_folders.append(dict(folder_url=folder_url, accessionNumber=accessionNumber,
                                   error=f'Failed to concatenate merged facts for {folder_url}...{e}', filingDate=file.get('filingDate')))
             pass
-        
+
         ticker.scrape_logger.info(
             f'Successfully scraped {ticker.ticker}({ticker.cik})-{folder_url}...\n')
         if verbose:
@@ -246,8 +245,6 @@ def clean_values_in_facts(merged_facts: pd.DataFrame):
     return df
 
 
-
-
 def clean_values_in_segment(merged_facts: pd.DataFrame, labels_df: pd.DataFrame) -> pd.DataFrame:
     """Segment column of merged facts is cleaned to remove "ticker:" and "us-gaap:" prepend, and to split camel case into separate words (e.g. "us-gaap:RevenuesBeforeTax" becomes "Revenues Before Tax"). 
 
@@ -258,7 +255,7 @@ def clean_values_in_segment(merged_facts: pd.DataFrame, labels_df: pd.DataFrame)
         merged_facts (pd.DataFrame): merged facts data frame with segment column cleaned
     """
     # Get labels dict to translate segment values
-    def join_segments(x: dict, segment_type: Literal['key','value']) -> str:
+    def join_segments(x: dict, segment_type: Literal['key', 'value']) -> str:
         if x is not None and isinstance(x, dict):
             try:
                 if segment_type == 'key':
@@ -271,12 +268,13 @@ def clean_values_in_segment(merged_facts: pd.DataFrame, labels_df: pd.DataFrame)
                 print(f'Error: {e} on {x}')
         else:
             return None
-        
+
     labels_df = labels_df.query("`xlink:role` == 'label'")[['xlink:label', 'labelText']]\
         .set_index('xlink:label')\
-            .to_dict()['labelText']
+        .to_dict()['labelText']
 
-    merged_facts['segment_modified'] = merged_facts['segment'].apply(lambda x: {labels_df.get(i.lower()): labels_df.get(j.lower()) for i, j in x.items()} if isinstance(x, dict) else None)
+    merged_facts['segment_modified'] = merged_facts['segment'].apply(lambda x: {labels_df.get(
+        i.lower()): labels_df.get(j.lower()) for i, j in x.items()} if isinstance(x, dict) else None)
 
     merged_facts['segmentAxis'] = merged_facts['segment_modified']\
         .apply(lambda x: join_segments(x, segment_type='key'))
@@ -292,8 +290,9 @@ def clean_values_in_segment(merged_facts: pd.DataFrame, labels_df: pd.DataFrame)
 def translate_labels_to_standard_names(merged_facts: pd.DataFrame, standard_name_mapping: dict):
     merged_facts['standardName'] = merged_facts['labelText'].apply(
         lambda x: standard_name_mapping.get(x, x))
-    
-    merged_facts = merged_facts[['standardName', 'segmentAxis', 'segmentValue', 'startDate', 'endDate', 'period', 'monthsEnded', 'instant', 'factValue', 'unitRef', 'labelText']]
+
+    merged_facts = merged_facts[['standardName', 'segmentAxis', 'segmentValue', 'startDate',
+                                 'endDate', 'period', 'monthsEnded', 'instant', 'factValue', 'unitRef', 'labelText']]
 
     return merged_facts
 
@@ -331,4 +330,3 @@ def split_facts_into_start_instant(merged_facts: pd.DataFrame):
         ['labelText', 'segment', 'unitRef', 'instant', 'factValue']].sort_values(by=['labelText', 'segment', 'instant',])
 
     return merged_facts, start_end, instant
-

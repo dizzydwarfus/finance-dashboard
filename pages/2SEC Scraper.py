@@ -5,9 +5,9 @@ import streamlit as st
 # Internal Imports
 from utils.database._connector import SECDatabase
 from utils.secscraper.sec_class import SECData, TickerData
-from utils.secscraper._utils import reverse_standard_mapping, get_filing_facts, clean_values_in_facts, clean_values_in_segment, split_facts_into_start_instant, get_monthly_period, translate_labels_to_standard_names
+from utils.secscraper._utils import reverse_standard_mapping, get_filing_facts, clean_values_in_facts, clean_values_in_segment, get_monthly_period, translate_labels_to_standard_names
 from utils.secscraper._mapping import STANDARD_NAME_MAPPING
-from utils._sec_page_utils import filter_dataframe, get_unique_sorted_options
+from utils._sec_page_utils import filter_dataframe, get_unique_sorted_options, plot_metric_df
 
 st.set_page_config(page_title="Investment Dashboard",
                    page_icon=":moneybag:",
@@ -101,10 +101,11 @@ with st.container(border=True):
     filing_available = None
     col5, col6, col7, col8, _, _ = st.columns([1, 0.5, 1, 1, 0.5, 0.5])
     form = col5.multiselect("Choose a filing to scrape",
-                          options=sorted(ticker_data.forms), placeholder='Select a form...', key='scraping_form')
+                            options=sorted(ticker_data.forms), placeholder='Select a form...', key='scraping_form')
     mode = col6.radio("Select mode", options=[
                       "Range", "Single"], key='filing_mode')
-    year_options = ticker_data.filings[ticker_data.filings['form'].isin(form)]['filingDate'].dt.year.unique()
+    year_options = ticker_data.filings[ticker_data.filings['form'].isin(
+        form)]['filingDate'].dt.year.unique()
 
     if mode == "Range":
         start_year = col7.selectbox(
@@ -138,22 +139,27 @@ with st.container(border=True):
         labels, calc, defn, context, facts, metalinks, merged_facts, failed_folders = get_filing_facts(
             ticker=ticker_data, filings_to_scrape=filing_to_scrape)
 
-        final_df = get_monthly_period(merged_facts) # introduces columns 'period' and 'monthsEnded'
+        # introduces columns 'period' and 'monthsEnded'
+        final_df = get_monthly_period(merged_facts)
 
-        final_df = clean_values_in_facts(merged_facts) # remove non-numeric values from 'factValue' column
+        # remove non-numeric values from 'factValue' column
+        final_df = clean_values_in_facts(merged_facts)
 
         final_df = clean_values_in_segment(
-            merged_facts=final_df, labels_df=labels) # convert segment axis and segment values to readable names
+            # convert segment axis and segment values to readable names
+            merged_facts=final_df, labels_df=labels)
 
         final_df = translate_labels_to_standard_names(
-            merged_facts=final_df, standard_name_mapping=reversed_mapping) # translate labels to standard names
+            # translate labels to standard names
+            merged_facts=final_df, standard_name_mapping=reversed_mapping)
 
         final_df = final_df.drop_duplicates(subset=['standardName', 'segmentAxis', 'segmentValue', 'startDate', 'endDate', 'instant', 'factValue']).sort_values(
             by=['standardName', 'segmentAxis', 'segmentValue', 'startDate', 'endDate'])
 
         excel_final_facts = convert_df(final_df)
 
-        facts_period = f'{start_year}_to_{end_year}' if mode == 'Range' else date
+        facts_period = f'{start_year}_to_{
+            end_year}' if mode == 'Range' else date
 
         st.download_button(label="Download Facts as CSV", data=excel_final_facts,
                            file_name=f"{ticker_data.ticker}_{form}_{facts_period}.csv")
@@ -184,22 +190,34 @@ with st.container(border=True):
     df_to_plot = filter_dataframe(df_to_plot, 'standardName', metrics)
 
     # Segment selection based on filtered metrics
-    segment_options = get_unique_sorted_options(df_to_plot[df_to_plot['standardName'].isin(metrics)], 'segmentAxis')
+    segment_options = get_unique_sorted_options(
+        df_to_plot[df_to_plot['standardName'].isin(metrics)], 'segmentAxis')
     segments = col2.multiselect('Choose Segment(s)', options=segment_options)
     df_to_plot = filter_dataframe(df_to_plot, 'segmentAxis', segments)
 
     # Segment value selection based on filtered segments
-    segment_suboptions = get_unique_sorted_options(df_to_plot[df_to_plot['segmentAxis'].isin(segments)], 'segmentValue')
-    segment_values = col3.multiselect('Choose Segment Value(s)', options=segment_suboptions)
+    segment_suboptions = get_unique_sorted_options(
+        df_to_plot[df_to_plot['segmentAxis'].isin(segments)], 'segmentValue')
+    segment_values = col3.multiselect(
+        'Choose Segment Value(s)', options=segment_suboptions)
     df_to_plot = filter_dataframe(df_to_plot, 'segmentValue', segment_values)
 
     # Months ended selection based on current DataFrame state
     months_ended_options = get_unique_sorted_options(df_to_plot, 'monthsEnded')
-    months_ended = col4.multiselect('Choose Months Ended', options=months_ended_options)
+    months_ended = col4.multiselect(
+        'Choose Months Ended', options=months_ended_options)
     df_to_plot = filter_dataframe(df_to_plot, 'monthsEnded', months_ended)
 
     st.dataframe(df_to_plot, use_container_width=True)
 
-    # metric_df = prepare_metric_df_for_graph(metric_df)
-    # fig = plot_metric_df(metric_df)
-    # st.plotly_chart(fig, use_container_width=True)
+
+    #TODO: Add a section to plot the data
+    # metric_df = prepare_metric_df_for_graph(df_to_plot)
+    fig = plot_metric_df(df_to_plot)
+    st.plotly_chart(fig, use_container_width=True)
+
+
+
+#TODO: separate the scraping mechanism into backend API
+#TODO: airflow to schedule scraping
+#TODO: frontend in streamlit/other framework/perhaps js frameworks
