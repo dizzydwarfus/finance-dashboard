@@ -1,6 +1,7 @@
 # Built-in libraries
 import datetime as dt
 from typing import List, Literal
+import os
 
 # Third party libraries
 import streamlit as st
@@ -13,8 +14,9 @@ from utils._logger import MyLogger
 
 
 @st.cache_resource
-def init_connection(secrets_name: str = 'mongo'):
-    return MongoClient(**st.secrets[secrets_name])
+def init_connection(secrets_name: str = "mongo"):
+    # return MongoClient(**st.secrets[secrets_name])
+    return MongoClient(os.getenv("MONGO_HOST"))
 
 
 @st.cache_resource(ttl=86400)  # only refresh after 24h
@@ -27,12 +29,19 @@ def get_data():
     company_profile = db.company_profile
     historical = db.historical
     stock_split = db.stock_split
-    return balance_sheet_collection, income_collection, cash_collection, company_profile, historical, stock_split
+    return (
+        balance_sheet_collection,
+        income_collection,
+        cash_collection,
+        company_profile,
+        historical,
+        stock_split,
+    )
 
 
 class SECDatabase(MyLogger):
     def __init__(self, connection_string):
-        super().__init__(name='SECDatabase', level='DEBUG', log_file='././logs.log')
+        super().__init__(name="SECDatabase", level="DEBUG", log_file="././logs.log")
         self.client = MongoClient(connection_string)
         self.db = self.client.SECRawData
         self.tickerdata = self.db.TickerData
@@ -43,19 +52,25 @@ class SECDatabase(MyLogger):
 
         try:
             self.tickerdata.create_indexes(
-                [IndexModel([('cik', ASCENDING)], unique=True)])
+                [IndexModel([("cik", ASCENDING)], unique=True)]
+            )
         except OperationFailure as e:
             self.scrape_logger.error(e)
 
         try:
-            self.tickerfilings.create_indexes([IndexModel(
-                [('accessionNumber', ASCENDING)], unique=True), IndexModel([('form', ASCENDING)])])
+            self.tickerfilings.create_indexes(
+                [
+                    IndexModel([("accessionNumber", ASCENDING)], unique=True),
+                    IndexModel([("form", ASCENDING)]),
+                ]
+            )
         except OperationFailure as e:
             self.scrape_logger.error(e)
 
         try:
             self.factsdb.create_indexes(
-                [IndexModel([('factId', ASCENDING)], unique=True)])
+                [IndexModel([("factId", ASCENDING)], unique=True)]
+            )
 
         except OperationFailure as e:
             self.scrape_logger.error(e)
@@ -78,11 +93,11 @@ class SECDatabase(MyLogger):
 
     def get_tickerdata(self, cik: str = None, ticker: str = None):
         if cik is not None:
-            return self.tickerdata.find_one({'cik': cik})
+            return self.tickerdata.find_one({"cik": cik})
         elif ticker is not None:
-            return self.tickerdata.find_one({'tickers': ticker.upper()})
+            return self.tickerdata.find_one({"tickers": ticker.upper()})
         else:
-            raise Exception('Please provide either a CIK or ticker.')
+            raise Exception("Please provide either a CIK or ticker.")
 
     def insert_submission(self, submission: dict):
         """Insert submissions into SEC database. CIK is the primary key.
@@ -94,17 +109,20 @@ class SECDatabase(MyLogger):
             str: empty string if successful
             str: ticker's cik if failed
         """
-        submission['lastUpdated'] = dt.datetime.now()
+        submission["lastUpdated"] = dt.datetime.now()
         try:
-            self.tickerdata.update_one({'cik': submission['cik']}, {
-                                       '$set': submission}, upsert=True)
+            self.tickerdata.update_one(
+                {"cik": submission["cik"]}, {"$set": submission}, upsert=True
+            )
             self.scrape_logger.info(
-                f'Inserted submissions for {submission["cik"]} into SEC database.')
+                f'Inserted submissions for {submission["cik"]} into SEC database.'
+            )
 
         except Exception as e:
             self.scrape_logger.error(
-                f'Failed to insert submissions for {submission["cik"]} into SEC database. Error: {e}')
-            return submission['cik']
+                f'Failed to insert submissions for {submission["cik"]} into SEC database. Error: {e}'
+            )
+            return submission["cik"]
         return None
 
     def insert_filings(self, cik: str, filings: list):
@@ -119,25 +137,36 @@ class SECDatabase(MyLogger):
         """
         try:
             for doc in filings:
-                doc['lastUpdated'] = dt.datetime.now()
+                doc["lastUpdated"] = dt.datetime.now()
 
-            update_requests = [UpdateOne({'accessionNumber': doc['accessionNumber']}, {
-                                         '$set': doc}, upsert=True) for doc in filings]
+            update_requests = [
+                UpdateOne(
+                    {"accessionNumber": doc["accessionNumber"]},
+                    {"$set": doc},
+                    upsert=True,
+                )
+                for doc in filings
+            ]
 
             self.tickerfilings.bulk_write(update_requests)
-            self.scrape_logger.info(
-                f'Sucessfully updated filings for {cik}...')
+            self.scrape_logger.info(f"Sucessfully updated filings for {cik}...")
 
         except Exception as e:
-            self.scrape_logger.error(
-                f'Failed to insert filings for {cik}...{e}')
+            self.scrape_logger.error(f"Failed to insert filings for {cik}...{e}")
             return cik
         return None
 
-    def create_update_request(self, accessionNumber: str, items_label: Literal['facts','labels','context'], items_dict: List[dict]):
-        update = UpdateOne({'accessionNumber': accessionNumber}, {
-                           '$set': {items_label: items_dict,
-                                    'lastUpdated': dt.datetime.now()}}, upsert=True)
+    def create_update_request(
+        self,
+        accessionNumber: str,
+        items_label: Literal["facts", "labels", "context"],
+        items_dict: List[dict],
+    ):
+        update = UpdateOne(
+            {"accessionNumber": accessionNumber},
+            {"$set": {items_label: items_dict, "lastUpdated": dt.datetime.now()}},
+            upsert=True,
+        )
         return update
 
     def insert_facts(self, accession: str, facts: list):
@@ -152,16 +181,17 @@ class SECDatabase(MyLogger):
         """
         try:
             for doc in facts:
-                doc['lastUpdated'] = dt.datetime.now()
+                doc["lastUpdated"] = dt.datetime.now()
 
-            fact_update_requests = [UpdateOne({'factId': fact['factId']}, {
-                                              '$set': fact}, upsert=True) for fact in facts]
+            fact_update_requests = [
+                UpdateOne({"factId": fact["factId"]}, {"$set": fact}, upsert=True)
+                for fact in facts
+            ]
 
             self.factsdb.bulk_write(fact_update_requests)
-            self.scrape_logger.info(f'Updated facts for {accession}...')
+            self.scrape_logger.info(f"Updated facts for {accession}...")
 
         except Exception as e:
-            self.scrape_logger.error(
-                f'Failed to insert facts for {accession}...{e}')
+            self.scrape_logger.error(f"Failed to insert facts for {accession}...{e}")
             return accession
         return None
