@@ -1,1 +1,1 @@
-web: streamlit run Ticker_List.py --server.port $PORT
+web: python -m streamlit run Ticker_List.py --server.port $PORT
