@@ -1,6 +1,6 @@
 # Built-in libraries
 import datetime as dt
-from typing import List
+from typing import List, Literal
 
 # Third party libraries
 import streamlit as st
@@ -134,9 +134,9 @@ class SECDatabase(MyLogger):
             return cik
         return None
 
-    def create_facts_update_request(self, accessionNumber: str, facts: List[dict]):
+    def create_update_request(self, accessionNumber: str, items_label: Literal['facts','labels','context'], items_dict: List[dict]):
         update = UpdateOne({'accessionNumber': accessionNumber}, {
-                           '$set': {'facts': facts,
+                           '$set': {items_label: items_dict,
                                     'lastUpdated': dt.datetime.now()}}, upsert=True)
         return update
 
