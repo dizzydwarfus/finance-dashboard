@@ -27,8 +27,8 @@ st.set_page_config(
     page_title="Investment Dashboard", page_icon=":moneybag:", layout="wide"
 )
 
-# mongo = SECDatabase(st.secrets["mongosec"]["host"])
-mongo = SECDatabase(connection_string=os.getenv("MONGO_SEC"))
+mongo = SECDatabase(st.secrets["mongosec"]["host"])
+# mongo = SECDatabase(connection_string=os.getenv("MONGO_SEC"))
 
 reversed_mapping = reverse_standard_mapping(standard_name_mapping=STANDARD_NAME_MAPPING)
 

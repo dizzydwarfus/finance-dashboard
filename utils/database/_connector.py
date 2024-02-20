@@ -15,8 +15,8 @@ from utils._logger import MyLogger
 
 @st.cache_resource
 def init_connection(secrets_name: str = "mongo"):
-    # return MongoClient(**st.secrets[secrets_name])
-    return MongoClient(os.getenv("MONGO_HOST"))
+    return MongoClient(**st.secrets[secrets_name])
+    # return MongoClient(os.getenv("MONGO_HOST"))
 
 
 @st.cache_resource(ttl=86400)  # only refresh after 24h
