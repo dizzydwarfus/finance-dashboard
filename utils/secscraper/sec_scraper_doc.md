@@ -9,7 +9,6 @@ The purpose of this document is two-fold:
   - [Table of Contents](#table-of-contents)
   - [Why self-scrape?](#why-self-scrape)
   - [Data Sources and Tools](#data-sources-and-tools)
-  - [](#)
   - [Lessons Learned](#lessons-learned)
 
 
@@ -36,7 +35,6 @@ The main core part of the financial data obtained will be from [Data SEC](www.se
 2. BeautifulSoup
 3. Pandas
 
-## 
 
 ## Lessons Learned
 | Topic | Lesson                                                                                                                                                                                                                                                                                                        |
@@ -55,3 +53,6 @@ The main core part of the financial data obtained will be from [Data SEC](www.se
 | 12    | Filings from 2009 H2 onwards have .xml files that can be parse using xml standard library in python, bs4 works too.                                                                                                                                                                                           |
 | 13    | Combination of the xml files (_lab, _def, _cal, _pre) give context to the filing.                                    Mainly _lab, _def, and _cal. _pre is less important.                                                                                                                                     |
 | 14    | Taking a new approach to limit number of requests from SEC Edgar where I will store top 50 CIK along with filing information into MongoDB and use queries to get filing information instead.                                                                                                                  |
+|15|Redesigned how segments for each context of facts are parsed. Before: segment with multiple depth levels will be limited to only the first level, now all levels are represented. Levels are joined to form a single string so the column can remain a string and not a list.|
+|16|Storing raw scraping facts/context/labels in mongodb and transformed data in another collection. These will be queried to reduce runtime CPU usage, and not having to make request constantly to SEC.gov.|
+|17|Tested deployment to Azure App Service (ASP F1 Plan - Free) - successful|

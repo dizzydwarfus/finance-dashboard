@@ -37,14 +37,22 @@ finance-dashboard/
 │   └── database
 │       └── _connector.py
 │   ├── _utils.py
-│   ├── logger.py
+│   ├── _logger.py
+│   ├── _fmpAPI.py
+│   ├── _alphavantageAPI.py
+│   ├── _mongo.py
+│   ├── _sec_page_utils.py
 │   └── sec-scraper/
 │       ├── sec_class.py
 │       ├── sec_scraper_doc.md
 │       └── sec_api_test.ipynb
+│       ├── _dataclasses.py
+│       ├── _mapping.py
+│       ├── _utils.py
 ├── requirements.txt
 ├── .env
 ├── .gitignore
+├── startup.sh
 ├── Ticket_List.py
 ├── LICENSE
 └── README.md
@@ -173,7 +181,7 @@ All financial data is provided by [Financial Modeling Prep](https://financialmod
 
 ## License
 
-This project is fortified with the MIT License. Dive into the `LICENSE` file for more specifics.
+Refer to the [LICENSE](./LICENSE) file for more specifics.
 
 
 ## 📝 Development Log
@@ -190,6 +198,7 @@ Before 2023-05-30
 
 | Date       | Description                                                                                                                                      |
 | ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
-| 2023-05-30 | Created the doc.md file. Previously completed work is briefly documented above.                                                                  |
-| 2023-08-02 | Revamped readme.md and transferred to new repository                                                                                             |
+| 2023-05-30 | Created the doc.md file. Previously completed work is briefly documented above. |
+| 2023-08-02 | Revamped readme.md and transferred to new repository |
 | 2023-09-10 | Started investigating scraping from SEC Edgar database so data can be stored and distributed since FMP API free data cannot be used commercially |
+| 2024-01-20 | First draft of scraping algorithm is complete. Considering to separate the scraper into a module to be used with airflow for orchestrating data updates. |
