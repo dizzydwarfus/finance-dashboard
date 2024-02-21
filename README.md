@@ -1,6 +1,6 @@
 # 🌟 Finance Dashboard: Your Investment Insight Tool
 
-Welcome to the Finance Dashboard, a web application tailored to empower investment enthusiasts by providing financial insights at their fingertips. You can visit the webapp by clicking [here](https://finance-webapp.streamlit.app/Financial_Statements).
+Welcome to the Finance Dashboard, a web application tailored to empower investment enthusiasts by providing financial insights at their fingertips. You can visit the webapp by clicking [here](https://finance-webapp.streamlit.app/Financial_Statements). A second link is also available as a test deployment with Azure App Service - [webapp](https://sec-scraper.azurewebsites.net/SEC_Scraper).
 
 ## Table of Contents
 
