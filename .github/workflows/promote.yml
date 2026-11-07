@@ -1,0 +1,45 @@
+name: Promote validated release
+on:
+  workflow_dispatch:
+    inputs:
+      revision:
+        description: Full commit SHA already validated on staging
+        required: true
+permissions:
+  contents: read
+  actions: read
+jobs:
+  production:
+    runs-on: ubuntu-latest
+    environment: production
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      CLOUDFLARE_HOSTNAME: ${{ secrets.CLOUDFLARE_HOSTNAME }}
+      ACCESS_TEAM_DOMAIN: ${{ secrets.ACCESS_TEAM_DOMAIN }}
+      ACCESS_AUD: ${{ secrets.ACCESS_AUD }}
+      MONGODB_URI: ${{ secrets.MONGODB_URI }}
+      MONGODB_DATABASE: ${{ secrets.MONGODB_DATABASE }}
+      CF_ACCESS_CLIENT_ID: ${{ secrets.CF_ACCESS_CLIENT_ID }}
+      CF_ACCESS_CLIENT_SECRET: ${{ secrets.CF_ACCESS_CLIENT_SECRET }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.revision }}
+      - name: Verify staging passed for this exact commit
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_SHA: ${{ inputs.revision }}
+        run: |
+          [[ "$RELEASE_SHA" =~ ^[0-9a-f]{40}$ ]]
+          gh api "repos/$GITHUB_REPOSITORY/actions/workflows/ci.yml/runs?head_sha=$RELEASE_SHA&status=success&event=push" --jq '.workflow_runs[0].id' > /tmp/run-id
+          test "$(cat /tmp/run-id)" != "null"
+          test -s /tmp/run-id
+          gh api "repos/$GITHUB_REPOSITORY/actions/runs/$(cat /tmp/run-id)/jobs" --jq 'any(.jobs[]; .name == "deploy-staging" and .conclusion == "success" and any(.steps[]; .name == "Deploy staging" and .conclusion == "success"))' | grep -qx true
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - run: npm ci
+        working-directory: infra
+      - run: node scripts/deploy.mjs production
+      - run: node scripts/smoke.mjs production

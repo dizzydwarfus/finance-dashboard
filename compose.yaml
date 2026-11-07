@@ -1,0 +1,31 @@
+services:
+  api:
+    build:
+      context: ./backend
+    platform: linux/amd64
+    environment:
+      MONGODB_URI: ${MONGODB_URI:-mongodb://dashboard:local-fixture-only@mongo:27017/FinanceApp?authSource=FinanceApp}
+      MONGODB_DATABASE: ${MONGODB_DATABASE:-FinanceApp}
+    ports: ["127.0.0.1:8080:8080"]
+  web:
+    build:
+      context: ./frontend
+    platform: linux/amd64
+    ports: ["127.0.0.1:3000:8080"]
+    volumes: ["./frontend/nginx.local.conf:/etc/nginx/conf.d/default.conf:ro"]
+    depends_on: [api]
+  mongo:
+    image: mongo:8
+    profiles: [fixtures]
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: local-admin
+      MONGO_INITDB_ROOT_PASSWORD: local-admin-only
+    ports: ["127.0.0.1:27017:27017"]
+    volumes:
+      - ./scripts/seed-local.js:/docker-entrypoint-initdb.d/seed.js:ro
+      - ./backend/testdata/financeapp.json:/fixtures/financeapp.json:ro
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping')"]
+      interval: 5s
+      timeout: 3s
+      retries: 10

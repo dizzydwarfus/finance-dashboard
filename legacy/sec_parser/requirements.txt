@@ -1,0 +1,7 @@
+# Optional reference-code dependencies only. Neither application image uses Python.
+beautifulsoup4>=4.12,<5
+lxml>=4.9,<7
+numpy>=1.26,<3
+pandas>=2.1,<3
+ratelimit>=2.2,<3
+requests>=2.31,<3

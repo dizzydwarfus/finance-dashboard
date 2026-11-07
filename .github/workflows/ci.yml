@@ -1,0 +1,115 @@
+name: Validate dashboard
+on:
+  push:
+    branches: [main]
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    services:
+      mongodb:
+        image: mongo:8
+        ports: [27017:27017]
+        env:
+          MONGO_INITDB_ROOT_USERNAME: fixture-admin
+          MONGO_INITDB_ROOT_PASSWORD: fixture-admin-only
+        options: >-
+          --health-cmd "mongosh --quiet --eval 'db.adminCommand({ping:1})'"
+          --health-interval 5s --health-timeout 5s --health-retries 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: backend/go.mod
+          cache-dependency-path: backend/go.sum
+      - run: go test -race ./...
+        working-directory: backend
+        env:
+          MONGODB_TEST_URI: mongodb://fixture-admin:fixture-admin-only@127.0.0.1:27017/?authSource=admin
+      - run: go vet ./...
+        working-directory: backend
+  frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+        working-directory: frontend
+      - run: npm run generate:api && git diff --exit-code -- src/api.generated.ts
+        working-directory: frontend
+      - run: npm run build
+        working-directory: frontend
+      - run: npx playwright install --with-deps chromium
+        working-directory: frontend
+      - run: npm test
+        working-directory: frontend
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: browser-test-results
+          path: frontend/test-results
+  gateway:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: infra/package-lock.json
+      - run: npm ci && npm run typecheck && npm test
+        working-directory: infra
+      - run: npx wrangler deploy --dry-run --env staging
+        working-directory: infra
+  containers:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - run: docker compose --profile fixtures up -d --build
+      - name: Verify both images and real database reads
+        run: |
+          curl --fail --retry 30 --retry-all-errors --retry-delay 2 http://127.0.0.1:8080/readyz
+          curl --fail --retry 10 --retry-all-errors http://127.0.0.1:3000/companies/DEMO
+          curl --fail http://127.0.0.1:3000/api/v1/companies/DEMO/metrics
+          docker compose exec -T api /api healthcheck
+      - if: always()
+        run: docker compose --profile fixtures down --volumes
+  deploy-staging:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: [backend, frontend, gateway, containers]
+    runs-on: ubuntu-latest
+    environment: staging
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      CLOUDFLARE_HOSTNAME: ${{ secrets.CLOUDFLARE_HOSTNAME }}
+      ACCESS_TEAM_DOMAIN: ${{ secrets.ACCESS_TEAM_DOMAIN }}
+      ACCESS_AUD: ${{ secrets.ACCESS_AUD }}
+      MONGODB_URI: ${{ secrets.MONGODB_URI }}
+      MONGODB_DATABASE: ${{ secrets.MONGODB_DATABASE }}
+      CF_ACCESS_CLIENT_ID: ${{ secrets.CF_ACCESS_CLIENT_ID }}
+      CF_ACCESS_CLIENT_SECRET: ${{ secrets.CF_ACCESS_CLIENT_SECRET }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Check staging configuration
+        id: config
+        run: node scripts/deploy.mjs staging --check --optional
+      - run: npm ci
+        if: steps.config.outputs.enabled == 'true'
+        working-directory: infra
+      - name: Deploy staging
+        if: steps.config.outputs.enabled == 'true'
+        run: node scripts/deploy.mjs staging
+      - name: Verify staging
+        if: steps.config.outputs.enabled == 'true'
+        run: node scripts/smoke.mjs staging

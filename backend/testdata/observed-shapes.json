@@ -1,0 +1,930 @@
+{
+  "balance_sheet": [
+    {
+      "_id": {
+        "$oid": "000000000000000000000001"
+      },
+      "date": "2020-12-31",
+      "symbol": "SAMPLE",
+      "reportedCurrency": "USD",
+      "cik": "100",
+      "fillingDate": "2020-12-31",
+      "acceptedDate": "2020-12-31 12:00:00",
+      "calendarYear": "2020",
+      "period": "FY",
+      "cashAndCashEquivalents": {
+        "$numberLong": "100000000"
+      },
+      "shortTermInvestments": {
+        "$numberLong": "100000000"
+      },
+      "cashAndShortTermInvestments": {
+        "$numberLong": "100000000"
+      },
+      "netReceivables": {
+        "$numberLong": "100000000"
+      },
+      "inventory": {
+        "$numberLong": "100000000"
+      },
+      "otherCurrentAssets": {
+        "$numberLong": "100000000"
+      },
+      "totalCurrentAssets": {
+        "$numberLong": "100000000"
+      },
+      "propertyPlantEquipmentNet": {
+        "$numberLong": "100000000"
+      },
+      "goodwill": {
+        "$numberInt": "100"
+      },
+      "intangibleAssets": {
+        "$numberInt": "100"
+      },
+      "goodwillAndIntangibleAssets": {
+        "$numberInt": "100"
+      },
+      "longTermInvestments": {
+        "$numberLong": "100000000"
+      },
+      "taxAssets": {
+        "$numberInt": "100"
+      },
+      "otherNonCurrentAssets": {
+        "$numberLong": "100000000"
+      },
+      "totalNonCurrentAssets": {
+        "$numberLong": "100000000"
+      },
+      "otherAssets": {
+        "$numberInt": "100"
+      },
+      "totalAssets": {
+        "$numberLong": "100000000"
+      },
+      "accountPayables": {
+        "$numberLong": "100000000"
+      },
+      "shortTermDebt": {
+        "$numberLong": "100000000"
+      },
+      "taxPayables": {
+        "$numberInt": "100"
+      },
+      "deferredRevenue": {
+        "$numberLong": "100000000"
+      },
+      "otherCurrentLiabilities": {
+        "$numberLong": "100000000"
+      },
+      "totalCurrentLiabilities": {
+        "$numberLong": "100000000"
+      },
+      "longTermDebt": {
+        "$numberLong": "100000000"
+      },
+      "deferredRevenueNonCurrent": {
+        "$numberInt": "100"
+      },
+      "deferredTaxLiabilitiesNonCurrent": {
+        "$numberInt": "100"
+      },
+      "otherNonCurrentLiabilities": {
+        "$numberLong": "100000000"
+      },
+      "totalNonCurrentLiabilities": {
+        "$numberLong": "100000000"
+      },
+      "otherLiabilities": {
+        "$numberInt": "100"
+      },
+      "capitalLeaseObligations": {
+        "$numberInt": "100"
+      },
+      "totalLiabilities": {
+        "$numberLong": "100000000"
+      },
+      "preferredStock": {
+        "$numberInt": "100"
+      },
+      "commonStock": {
+        "$numberLong": "100000000"
+      },
+      "retainedEarnings": {
+        "$numberLong": "100000000"
+      },
+      "accumulatedOtherComprehensiveIncomeLoss": {
+        "$numberLong": "100000000"
+      },
+      "othertotalStockholdersEquity": {
+        "$numberInt": "100"
+      },
+      "totalStockholdersEquity": {
+        "$numberLong": "100000000"
+      },
+      "totalEquity": {
+        "$numberLong": "100000000"
+      },
+      "totalLiabilitiesAndStockholdersEquity": {
+        "$numberLong": "100000000"
+      },
+      "minorityInterest": {
+        "$numberInt": "100"
+      },
+      "totalLiabilitiesAndTotalEquity": {
+        "$numberLong": "100000000"
+      },
+      "totalInvestments": {
+        "$numberLong": "100000000"
+      },
+      "totalDebt": {
+        "$numberLong": "100000000"
+      },
+      "netDebt": {
+        "$numberLong": "100000000"
+      },
+      "link": "https://example.com",
+      "finalLink": "https://example.com",
+      "index_id": "sample"
+    },
+    {
+      "_id": {
+        "$oid": "000000000000000000000002"
+      },
+      "date": "2021-12-31",
+      "symbol": "SAMPLE",
+      "reportedCurrency": "USD",
+      "cik": "100",
+      "fillingDate": "2021-12-31",
+      "acceptedDate": "2021-12-31 12:00:00",
+      "calendarYear": "2021",
+      "period": "FY",
+      "cashAndCashEquivalents": {
+        "$numberLong": "100000001"
+      },
+      "shortTermInvestments": {
+        "$numberLong": "100000001"
+      },
+      "cashAndShortTermInvestments": {
+        "$numberLong": "100000001"
+      },
+      "netReceivables": {
+        "$numberLong": "100000001"
+      },
+      "inventory": {
+        "$numberLong": "100000001"
+      },
+      "otherCurrentAssets": {
+        "$numberLong": "100000001"
+      },
+      "totalCurrentAssets": {
+        "$numberLong": "100000001"
+      },
+      "propertyPlantEquipmentNet": {
+        "$numberLong": "100000001"
+      },
+      "goodwill": {
+        "$numberInt": "101"
+      },
+      "intangibleAssets": {
+        "$numberInt": "101"
+      },
+      "goodwillAndIntangibleAssets": {
+        "$numberInt": "101"
+      },
+      "longTermInvestments": {
+        "$numberLong": "100000001"
+      },
+      "taxAssets": {
+        "$numberInt": "101"
+      },
+      "otherNonCurrentAssets": {
+        "$numberLong": "100000001"
+      },
+      "totalNonCurrentAssets": {
+        "$numberLong": "100000001"
+      },
+      "otherAssets": {
+        "$numberInt": "101"
+      },
+      "totalAssets": {
+        "$numberLong": "100000001"
+      },
+      "accountPayables": {
+        "$numberLong": "100000001"
+      },
+      "shortTermDebt": {
+        "$numberLong": "100000001"
+      },
+      "taxPayables": {
+        "$numberInt": "101"
+      },
+      "deferredRevenue": {
+        "$numberLong": "100000001"
+      },
+      "otherCurrentLiabilities": {
+        "$numberLong": "100000001"
+      },
+      "totalCurrentLiabilities": {
+        "$numberLong": "100000001"
+      },
+      "longTermDebt": {
+        "$numberLong": "100000001"
+      },
+      "deferredRevenueNonCurrent": {
+        "$numberInt": "101"
+      },
+      "deferredTaxLiabilitiesNonCurrent": {
+        "$numberInt": "101"
+      },
+      "otherNonCurrentLiabilities": {
+        "$numberLong": "100000001"
+      },
+      "totalNonCurrentLiabilities": {
+        "$numberLong": "100000001"
+      },
+      "otherLiabilities": {
+        "$numberInt": "101"
+      },
+      "capitalLeaseObligations": {
+        "$numberInt": "101"
+      },
+      "totalLiabilities": {
+        "$numberLong": "100000001"
+      },
+      "preferredStock": {
+        "$numberInt": "101"
+      },
+      "commonStock": {
+        "$numberLong": "100000001"
+      },
+      "retainedEarnings": {
+        "$numberLong": "100000001"
+      },
+      "accumulatedOtherComprehensiveIncomeLoss": {
+        "$numberInt": "101"
+      },
+      "othertotalStockholdersEquity": {
+        "$numberInt": "101"
+      },
+      "totalStockholdersEquity": {
+        "$numberLong": "100000001"
+      },
+      "totalEquity": {
+        "$numberLong": "100000001"
+      },
+      "totalLiabilitiesAndStockholdersEquity": {
+        "$numberLong": "100000001"
+      },
+      "minorityInterest": {
+        "$numberInt": "101"
+      },
+      "totalLiabilitiesAndTotalEquity": {
+        "$numberLong": "100000001"
+      },
+      "totalInvestments": {
+        "$numberLong": "100000001"
+      },
+      "totalDebt": {
+        "$numberLong": "100000001"
+      },
+      "netDebt": {
+        "$numberLong": "100000001"
+      },
+      "link": "https://example.com",
+      "finalLink": "https://example.com",
+      "index_id": "sample"
+    }
+  ],
+  "income_statement": [
+    {
+      "_id": {
+        "$oid": "000000000000000000000001"
+      },
+      "date": "2020-12-31",
+      "symbol": "SAMPLE",
+      "reportedCurrency": "USD",
+      "cik": "100",
+      "fillingDate": "2020-12-31",
+      "acceptedDate": "2020-12-31 12:00:00",
+      "calendarYear": "2020",
+      "period": "FY",
+      "revenue": {
+        "$numberLong": "100000000"
+      },
+      "costOfRevenue": {
+        "$numberLong": "100000000"
+      },
+      "grossProfit": {
+        "$numberLong": "100000000"
+      },
+      "grossProfitRatio": {
+        "$numberDouble": "1.25"
+      },
+      "researchAndDevelopmentExpenses": {
+        "$numberInt": "100"
+      },
+      "generalAndAdministrativeExpenses": {
+        "$numberInt": "100"
+      },
+      "sellingAndMarketingExpenses": {
+        "$numberInt": "100"
+      },
+      "sellingGeneralAndAdministrativeExpenses": {
+        "$numberLong": "100000000"
+      },
+      "otherExpenses": {
+        "$numberInt": "100"
+      },
+      "operatingExpenses": {
+        "$numberLong": "100000000"
+      },
+      "costAndExpenses": {
+        "$numberLong": "100000000"
+      },
+      "interestIncome": {
+        "$numberInt": "100"
+      },
+      "interestExpense": {
+        "$numberInt": "100"
+      },
+      "depreciationAndAmortization": {
+        "$numberInt": "100"
+      },
+      "ebitda": {
+        "$numberLong": "100000000"
+      },
+      "ebitdaratio": {
+        "$numberDouble": "1.25"
+      },
+      "operatingIncome": {
+        "$numberLong": "100000000"
+      },
+      "operatingIncomeRatio": {
+        "$numberDouble": "1.25"
+      },
+      "totalOtherIncomeExpensesNet": {
+        "$numberInt": "100"
+      },
+      "incomeBeforeTax": {
+        "$numberLong": "100000000"
+      },
+      "incomeBeforeTaxRatio": {
+        "$numberDouble": "1.25"
+      },
+      "incomeTaxExpense": {
+        "$numberLong": "100000000"
+      },
+      "netIncome": {
+        "$numberLong": "100000000"
+      },
+      "netIncomeRatio": {
+        "$numberDouble": "1.25"
+      },
+      "eps": {
+        "$numberDouble": "1.25"
+      },
+      "epsdiluted": {
+        "$numberDouble": "1.25"
+      },
+      "weightedAverageShsOut": {
+        "$numberInt": "100"
+      },
+      "weightedAverageShsOutDil": {
+        "$numberLong": "100000000"
+      },
+      "link": "https://example.com",
+      "finalLink": "https://example.com",
+      "index_id": "sample"
+    },
+    {
+      "_id": {
+        "$oid": "000000000000000000000002"
+      },
+      "date": "2021-12-31",
+      "symbol": "SAMPLE",
+      "reportedCurrency": "USD",
+      "cik": "100",
+      "fillingDate": "2021-12-31",
+      "acceptedDate": "2021-12-31 12:00:00",
+      "calendarYear": "2021",
+      "period": "FY",
+      "revenue": {
+        "$numberLong": "100000001"
+      },
+      "costOfRevenue": {
+        "$numberLong": "100000001"
+      },
+      "grossProfit": {
+        "$numberLong": "100000001"
+      },
+      "grossProfitRatio": {
+        "$numberDouble": "2.25"
+      },
+      "researchAndDevelopmentExpenses": {
+        "$numberInt": "101"
+      },
+      "generalAndAdministrativeExpenses": {
+        "$numberInt": "101"
+      },
+      "sellingAndMarketingExpenses": {
+        "$numberInt": "101"
+      },
+      "sellingGeneralAndAdministrativeExpenses": {
+        "$numberLong": "100000001"
+      },
+      "otherExpenses": {
+        "$numberInt": "101"
+      },
+      "operatingExpenses": {
+        "$numberLong": "100000001"
+      },
+      "costAndExpenses": {
+        "$numberLong": "100000001"
+      },
+      "interestIncome": {
+        "$numberInt": "101"
+      },
+      "interestExpense": {
+        "$numberInt": "101"
+      },
+      "depreciationAndAmortization": {
+        "$numberInt": "101"
+      },
+      "ebitda": {
+        "$numberLong": "100000001"
+      },
+      "ebitdaratio": {
+        "$numberDouble": "2.25"
+      },
+      "operatingIncome": {
+        "$numberLong": "100000001"
+      },
+      "operatingIncomeRatio": {
+        "$numberDouble": "2.25"
+      },
+      "totalOtherIncomeExpensesNet": {
+        "$numberInt": "101"
+      },
+      "incomeBeforeTax": {
+        "$numberLong": "100000001"
+      },
+      "incomeBeforeTaxRatio": {
+        "$numberDouble": "2.25"
+      },
+      "incomeTaxExpense": {
+        "$numberLong": "100000001"
+      },
+      "netIncome": {
+        "$numberLong": "100000001"
+      },
+      "netIncomeRatio": {
+        "$numberDouble": "2.25"
+      },
+      "eps": {
+        "$numberDouble": "2.25"
+      },
+      "epsdiluted": {
+        "$numberDouble": "2.25"
+      },
+      "weightedAverageShsOut": {
+        "$numberInt": "101"
+      },
+      "weightedAverageShsOutDil": {
+        "$numberLong": "100000001"
+      },
+      "link": "https://example.com",
+      "finalLink": "https://example.com",
+      "index_id": "sample"
+    }
+  ],
+  "cash_flow_statement": [
+    {
+      "_id": {
+        "$oid": "000000000000000000000001"
+      },
+      "date": "2020-12-31",
+      "symbol": "SAMPLE",
+      "reportedCurrency": "USD",
+      "cik": "100",
+      "fillingDate": "2020-12-31",
+      "acceptedDate": "2020-12-31 12:00:00",
+      "calendarYear": "2020",
+      "period": "FY",
+      "netIncome": {
+        "$numberLong": "100000000"
+      },
+      "depreciationAndAmortization": {
+        "$numberInt": "100"
+      },
+      "deferredIncomeTax": {
+        "$numberInt": "100"
+      },
+      "stockBasedCompensation": {
+        "$numberInt": "100"
+      },
+      "changeInWorkingCapital": {
+        "$numberLong": "100000000"
+      },
+      "accountsReceivables": {
+        "$numberInt": "100"
+      },
+      "inventory": {
+        "$numberInt": "100"
+      },
+      "accountsPayables": {
+        "$numberInt": "100"
+      },
+      "otherWorkingCapital": {
+        "$numberLong": "100000000"
+      },
+      "otherNonCashItems": {
+        "$numberLong": "100000000"
+      },
+      "netCashProvidedByOperatingActivities": {
+        "$numberLong": "100000000"
+      },
+      "investmentsInPropertyPlantAndEquipment": {
+        "$numberInt": "100"
+      },
+      "acquisitionsNet": {
+        "$numberInt": "100"
+      },
+      "purchasesOfInvestments": {
+        "$numberLong": "100000000"
+      },
+      "salesMaturitiesOfInvestments": {
+        "$numberLong": "100000000"
+      },
+      "otherInvestingActivites": {
+        "$numberInt": "100"
+      },
+      "netCashUsedForInvestingActivites": {
+        "$numberLong": "100000000"
+      },
+      "debtRepayment": {
+        "$numberInt": "100"
+      },
+      "commonStockIssued": {
+        "$numberInt": "100"
+      },
+      "commonStockRepurchased": {
+        "$numberLong": "100000000"
+      },
+      "dividendsPaid": {
+        "$numberLong": "100000000"
+      },
+      "otherFinancingActivites": {
+        "$numberLong": "100000000"
+      },
+      "netCashUsedProvidedByFinancingActivities": {
+        "$numberLong": "100000000"
+      },
+      "effectOfForexChangesOnCash": {
+        "$numberInt": "100"
+      },
+      "netChangeInCash": {
+        "$numberInt": "100"
+      },
+      "cashAtEndOfPeriod": {
+        "$numberLong": "100000000"
+      },
+      "cashAtBeginningOfPeriod": {
+        "$numberLong": "100000000"
+      },
+      "operatingCashFlow": {
+        "$numberLong": "100000000"
+      },
+      "capitalExpenditure": {
+        "$numberInt": "100"
+      },
+      "freeCashFlow": {
+        "$numberLong": "100000000"
+      },
+      "link": "https://example.com",
+      "finalLink": "https://example.com",
+      "index_id": "sample"
+    },
+    {
+      "_id": {
+        "$oid": "000000000000000000000002"
+      },
+      "date": "2021-12-31",
+      "symbol": "SAMPLE",
+      "reportedCurrency": "USD",
+      "cik": "100",
+      "fillingDate": "2021-12-31",
+      "acceptedDate": "2021-12-31 12:00:00",
+      "calendarYear": "2021",
+      "period": "FY",
+      "netIncome": {
+        "$numberLong": "100000001"
+      },
+      "depreciationAndAmortization": {
+        "$numberInt": "101"
+      },
+      "deferredIncomeTax": {
+        "$numberInt": "101"
+      },
+      "stockBasedCompensation": {
+        "$numberInt": "101"
+      },
+      "changeInWorkingCapital": {
+        "$numberLong": "100000001"
+      },
+      "accountsReceivables": {
+        "$numberInt": "101"
+      },
+      "inventory": {
+        "$numberInt": "101"
+      },
+      "accountsPayables": {
+        "$numberInt": "101"
+      },
+      "otherWorkingCapital": {
+        "$numberLong": "100000001"
+      },
+      "otherNonCashItems": {
+        "$numberLong": "100000001"
+      },
+      "netCashProvidedByOperatingActivities": {
+        "$numberLong": "100000001"
+      },
+      "investmentsInPropertyPlantAndEquipment": {
+        "$numberInt": "101"
+      },
+      "acquisitionsNet": {
+        "$numberInt": "101"
+      },
+      "purchasesOfInvestments": {
+        "$numberLong": "100000001"
+      },
+      "salesMaturitiesOfInvestments": {
+        "$numberLong": "100000001"
+      },
+      "otherInvestingActivites": {
+        "$numberInt": "101"
+      },
+      "netCashUsedForInvestingActivites": {
+        "$numberInt": "101"
+      },
+      "debtRepayment": {
+        "$numberLong": "100000001"
+      },
+      "commonStockIssued": {
+        "$numberInt": "101"
+      },
+      "commonStockRepurchased": {
+        "$numberLong": "100000001"
+      },
+      "dividendsPaid": {
+        "$numberLong": "100000001"
+      },
+      "otherFinancingActivites": {
+        "$numberInt": "101"
+      },
+      "netCashUsedProvidedByFinancingActivities": {
+        "$numberLong": "100000001"
+      },
+      "effectOfForexChangesOnCash": {
+        "$numberInt": "101"
+      },
+      "netChangeInCash": {
+        "$numberInt": "101"
+      },
+      "cashAtEndOfPeriod": {
+        "$numberLong": "100000001"
+      },
+      "cashAtBeginningOfPeriod": {
+        "$numberLong": "100000001"
+      },
+      "operatingCashFlow": {
+        "$numberLong": "100000001"
+      },
+      "capitalExpenditure": {
+        "$numberInt": "101"
+      },
+      "freeCashFlow": {
+        "$numberLong": "100000001"
+      },
+      "link": "https://example.com",
+      "finalLink": "https://example.com",
+      "index_id": "sample"
+    }
+  ],
+  "company_profile": [
+    {
+      "_id": {
+        "$oid": "000000000000000000000001"
+      },
+      "symbol": "SAMPLE",
+      "price": {
+        "$numberDouble": "1.25"
+      },
+      "beta": {
+        "$numberDouble": "1.25"
+      },
+      "volAvg": {
+        "$numberInt": "100"
+      },
+      "mktCap": {
+        "$numberLong": "100000000"
+      },
+      "lastDiv": {
+        "$numberDouble": "1.25"
+      },
+      "range": "sample",
+      "changes": {
+        "$numberDouble": "1.25"
+      },
+      "companyName": "Sample Company",
+      "currency": "USD",
+      "cik": "100",
+      "isin": "sample",
+      "cusip": "sample",
+      "exchange": "sample",
+      "exchangeShortName": "sample",
+      "industry": "sample",
+      "website": "https://example.com",
+      "description": "sample",
+      "ceo": "sample",
+      "sector": "sample",
+      "country": "sample",
+      "fullTimeEmployees": "100",
+      "phone": "sample",
+      "address": "sample",
+      "city": "sample",
+      "state": "sample",
+      "zip": "100",
+      "dcfDiff": {
+        "$numberDouble": "1.25"
+      },
+      "dcf": {
+        "$numberDouble": "1.25"
+      },
+      "image": "https://example.com",
+      "ipoDate": "2020-12-31",
+      "defaultImage": false,
+      "isEtf": false,
+      "isActivelyTrading": true,
+      "isAdr": false,
+      "isFund": false,
+      "index_id": "sample"
+    },
+    {
+      "_id": {
+        "$oid": "000000000000000000000002"
+      },
+      "symbol": "SAMPLE",
+      "price": {
+        "$numberDouble": "2.25"
+      },
+      "beta": {
+        "$numberDouble": "2.25"
+      },
+      "volAvg": {
+        "$numberInt": "101"
+      },
+      "mktCap": {
+        "$numberLong": "100000001"
+      },
+      "lastDiv": {
+        "$numberDouble": "2.25"
+      },
+      "range": "sample",
+      "changes": {
+        "$numberDouble": "2.25"
+      },
+      "companyName": "Sample Company",
+      "currency": "USD",
+      "cik": "100",
+      "isin": "sample",
+      "cusip": "100",
+      "exchange": "sample",
+      "exchangeShortName": "sample",
+      "industry": "sample",
+      "website": "https://example.com",
+      "description": "sample",
+      "ceo": "sample",
+      "sector": "sample",
+      "country": "sample",
+      "fullTimeEmployees": "100",
+      "phone": "sample",
+      "address": "sample",
+      "city": "sample",
+      "state": "sample",
+      "zip": "100",
+      "dcfDiff": {
+        "$numberDouble": "2.25"
+      },
+      "dcf": {
+        "$numberDouble": "2.25"
+      },
+      "image": "https://example.com",
+      "ipoDate": "2021-12-31",
+      "defaultImage": false,
+      "isEtf": false,
+      "isActivelyTrading": true,
+      "isAdr": false,
+      "isFund": false,
+      "index_id": "sample"
+    }
+  ],
+  "historical": [
+    {
+      "_id": {
+        "$oid": "000000000000000000000001"
+      },
+      "index_id": "sample",
+      "symbol": "SAMPLE",
+      "date": {
+        "$date": {
+          "$numberLong": "1609372800000"
+        }
+      },
+      "open": {
+        "$numberDouble": "1.25"
+      },
+      "high": {
+        "$numberDouble": "1.25"
+      },
+      "low": {
+        "$numberDouble": "1.25"
+      },
+      "close": {
+        "$numberDouble": "1.25"
+      },
+      "volume": {
+        "$numberDouble": "1.25"
+      }
+    },
+    {
+      "_id": {
+        "$oid": "000000000000000000000002"
+      },
+      "index_id": "sample",
+      "symbol": "SAMPLE",
+      "date": {
+        "$date": {
+          "$numberLong": "1640908800000"
+        }
+      },
+      "open": {
+        "$numberDouble": "2.25"
+      },
+      "high": {
+        "$numberDouble": "2.25"
+      },
+      "low": {
+        "$numberDouble": "2.25"
+      },
+      "close": {
+        "$numberDouble": "2.25"
+      },
+      "volume": {
+        "$numberDouble": "2.25"
+      }
+    }
+  ],
+  "stock_split": [
+    {
+      "_id": {
+        "$oid": "000000000000000000000001"
+      },
+      "date": {
+        "$date": {
+          "$numberLong": "1609372800000"
+        }
+      },
+      "label": "sample",
+      "numerator": {
+        "$numberInt": "100"
+      },
+      "denominator": {
+        "$numberInt": "100"
+      },
+      "index_id": "sample",
+      "symbol": "SAMPLE"
+    },
+    {
+      "_id": {
+        "$oid": "000000000000000000000002"
+      },
+      "date": {
+        "$date": {
+          "$numberLong": "1640908800000"
+        }
+      },
+      "label": "sample",
+      "numerator": {
+        "$numberInt": "101"
+      },
+      "denominator": {
+        "$numberInt": "101"
+      },
+      "index_id": "sample",
+      "symbol": "SAMPLE"
+    }
+  ]
+}

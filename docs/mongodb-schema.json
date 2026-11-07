@@ -1,0 +1,674 @@
+{
+  "inspectedAt": "2026-11-06",
+  "source": "Live read-only Atlas inspection; field names and types only",
+  "collections": [
+    {
+      "collection": "balance_sheet",
+      "sampleCount": 5,
+      "fieldTypes": {
+        "_id": [
+          "ObjectId"
+        ],
+        "date": [
+          "str"
+        ],
+        "symbol": [
+          "str"
+        ],
+        "reportedCurrency": [
+          "str"
+        ],
+        "cik": [
+          "str"
+        ],
+        "fillingDate": [
+          "str"
+        ],
+        "acceptedDate": [
+          "str"
+        ],
+        "calendarYear": [
+          "str"
+        ],
+        "period": [
+          "str"
+        ],
+        "cashAndCashEquivalents": [
+          "Int64"
+        ],
+        "shortTermInvestments": [
+          "Int64"
+        ],
+        "cashAndShortTermInvestments": [
+          "Int64"
+        ],
+        "netReceivables": [
+          "Int64"
+        ],
+        "inventory": [
+          "Int64"
+        ],
+        "otherCurrentAssets": [
+          "Int64"
+        ],
+        "totalCurrentAssets": [
+          "Int64"
+        ],
+        "propertyPlantEquipmentNet": [
+          "Int64"
+        ],
+        "goodwill": [
+          "int"
+        ],
+        "intangibleAssets": [
+          "int"
+        ],
+        "goodwillAndIntangibleAssets": [
+          "int"
+        ],
+        "longTermInvestments": [
+          "Int64"
+        ],
+        "taxAssets": [
+          "int"
+        ],
+        "otherNonCurrentAssets": [
+          "Int64"
+        ],
+        "totalNonCurrentAssets": [
+          "Int64"
+        ],
+        "otherAssets": [
+          "int"
+        ],
+        "totalAssets": [
+          "Int64"
+        ],
+        "accountPayables": [
+          "Int64"
+        ],
+        "shortTermDebt": [
+          "Int64"
+        ],
+        "taxPayables": [
+          "int"
+        ],
+        "deferredRevenue": [
+          "Int64"
+        ],
+        "otherCurrentLiabilities": [
+          "Int64"
+        ],
+        "totalCurrentLiabilities": [
+          "Int64"
+        ],
+        "longTermDebt": [
+          "Int64"
+        ],
+        "deferredRevenueNonCurrent": [
+          "Int64",
+          "int"
+        ],
+        "deferredTaxLiabilitiesNonCurrent": [
+          "int"
+        ],
+        "otherNonCurrentLiabilities": [
+          "Int64"
+        ],
+        "totalNonCurrentLiabilities": [
+          "Int64"
+        ],
+        "otherLiabilities": [
+          "int"
+        ],
+        "capitalLeaseObligations": [
+          "int"
+        ],
+        "totalLiabilities": [
+          "Int64"
+        ],
+        "preferredStock": [
+          "int"
+        ],
+        "commonStock": [
+          "Int64"
+        ],
+        "retainedEarnings": [
+          "Int64"
+        ],
+        "accumulatedOtherComprehensiveIncomeLoss": [
+          "Int64",
+          "int"
+        ],
+        "othertotalStockholdersEquity": [
+          "int"
+        ],
+        "totalStockholdersEquity": [
+          "Int64"
+        ],
+        "totalEquity": [
+          "Int64"
+        ],
+        "totalLiabilitiesAndStockholdersEquity": [
+          "Int64"
+        ],
+        "minorityInterest": [
+          "int"
+        ],
+        "totalLiabilitiesAndTotalEquity": [
+          "Int64"
+        ],
+        "totalInvestments": [
+          "Int64"
+        ],
+        "totalDebt": [
+          "Int64"
+        ],
+        "netDebt": [
+          "Int64"
+        ],
+        "link": [
+          "str"
+        ],
+        "finalLink": [
+          "str"
+        ],
+        "index_id": [
+          "str"
+        ]
+      },
+      "indexKeys": [
+        {
+          "index_id": 1
+        },
+        {
+          "_id": 1
+        }
+      ]
+    },
+    {
+      "collection": "income_statement",
+      "sampleCount": 5,
+      "fieldTypes": {
+        "_id": [
+          "ObjectId"
+        ],
+        "date": [
+          "str"
+        ],
+        "symbol": [
+          "str"
+        ],
+        "reportedCurrency": [
+          "str"
+        ],
+        "cik": [
+          "str"
+        ],
+        "fillingDate": [
+          "str"
+        ],
+        "acceptedDate": [
+          "str"
+        ],
+        "calendarYear": [
+          "str"
+        ],
+        "period": [
+          "str"
+        ],
+        "revenue": [
+          "Int64"
+        ],
+        "costOfRevenue": [
+          "Int64"
+        ],
+        "grossProfit": [
+          "Int64"
+        ],
+        "grossProfitRatio": [
+          "float"
+        ],
+        "researchAndDevelopmentExpenses": [
+          "int"
+        ],
+        "generalAndAdministrativeExpenses": [
+          "int"
+        ],
+        "sellingAndMarketingExpenses": [
+          "int"
+        ],
+        "sellingGeneralAndAdministrativeExpenses": [
+          "Int64"
+        ],
+        "otherExpenses": [
+          "int"
+        ],
+        "operatingExpenses": [
+          "Int64"
+        ],
+        "costAndExpenses": [
+          "Int64"
+        ],
+        "interestIncome": [
+          "int"
+        ],
+        "interestExpense": [
+          "int"
+        ],
+        "depreciationAndAmortization": [
+          "int"
+        ],
+        "ebitda": [
+          "Int64"
+        ],
+        "ebitdaratio": [
+          "float"
+        ],
+        "operatingIncome": [
+          "Int64"
+        ],
+        "operatingIncomeRatio": [
+          "float"
+        ],
+        "totalOtherIncomeExpensesNet": [
+          "int"
+        ],
+        "incomeBeforeTax": [
+          "Int64"
+        ],
+        "incomeBeforeTaxRatio": [
+          "float"
+        ],
+        "incomeTaxExpense": [
+          "Int64"
+        ],
+        "netIncome": [
+          "Int64"
+        ],
+        "netIncomeRatio": [
+          "float"
+        ],
+        "eps": [
+          "float"
+        ],
+        "epsdiluted": [
+          "float"
+        ],
+        "weightedAverageShsOut": [
+          "Int64",
+          "int"
+        ],
+        "weightedAverageShsOutDil": [
+          "Int64"
+        ],
+        "link": [
+          "str"
+        ],
+        "finalLink": [
+          "str"
+        ],
+        "index_id": [
+          "str"
+        ]
+      },
+      "indexKeys": [
+        {
+          "index_id": 1
+        },
+        {
+          "_id": 1
+        }
+      ]
+    },
+    {
+      "collection": "cash_flow_statement",
+      "sampleCount": 5,
+      "fieldTypes": {
+        "_id": [
+          "ObjectId"
+        ],
+        "date": [
+          "str"
+        ],
+        "symbol": [
+          "str"
+        ],
+        "reportedCurrency": [
+          "str"
+        ],
+        "cik": [
+          "str"
+        ],
+        "fillingDate": [
+          "str"
+        ],
+        "acceptedDate": [
+          "str"
+        ],
+        "calendarYear": [
+          "str"
+        ],
+        "period": [
+          "str"
+        ],
+        "netIncome": [
+          "Int64"
+        ],
+        "depreciationAndAmortization": [
+          "int"
+        ],
+        "deferredIncomeTax": [
+          "int"
+        ],
+        "stockBasedCompensation": [
+          "int"
+        ],
+        "changeInWorkingCapital": [
+          "Int64"
+        ],
+        "accountsReceivables": [
+          "int"
+        ],
+        "inventory": [
+          "int"
+        ],
+        "accountsPayables": [
+          "int"
+        ],
+        "otherWorkingCapital": [
+          "Int64"
+        ],
+        "otherNonCashItems": [
+          "Int64"
+        ],
+        "netCashProvidedByOperatingActivities": [
+          "Int64"
+        ],
+        "investmentsInPropertyPlantAndEquipment": [
+          "int"
+        ],
+        "acquisitionsNet": [
+          "int"
+        ],
+        "purchasesOfInvestments": [
+          "Int64"
+        ],
+        "salesMaturitiesOfInvestments": [
+          "Int64"
+        ],
+        "otherInvestingActivites": [
+          "int"
+        ],
+        "netCashUsedForInvestingActivites": [
+          "Int64",
+          "int"
+        ],
+        "debtRepayment": [
+          "Int64",
+          "int"
+        ],
+        "commonStockIssued": [
+          "int"
+        ],
+        "commonStockRepurchased": [
+          "Int64"
+        ],
+        "dividendsPaid": [
+          "Int64",
+          "int"
+        ],
+        "otherFinancingActivites": [
+          "Int64",
+          "int"
+        ],
+        "netCashUsedProvidedByFinancingActivities": [
+          "Int64"
+        ],
+        "effectOfForexChangesOnCash": [
+          "int"
+        ],
+        "netChangeInCash": [
+          "Int64",
+          "int"
+        ],
+        "cashAtEndOfPeriod": [
+          "Int64"
+        ],
+        "cashAtBeginningOfPeriod": [
+          "Int64"
+        ],
+        "operatingCashFlow": [
+          "Int64"
+        ],
+        "capitalExpenditure": [
+          "int"
+        ],
+        "freeCashFlow": [
+          "Int64"
+        ],
+        "link": [
+          "str"
+        ],
+        "finalLink": [
+          "str"
+        ],
+        "index_id": [
+          "str"
+        ]
+      },
+      "indexKeys": [
+        {
+          "index_id": 1
+        },
+        {
+          "_id": 1
+        }
+      ]
+    },
+    {
+      "collection": "company_profile",
+      "sampleCount": 5,
+      "fieldTypes": {
+        "_id": [
+          "ObjectId"
+        ],
+        "symbol": [
+          "str"
+        ],
+        "price": [
+          "float"
+        ],
+        "beta": [
+          "float"
+        ],
+        "volAvg": [
+          "int"
+        ],
+        "mktCap": [
+          "Int64"
+        ],
+        "lastDiv": [
+          "float"
+        ],
+        "range": [
+          "str"
+        ],
+        "changes": [
+          "float"
+        ],
+        "companyName": [
+          "str"
+        ],
+        "currency": [
+          "str"
+        ],
+        "cik": [
+          "str"
+        ],
+        "isin": [
+          "str"
+        ],
+        "cusip": [
+          "str"
+        ],
+        "exchange": [
+          "str"
+        ],
+        "exchangeShortName": [
+          "str"
+        ],
+        "industry": [
+          "str"
+        ],
+        "website": [
+          "str"
+        ],
+        "description": [
+          "str"
+        ],
+        "ceo": [
+          "str"
+        ],
+        "sector": [
+          "str"
+        ],
+        "country": [
+          "str"
+        ],
+        "fullTimeEmployees": [
+          "str"
+        ],
+        "phone": [
+          "str"
+        ],
+        "address": [
+          "str"
+        ],
+        "city": [
+          "str"
+        ],
+        "state": [
+          "str"
+        ],
+        "zip": [
+          "str"
+        ],
+        "dcfDiff": [
+          "float"
+        ],
+        "dcf": [
+          "float"
+        ],
+        "image": [
+          "str"
+        ],
+        "ipoDate": [
+          "str"
+        ],
+        "defaultImage": [
+          "bool"
+        ],
+        "isEtf": [
+          "bool"
+        ],
+        "isActivelyTrading": [
+          "bool"
+        ],
+        "isAdr": [
+          "bool"
+        ],
+        "isFund": [
+          "bool"
+        ],
+        "index_id": [
+          "str"
+        ]
+      },
+      "indexKeys": [
+        {
+          "index_id": 1
+        },
+        {
+          "_id": 1
+        }
+      ]
+    },
+    {
+      "collection": "historical",
+      "sampleCount": 5,
+      "fieldTypes": {
+        "_id": [
+          "ObjectId"
+        ],
+        "index_id": [
+          "str"
+        ],
+        "symbol": [
+          "str"
+        ],
+        "date": [
+          "datetime"
+        ],
+        "open": [
+          "float"
+        ],
+        "high": [
+          "float"
+        ],
+        "low": [
+          "float"
+        ],
+        "close": [
+          "float"
+        ],
+        "volume": [
+          "float"
+        ]
+      },
+      "indexKeys": [
+        {
+          "index_id": 1
+        },
+        {
+          "_id": 1
+        }
+      ]
+    },
+    {
+      "collection": "stock_split",
+      "sampleCount": 5,
+      "fieldTypes": {
+        "_id": [
+          "ObjectId"
+        ],
+        "date": [
+          "datetime"
+        ],
+        "label": [
+          "str"
+        ],
+        "numerator": [
+          "int"
+        ],
+        "denominator": [
+          "int"
+        ],
+        "index_id": [
+          "str"
+        ],
+        "symbol": [
+          "str"
+        ]
+      },
+      "indexKeys": [
+        {
+          "index_id": 1
+        },
+        {
+          "_id": 1
+        }
+      ]
+    }
+  ]
+}

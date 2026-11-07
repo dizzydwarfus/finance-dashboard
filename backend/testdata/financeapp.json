@@ -1,0 +1,148 @@
+{
+  "income_statement": [
+    {
+      "_id": {
+        "$oid": "000000000000000000000001"
+      },
+      "symbol": "DEMO",
+      "date": "2023-12-31",
+      "calendarYear": "2023",
+      "period": "FY",
+      "reportedCurrency": "USD",
+      "revenue": 100,
+      "netIncome": "10",
+      "epsdiluted": 1,
+      "weightedAverageShsOutDil": 10,
+      "grossProfitRatio": 0.4
+    },
+    {
+      "_id": {
+        "$oid": "000000000000000000000002"
+      },
+      "symbol": "DEMO",
+      "date": {
+        "$date": "2024-12-31T00:00:00Z"
+      },
+      "calendarYear": "2024",
+      "period": "FY",
+      "reportedCurrency": "USD",
+      "revenue": {
+        "$numberDecimal": "125.50"
+      },
+      "netIncome": 15,
+      "epsdiluted": "1.50",
+      "weightedAverageShsOutDil": 10,
+      "grossProfitRatio": 0.45
+    },
+    {
+      "_id": {
+        "$oid": "000000000000000000000003"
+      },
+      "symbol": "DEMO",
+      "date": "2024-12-31",
+      "calendarYear": "2024",
+      "period": "FY",
+      "reportedCurrency": "USD",
+      "revenue": 120,
+      "acceptedDate": "2024-12-01T00:00:00Z"
+    },
+    {
+      "_id": {
+        "$oid": "000000000000000000000004"
+      },
+      "symbol": "DEMO",
+      "date": "2024-03-31",
+      "calendarYear": "2024",
+      "period": "Q1",
+      "reportedCurrency": "USD",
+      "revenue": "30"
+    },
+    {
+      "_id": {
+        "$oid": "000000000000000000000005"
+      },
+      "symbol": "EMPTY",
+      "date": "2024-12-31",
+      "calendarYear": "2024",
+      "period": "FY",
+      "reportedCurrency": "EUR",
+      "revenue": null
+    }
+  ],
+  "balance_sheet": [
+    {
+      "symbol": "DEMO",
+      "date": "2024-12-31",
+      "calendarYear": "2024",
+      "period": "FY",
+      "reportedCurrency": "USD",
+      "totalCurrentAssets": "80",
+      "totalCurrentLiabilities": 30,
+      "netDebt": {
+        "$numberLong": "20"
+      }
+    }
+  ],
+  "cash_flow_statement": [
+    {
+      "symbol": "DEMO",
+      "date": "2024-12-31",
+      "calendarYear": "2024",
+      "period": "FY",
+      "reportedCurrency": "USD",
+      "operatingCashFlow": 25,
+      "freeCashFlow": "20",
+      "capitalExpenditure": -5
+    }
+  ],
+  "company_profile": [
+    {
+      "symbol": "DEMO",
+      "companyName": "Example Industries",
+      "description": "Synthetic company for local verification.",
+      "currency": "USD",
+      "sector": "Industrials",
+      "industry": "Manufacturing",
+      "exchangeShortName": "DEMO",
+      "country": "US",
+      "ceo": "Alex Example",
+      "website": "https://example.com",
+      "price": "12.55",
+      "mktCap": 125.5,
+      "fullTimeEmployees": "1200",
+      "lastUpdate": {
+        "$date": "2025-01-15T12:00:00Z"
+      }
+    }
+  ],
+  "historical": [
+    {
+      "symbol": "DEMO",
+      "date": {
+        "$date": "2024-12-30T00:00:00Z"
+      },
+      "open": "12",
+      "high": "13",
+      "low": "11.5",
+      "close": "12.55",
+      "volume": "12345"
+    },
+    {
+      "symbol": "DEMO",
+      "date": "2024-12-31",
+      "open": 12.55,
+      "high": 13,
+      "low": 12,
+      "close": 12.75,
+      "volume": 15000
+    }
+  ],
+  "stock_split": [
+    {
+      "symbol": "DEMO",
+      "date": "2024-12-30",
+      "numerator": "2",
+      "denominator": 1
+    }
+  ]
+}

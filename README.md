@@ -1,204 +1,93 @@
-# 🌟 Finance Dashboard: Your Investment Insight Tool
+# Ledger · Finance dashboard
 
-Welcome to the Finance Dashboard, a web application tailored to empower investment enthusiasts by providing financial insights at their fingertips. This webapp is no longer hosted.
+A private company-research dashboard: **Go API**, **React + TypeScript**, **MongoDB Atlas**, and two **Cloudflare Containers** behind a Cloudflare Access gateway.
 
-## Table of Contents
+Browse stored company profiles, financial statements, metrics, year-over-year growth, candlestick prices, volume, and stock splits. All application endpoints are read-only. Prices and profiles are stored snapshots, not live market data. DCF and ingestion are deferred.
 
-- [🌟 Finance Dashboard: Your Investment Insight Tool](#-finance-dashboard-your-investment-insight-tool)
-  - [Table of Contents](#table-of-contents)
-  - [🚀 Key Highlights](#-key-highlights)
-  - [📂 Project Structure](#-project-structure)
-  - [🔧 Setup and Launch](#-setup-and-launch)
-  - [🛠️ Tools and Libraries](#️-tools-and-libraries)
-  - [🎯 Goal of Project](#-goal-of-project)
-  - [Action Plan](#action-plan)
-  - [📜 Data Acknowledgment](#-data-acknowledgment)
-  - [License](#license)
-  - [📝 Development Log](#-development-log)
+## Run locally
 
-## 🚀 Key Highlights
+Prerequisites: Go 1.26, Node.js 24+, and an accessible MongoDB database. Docker with Compose is needed for container development. The existing `.nvmrc` is preserved.
 
-- **SEC Integration**: Currently fetches data from FMP API but working on directly scraping from SEC EDGAR Database (see more at []())
-- **Optimized Data Storage**: Utilizes MongoDB for structured data storage and retrieval, ensuring fast and efficient access.
-- **Interactive User Interface**: Designed with Streamlit, the dashboard offers an intuitive experience with dynamic charts and metrics visualization.
-- **Intrinsic Value Calculator**: Integrated DCF calculator showcases financial computation capabilities.
+Create `.env.local` in the repository root with `MONGODB_URI` set to your read-only MongoDB URI. The Go API automatically reads `.env.local` (or `.env` if no `.env.local` exists), including when launched from `backend/`. Vite reads the same file for its optional proxy setting. Existing credential files are never overwritten.
 
-## 📂 Project Structure
-
-```
-finance-dashboard/
-├── .streamlit/
-│   ├── config.toml
-│   └── secrets.toml
-├── pages/
-│   ├── 1Financial_Statements.py
-│   └── 2SECScraper.py
-├── utils/
-│   └── database
-│       └── _connector.py
-│   ├── _utils.py
-│   ├── _logger.py
-│   ├── _fmpAPI.py
-│   ├── _alphavantageAPI.py
-│   ├── _mongo.py
-│   ├── _sec_page_utils.py
-│   └── sec-scraper/
-│       ├── sec_class.py
-│       ├── sec_scraper_doc.md
-│       └── sec_api_test.ipynb
-│       ├── _dataclasses.py
-│       ├── _mapping.py
-│       ├── _utils.py
-├── requirements.txt
-├── .env
-├── .gitignore
-├── startup.sh
-├── Ticket_List.py
-├── LICENSE
-└── README.md
+```sh
+# Create or edit .env.local with MONGODB_URI before starting the API.
+cd backend
+go run ./cmd/api
 ```
 
-## 🔧 Setup and Launch
+In another terminal:
 
-1. **Get the Code**:
-   ```bash
-   git clone https://github.com/dizzydwarfus/finance-dashboard
-   cd finance-dashboard
-   ```
-
-2. **Prepare Your Environment**:
-   ```bash
-   pip install -r requirements.txt
-   ```
-
-3. **MongoDB Setup**: Ensure MongoDB is active. Update `.env` with your MongoDB details. 
-
-4. **Engage with the Dashboard**:
-   ```bash
-   streamlit run Ticker_List.py
-   ```
-
-
-
-## 🛠️ Tools and Libraries
-
-- **Data Processing:** Pandas
-- **Data Scraping:** BeautifulSoup
-- **Web Framework:** Streamlit
-- **Database:** pymongo
-- **Visualization:** plotly
-
-The main core part of the financial data obtained will be from financial APIs at the beginning to get started but will be transitioned to a self-scraped data from [SEC](www.sec.gov) eventually. Refer to [SEC Scraper](./utils/sec-scraper/sec_scraper_doc.md) for more information on scraping from [SEC](www.sec.gov).Several open-source tools/libraries may be used when needed to aid in processing and scraping these data. 
-
-Streamlit will be used as the main open-source app framework for its ease of implementation. I will try to write the codebase in such a way where migration to other web-frameworks would be possible with minimal effort in the future since Streamlit has its limitation.
-
-Plotly is chosen because it works very well with streamlit as opposed to matplotlib. Plotly also offers highly interactive figures that is much more customizable than matplotlib's.
-
-
-## 🎯 Goal of Project
-
-Besides personal stake in stock/ETF/crypto investing, I have a strong interest for finance. Though not from a Business/Finance educational background, I've self-learned many financial concepts needed to evaluate a company. Merging this knowledge with my passion for programming, I embarked on creating a financial dashboard to aid in investment decisions and to track the financial performance of my investments. While the project can be extensive, my approach is to start simple and iteratively refine and extend its capabilities.
-
-
-## Action Plan
-
-The development strategy is segmented into:
-
-1. **Data Gathering/Extraction:** Extract data from trusted APIs or scrape data from SEC.
-2. **Data Cleaning and Processing:** Ensure data is coherent and transform data as needed (in python).
-3. **Data Storage:** Store data to a NoSQL database.
-4. **Presented in Streamlit:** Display data in a user-friendly format where key metrics and financial statements summaries are displayed.
-
-
-```mermaid
-flowchart TD
-subgraph api_data["Data Gathering (FMP API)"]
-   direction LR
-   pre_tickers{{Pre-downloaded Ticker List}}
-   manual_tickers{{Manually Added Ticker List}}
-
-end
-
-subgraph sec_data["Data Gathering (SEC)"]
-   direction TB
-   cik{{CIK}}
-   submissions{{Company<br>Submissions}}
-   filings{{Company<br>Filings}}
-   folder_url[[Directory URL]]
-   file_url[[".txt file url<br>(in directory)"]]
-   facts([Company Facts])
-   metalinks([Facts Metalinks])
-   context([Facts Context])
-
-
-
-   filings -.- folder_url
-   filings -.- file_url
-   file_url --SEC API + BS4--> facts
-   file_url --SEC API + BS4--> metalinks
-   file_url --SEC API + BS4--> context
-
-   facts -. left join<br>contextRef on contextId.-> context 
-   facts -. left join<br>factNameMerge on labelName .-> metalinks
-   cik --SEC API--> submissions --SEC API--> filings
-   
-   style cik stroke-width:3px,color:#fff
-   style submissions stroke-width:3px,color:#fff
-   style filings stroke-width:3px,color:#fff
-   style file_url stroke:#f66,stroke-width:1px,color:#fff,stroke-dasharray: 5 5
-   style facts stroke-width:4px,color:#fff
-   style context stroke-width:2px,color:#fff, stroke-dasharray: 1 1
-   style metalinks stroke-width:2px,color:#fff, stroke-dasharray: 1 1
-end
-
-
-subgraph data_storage[Data Storage]
-   MongoDB[(NoSQL)]
-
-   style MongoDB stroke-width:4px,color:#fff
-end
-
-
-subgraph data_viz[Streamlit]
-   keymetrics[Key Metrics<br>Table]
-   DCF[DCF<br>Calculator]
-   tsgraphs[Time Series<br>Graphs]
-end
-
-
-pre_tickers ==FMP API==> MongoDB
-manual_tickers ==FMP API==> MongoDB
-
-filings ==> MongoDB
-facts ==> MongoDB
-MongoDB --> data_viz
+```sh
+cd frontend
+npm ci
+npm run dev
 ```
 
+Open [the dashboard](http://127.0.0.1:5173). Vite proxies API requests to port 8080. Local servers bind to loopback and do not use Cloudflare Access; deployed traffic always requires validated Access authentication.
 
-## 📜 Data Acknowledgment
+For **synthetic data** with no Atlas connection:
 
-All financial data is provided by [Financial Modeling Prep](https://financialmodelingprep.com) and [SEC Edgar Database](https://www.sec.gov/edgar/sec-api-documentation)
+```sh
+docker compose --profile fixtures up --build
+```
 
-## License
+Open [the containerized dashboard](http://127.0.0.1:3000/companies/DEMO). This creates a disposable local database with `DEMO` and `EMPTY`, plus a read-only application user. Keep `MONGODB_URI` unset to use the Compose default. To run the containers with your local Atlas configuration:
 
-Refer to the [LICENSE](./LICENSE) file for more specifics.
+```sh
+docker compose --env-file .env.local up --build
+```
 
+For a fixture database with the API running directly on your host, start `docker compose --profile fixtures up mongo` and set `MONGODB_URI` to `mongodb://dashboard:local-fixture-only@127.0.0.1:27017/FinanceApp?authSource=FinanceApp`. For the API inside Compose, use an Atlas URI or change the URI host to `mongo`; `127.0.0.1` inside the API container refers to that container itself.
 
-## 📝 Development Log
+## Structure
 
-Before 2023-05-30
+- `backend/`: Go HTTP handlers, domain services, read-only MongoDB repository, schema inspector, and fixtures/tests.
+- `frontend/`: React dashboard, generated API types, ECharts visualizations, and browser tests.
+- `infra/`: Access validation, routing, container lifecycle, Wrangler configuration, and gateway tests.
+- `docs/`: [API contract](docs/openapi.json), [data compatibility](docs/data-compatibility.md), and [deployment runbook](docs/deployment.md).
+- `legacy/sec_parser/`: experimental parser reference for a future Go port; excluded from both runtime images.
 
-1. Enabled manual update of ticker list if interested ticker symbol is not in the pre-downloaded list.
-2. Use st.secrets so usernames, passwords, API-keys are stored as secrets instead of in local/cloud txt files.
-3. Selectable plotly charts. Can pick and choose whichever graph to show from a list of key-graphs. 
-4. Instead of directly calling API (slow), first storing information in database (<span style="color:#FF0001;">permitted as long as data not used commercially and not redistributed</span>). This is also a workaround for the limited requests per day allowed for using free version of these APIs. 
-5. Introduced DCF calculator - with customizable growth, discount rates, market conditions.
-6. Published on streamlit community cloud server (free)
-7. Cached data whenever possible to reduce load time
+## Checks
 
-| Date       | Description                                                                                                                                      |
-| ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
-| 2023-05-30 | Created the doc.md file. Previously completed work is briefly documented above. |
-| 2023-08-02 | Revamped readme.md and transferred to new repository |
-| 2023-09-10 | Started investigating scraping from SEC Edgar database so data can be stored and distributed since FMP API free data cannot be used commercially |
-| 2024-01-20 | First draft of scraping algorithm is complete. Considering to separate the scraper into a module to be used with airflow for orchestrating data updates. |
+```sh
+cd backend
+go test -race ./...
+go vet ./...
+go run ./cmd/inspect
+```
+
+The inspector requires `MONGODB_URI` and prints only field types and index keys. Optional `MONGODB_SMOKE_URI` enables a read-only Atlas smoke test. `MONGODB_TEST_URI` enables the separate integration test that creates and drops a randomly named test database; use only a disposable MongoDB instance with authentication and user-admin permissions.
+
+```sh
+cd frontend
+npm ci
+npm run generate:api
+npm run build
+npx playwright install chromium
+npm test
+```
+
+```sh
+cd infra
+npm ci
+npm run typecheck
+npm test
+npx wrangler deploy --dry-run --env staging
+```
+
+Frontend types are generated from the OpenAPI contract; CI rejects stale generated types. CI also runs authenticated MongoDB integration tests and builds/tests both Linux AMD64 images.
+
+## Deploy
+
+Create `.env.staging` and `.env.production` using the nine keys listed in the deployment runbook. Deployment commands load the matching file automatically, independent of the current working directory. Copy every key/value pair into the matching GitHub environment’s **Secrets** using the same names; no GitHub Variables are needed.
+
+Follow the [deployment runbook](docs/deployment.md) to configure Access, a read-only Atlas user, secrets, and hostnames. Workers Paid is required. There are separate staging and production Workers. The gateway denies requests if Access configuration is missing; `workers.dev` and preview URLs are disabled.
+
+GitHub Actions validates pull requests, deploys configured `main` commits to staging, and promotes an exact SHA only after successful staging checks. MongoDB data and schemas are not changed during deployment.
+
+## Migration status
+
+The application has no Streamlit dependency or Python runtime. The retained SEC parser is reference material only. Old secret configuration was removed from tracked source; any live credentials previously committed must be rotated in their provider accounts. Deleting files does not remove them from Git history.
+
+License: [MIT](LICENSE).
