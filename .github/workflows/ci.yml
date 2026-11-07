@@ -10,7 +10,8 @@ jobs:
     runs-on: ubuntu-latest
     services:
       mongodb:
-        image: mongo:8
+        # MongoDB 8 rejects the hosted runner kernel (SERVER-136848).
+        image: mongo:7.0
         ports: [27017:27017]
         env:
           MONGO_INITDB_ROOT_USERNAME: fixture-admin
