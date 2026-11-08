@@ -3,11 +3,12 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "wrangler dev",
+    "dev": "wrangler dev --env production",
     "typecheck": "tsc --noEmit",
     "test": "node --test ../scripts/env.test.mjs && vitest run",
-    "deploy:staging": "node ../scripts/deploy.mjs staging",
-    "deploy:production": "node ../scripts/deploy.mjs production"
+    "deploy": "node ../scripts/deploy.mjs",
+    "smoke": "node ../scripts/smoke.mjs",
+    "rollback": "node ../scripts/deploy.mjs --rollback"
   },
   "dependencies": {
     "jose": "^6.1.0"

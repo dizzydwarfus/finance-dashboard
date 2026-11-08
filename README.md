@@ -73,18 +73,18 @@ cd infra
 npm ci
 npm run typecheck
 npm test
-npx wrangler deploy --dry-run --env staging
+npx wrangler deploy --dry-run --env production
 ```
 
 Frontend types are generated from the OpenAPI contract; CI rejects stale generated types. CI also runs authenticated MongoDB integration tests and builds/tests both Linux AMD64 images.
 
 ## Deploy
 
-Create `.env.staging` and `.env.production` using the nine keys listed in the deployment runbook. Deployment commands load the matching file automatically, independent of the current working directory. Copy every key/value pair into the matching GitHub environment’s **Secrets** using the same names; no GitHub Variables are needed.
+Keep `.env.production` for local deployment commands and the existing GitHub `production` environment’s **Secrets**. Both use the same nine keys listed in the deployment runbook; no GitHub Variables are needed. Run `node scripts/deploy.mjs` to deploy locally and `node scripts/smoke.mjs` to verify.
 
-Follow the [deployment runbook](docs/deployment.md) to configure Access, a read-only Atlas user, secrets, and hostnames. Workers Paid is required. There are separate staging and production Workers. The gateway denies requests if Access configuration is missing; `workers.dev` and preview URLs are disabled.
+Follow the [deployment runbook](docs/deployment.md) to configure Access, a read-only Atlas user, secrets, and hostnames. Workers Paid is required. There is one production Worker managing the two service containers. The gateway denies requests if Access configuration is missing; `workers.dev` and preview URLs are disabled.
 
-GitHub Actions validates pull requests, deploys configured `main` commits to staging, and promotes an exact SHA only after successful staging checks. MongoDB data and schemas are not changed during deployment.
+GitHub Actions runs checks automatically on pushes to `main` and pull requests. To deploy, manually run **Validate and deploy dashboard** from `main` in GitHub Actions (`workflow_dispatch`); it deploys only after checks pass, then runs authenticated smoke tests. Restore a known-good Cloudflare version with `node scripts/deploy.mjs --rollback VERSION_ID`, or revert a commit and manually deploy the revert. MongoDB data and schemas are not changed during deployment.
 
 ## Migration status
 

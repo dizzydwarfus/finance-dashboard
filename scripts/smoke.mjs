@@ -1,8 +1,7 @@
 // Access service token values stay in request headers, never command arguments or output.
 import { loadEnvironment, requireKeys } from './env.mjs';
-const stage = process.argv[2];
-if (!['staging', 'production'].includes(stage)) throw new Error('Usage: node scripts/smoke.mjs staging|production');
-const env = loadEnvironment(stage);
+if (process.argv.length > 2) throw new Error('Usage: node scripts/smoke.mjs');
+const env = loadEnvironment('production');
 requireKeys(env, ['CLOUDFLARE_HOSTNAME', 'CF_ACCESS_CLIENT_ID', 'CF_ACCESS_CLIENT_SECRET']);
 if (!/^[a-z0-9](?:[a-z0-9.-]*[a-z0-9])?\.[a-z]{2,}$/.test(env.CLOUDFLARE_HOSTNAME)) throw new Error('Invalid deployment hostname');
 const origin = `https://${env.CLOUDFLARE_HOSTNAME}`;
