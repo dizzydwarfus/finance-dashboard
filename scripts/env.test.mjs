@@ -12,16 +12,17 @@ function fixture(t, files) {
   for (const [file, contents] of Object.entries(files)) writeFileSync(join(root, file), contents);
   return root;
 }
-test('each stage uses only its matching file and overrides stale shell values', t => {
-  const root = fixture(t, { '.env.staging': "CLOUDFLARE_API_TOKEN='staging-token'\nMONGODB_DATABASE=StagingFinance", '.env.production': 'CLOUDFLARE_API_TOKEN=production-token', '.env': 'CLOUDFLARE_HOSTNAME=wrong.example.com' });
-  const env = { CLOUDFLARE_API_TOKEN: 'stale-token', CLOUDFLARE_HOSTNAME: 'wrong-production.example.com' };
-  assert.equal(loadEnvironment('staging', { root, env }).CLOUDFLARE_API_TOKEN, 'staging-token');
-  assert.equal(loadEnvironment('production', { root, env }).CLOUDFLARE_API_TOKEN, 'production-token');
-  assert.equal(loadEnvironment('staging', { root, env }).CLOUDFLARE_HOSTNAME, undefined);
+test('production uses only its file and overrides stale shell values', t => {
+  const root = fixture(t, { '.env.staging': 'CLOUDFLARE_API_TOKEN=unused-token', '.env.production': 'CLOUDFLARE_API_TOKEN=production-token', '.env': 'CLOUDFLARE_HOSTNAME=wrong.example.com' });
+  const env = { CLOUDFLARE_API_TOKEN: 'stale-token', CLOUDFLARE_HOSTNAME: 'wrong.example.com' };
+  const loaded = loadEnvironment('production', { root, env });
+  assert.equal(loaded.CLOUDFLARE_API_TOKEN, 'production-token');
+  assert.equal(loaded.CLOUDFLARE_HOSTNAME, undefined);
+  assert.throws(() => loadEnvironment('staging', { root, env }), /local or production/);
 });
-test('missing cloud file fails instead of using exported credentials', t => {
-  const root = fixture(t, { '.env.production': 'CLOUDFLARE_API_TOKEN=production-token' });
-  assert.throws(() => loadEnvironment('staging', { root, env: { CLOUDFLARE_API_TOKEN: 'exported-token' } }), /Missing .env.staging/);
+test('missing production file fails instead of using other files or exported credentials', t => {
+  const root = fixture(t, { '.env.staging': 'CLOUDFLARE_API_TOKEN=unused-token', '.env': 'CLOUDFLARE_API_TOKEN=unused-token' });
+  assert.throws(() => loadEnvironment('production', { root, env: { CLOUDFLARE_API_TOKEN: 'exported-token' } }), /Missing .env.production/);
 });
 test('local prefers .env.local and falls back to .env without loading cloud credentials', t => {
   const root = fixture(t, { '.env.local': "MONGODB_URI='mongodb://local'\nAPI_PROXY_TARGET=http://127.0.0.1:8081\nCLOUDFLARE_API_TOKEN=ignored", '.env': 'MONGODB_URI=mongodb://fallback' });
@@ -35,31 +36,36 @@ test('CI ignores dotenv files and preserves exact injected values', t => {
   assert.equal(loadEnvironment('production', { root, env: { CI: 'true', CLOUDFLARE_API_TOKEN: 'github-secret' } }).CLOUDFLARE_API_TOKEN, 'github-secret');
 });
 test('dotenv quoting preserves URI punctuation literally', t => {
-  const root = fixture(t, { '.env.staging': "MONGODB_URI='mongodb://user:p%24ss@host/db?x=1&y=2#fragment'" });
-  assert.equal(loadEnvironment('staging', { root, env: {} }).MONGODB_URI, 'mongodb://user:p%24ss@host/db?x=1&y=2#fragment');
+  const root = fixture(t, { '.env.production': "MONGODB_URI='mongodb://user:p%24ss@host/db?x=1&y=2#fragment'" });
+  assert.equal(loadEnvironment('production', { root, env: {} }).MONGODB_URI, 'mongodb://user:p%24ss@host/db?x=1&y=2#fragment');
 });
-test('workflow Secrets use the canonical nine keys', () => {
-  for (const stage of ['staging', 'production']) {
-    const workflow = readFileSync(join(projectRoot, '.github/workflows', stage === 'staging' ? 'ci.yml' : 'promote.yml'), 'utf8');
-    const bindings = [...workflow.matchAll(/^      ([A-Z_]+): \$\{\{ secrets\.([A-Z_]+) \}\}/gm)];
-    assert.deepEqual(bindings.map(match => match[1]).sort(), [...deploymentKeys].sort());
-    for (const match of bindings) assert.equal(match[1], match[2]);
-    assert.ok(!workflow.includes('vars.'));
-  }
+test('production workflow Secrets use the canonical nine keys', () => {
+  const workflow = readFileSync(join(projectRoot, '.github/workflows/ci.yml'), 'utf8');
+  const bindings = [...workflow.matchAll(/^      ([A-Z_]+): \$\{\{ secrets\.([A-Z_]+) \}\}/gm)];
+  assert.deepEqual(bindings.map(match => match[1]).sort(), [...deploymentKeys].sort());
+  for (const match of bindings) assert.equal(match[1], match[2]);
+  assert.ok(!workflow.includes('vars.'));
 });
-test('preflight can validate injected Secrets without invoking Wrangler or printing values', () => {
+test('preflight validates injected Secrets without invoking Wrangler or printing values', () => {
   const env = Object.fromEntries(deploymentKeys.map(key => [key, 'private-value']));
-  Object.assign(env, { CI: 'true', ACCESS_TEAM_DOMAIN: 'example.cloudflareaccess.com', CLOUDFLARE_HOSTNAME: 'staging.example.com' });
-  const result = spawnSync(process.execPath, [join(projectRoot, 'scripts/deploy.mjs'), 'staging', '--check'], { env, encoding: 'utf8' });
+  Object.assign(env, { CI: 'true', ACCESS_TEAM_DOMAIN: 'example.cloudflareaccess.com', CLOUDFLARE_HOSTNAME: 'dashboard.example.com' });
+  const result = spawnSync(process.execPath, [join(projectRoot, 'scripts/deploy.mjs'), '--check'], { env, encoding: 'utf8' });
   assert.equal(result.status, 0, result.stderr);
   assert.ok(!result.stdout.includes('private-value'));
 });
-test('optional preflight skips only when all Secrets are absent; partial config fails', () => {
-  const run = env => spawnSync(process.execPath, [join(projectRoot, 'scripts/deploy.mjs'), 'staging', '--check', '--optional'], { env: { CI: 'true', ...env }, encoding: 'utf8' });
-  assert.equal(run({}).status, 0);
+test('preflight fails on absent or partial Secrets instead of skipping production', () => {
+  const run = env => spawnSync(process.execPath, [join(projectRoot, 'scripts/deploy.mjs'), '--check'], { env: { CI: 'true', ...env }, encoding: 'utf8' });
+  assert.notEqual(run({}).status, 0);
   const partial = run({ CLOUDFLARE_API_TOKEN: 'private-value' });
   assert.notEqual(partial.status, 0);
   assert.ok(!partial.stderr.includes('private-value'));
+});
+test('deployment rejects environment selection and invalid rollback versions', () => {
+  for (const args of [['staging'], ['production'], ['--check', '--optional'], ['--rollback'], ['--rollback', '--check'], ['--rollback', 'not-a-version']]) {
+    const result = spawnSync(process.execPath, [join(projectRoot, 'scripts/deploy.mjs'), ...args], { env: { CI: 'true' }, encoding: 'utf8' });
+    assert.notEqual(result.status, 0);
+    assert.match(result.stderr, /Usage:/);
+  }
 });
 
 test('deployment log redaction masks credentials, URI fragments, and escaped values', () => {

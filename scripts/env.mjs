@@ -10,9 +10,9 @@ export const deploymentKeys = [
 ];
 const localKeys = ['MONGODB_URI', 'MONGODB_DATABASE', 'LISTEN_ADDR', 'API_PROXY_TARGET'];
 // Local files override stale exported credentials. CI uses injected Secrets exclusively.
-// Staging/production never fall back to another environment or to the generic .env.
+// Production never falls back to local files or exported deployment credentials.
 export function loadEnvironment(stage, { root = projectRoot, env = process.env } = {}) {
-  if (!['local', 'staging', 'production'].includes(stage)) throw new Error('Environment must be local, staging, or production');
+  if (!['local', 'production'].includes(stage)) throw new Error('Environment must be local or production');
   const result = { ...env };
   if (env.CI === 'true') return result;
   const candidates = stage === 'local' ? ['.env.local', '.env'] : [`.env.${stage}`];
@@ -28,7 +28,7 @@ export function loadEnvironment(stage, { root = projectRoot, env = process.env }
     }
     return result;
   }
-  if (stage !== 'local') throw new Error(`Missing .env.${stage}; create it from the matching .example template`);
+  if (stage !== 'local') throw new Error('Missing .env.production; see docs/deployment.md');
   return result;
 }
 export function requireKeys(env, keys) {
