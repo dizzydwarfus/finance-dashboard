@@ -23,3 +23,7 @@ legacy/sec_parser/data/
 .wrangler.deploy.*.json
 *.tsbuildinfo
 utils/secscraper/data/
+
+.wrangler.sec.*.json
+*.egg-info/
+.pytest_cache/

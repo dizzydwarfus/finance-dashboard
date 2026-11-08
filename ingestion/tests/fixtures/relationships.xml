@@ -1,0 +1,14 @@
+<link:linkbase xmlns:link="http://www.xbrl.org/2003/linkbase" xmlns:xlink="http://www.w3.org/1999/xlink">
+ <link:roleRef roleURI="https://ledger.invalid/role/statement" xlink:type="simple" xlink:href="reference-types.xsd#statement_role"/>
+ <link:arcroleRef arcroleURI="https://ledger.invalid/arcrole/custom" xlink:type="simple" xlink:href="reference-types.xsd#custom_arcrole"/>
+ <link:presentationLink xlink:type="extended" xlink:role="https://ledger.invalid/role/statement">
+  <link:loc xlink:type="locator" xlink:href="taxonomy.xsd#demo_Revenue" xlink:label="revenue"/>
+  <link:loc xlink:type="locator" xlink:href="taxonomy.xsd#demo_NetIncome" xlink:label="income"/>
+  <link:presentationArc xlink:type="arc" xlink:arcrole="http://www.xbrl.org/2003/arcrole/parent-child" xlink:from="revenue" xlink:to="income" order="1"/>
+ </link:presentationLink>
+ <link:definitionLink xlink:type="extended" xlink:role="https://ledger.invalid/role/statement">
+  <link:loc xlink:type="locator" xlink:href="taxonomy.xsd#demo_Revenue" xlink:label="revenue"/>
+  <link:loc xlink:type="locator" xlink:href="taxonomy.xsd#demo_NetIncome" xlink:label="income"/>
+  <link:definitionArc xlink:type="arc" xlink:arcrole="https://ledger.invalid/arcrole/custom" xlink:from="revenue" xlink:to="income" order="1"/>
+ </link:definitionLink>
+</link:linkbase>

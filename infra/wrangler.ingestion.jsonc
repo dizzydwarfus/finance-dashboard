@@ -1,0 +1,48 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "finance-sec-ingestion",
+  "main": "src/ingestion.ts",
+  "compatibility_date": "2026-11-08",
+  "workers_dev": false,
+  "preview_urls": false,
+  "observability": {
+    "enabled": true
+  },
+  "exports": {
+    "SECContainer": {
+      "type": "durable-object",
+      "storage": "sqlite"
+    }
+  },
+  "env": {
+    "production": {
+      "name": "finance-sec-ingestion-production",
+      "workers_dev": false,
+      "preview_urls": false,
+      "vars": {
+        "SEC_MONGODB_DATABASE": "SECIngestion",
+        "SEC_PARSER_VERSION": "arelle-v1"
+      },
+      "durable_objects": {
+        "bindings": [
+          {
+            "name": "INGESTION",
+            "class_name": "SECContainer"
+          }
+        ]
+      },
+      "containers": [
+        {
+          "class_name": "SECContainer",
+          "scheduling_policy": "durable_object",
+          "images": {
+            "base": {
+              "dockerfile": "../ingestion/Dockerfile",
+              "build_context": "../ingestion"
+            }
+          }
+        }
+      ]
+    }
+  }
+}

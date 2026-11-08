@@ -1,9 +1,13 @@
 import { lazy, Suspense, useEffect, useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { api, ApiError, format, label } from './api';
+import SECPanel, { ScrapeButton } from './SECPanel';
+import { secAPI, type SECCompany, type SECJob } from './sec-api';
 import type { Company, Metrics, Price, Split, Statement, Ticker } from './api';
 const Chart = lazy(() => import('./Chart'));
-type View = 'overview' | 'statements' | 'prices';
+type View = 'overview' | 'statements' | 'prices' | 'sec';
+function pathView(): View { return new URLSearchParams(location.search).get('view') === 'sec' ? 'sec' : 'overview'; }
+function pathJob() { return new URLSearchParams(location.search).get('job') || ''; }
 function pathSymbol() { try { return decodeURIComponent(location.pathname.match(/^\/companies\/([^/]+)\/?$/)?.[1] || '').toUpperCase(); } catch { return ''; } }
 function initialTheme() { return localStorage.getItem('theme') || (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'); }
 function Notice({ text, retry }: { text: string; retry?: () => void }) { return <div className="notice" role="status"><span>{text}</span>{retry && <button onClick={retry}>Try again ↗</button>}</div>; }
@@ -11,7 +15,8 @@ function Pending() { return <div className="pending" role="status">Loading store
 export default function App() {
   const [symbol, setSymbol] = useState(pathSymbol);
   const [search, setSearch] = useState('');
-  const [view, setView] = useState<View>('overview');
+  const [view, setView] = useState<View>(pathView);
+  const [jobId, setJobId] = useState(pathJob);
   const [theme, setTheme] = useState(initialTheme);
   const [period, setPeriod] = useState('FY');
   const [statementType, setStatementType] = useState('income');
@@ -19,18 +24,38 @@ export default function App() {
   const [selectedMetrics, setSelectedMetrics] = useState(['revenue', 'netIncome']);
   const [from, setFrom] = useState(''); const [to, setTo] = useState('');
   useEffect(() => { document.documentElement.dataset.theme = theme; localStorage.setItem('theme', theme); }, [theme]);
-  useEffect(() => { const listener = () => setSymbol(pathSymbol()); window.addEventListener('popstate', listener); return () => window.removeEventListener('popstate', listener); }, []);
-  function navigate(next: string, replace = false) {
-    history[replace ? 'replaceState' : 'pushState']({}, '', `/companies/${encodeURIComponent(next)}`); setSymbol(next); setFrom(''); setTo('');
+  useEffect(() => { const listener = () => { setSymbol(pathSymbol()); setView(pathView()); setJobId(pathJob()); }; window.addEventListener('popstate', listener); return () => window.removeEventListener('popstate', listener); }, []);
+  const legacyTickers = useQuery({ queryKey: ['tickers'], queryFn: ({ signal }) => api<Ticker[]>('/tickers?limit=2000', signal) });
+  const secCompanies = useQuery({ queryKey: ['sec-companies', search], queryFn: ({ signal }) => secAPI<SECCompany[]>(`/companies?limit=2000&q=${encodeURIComponent(search)}`, { signal }), retry: false });
+  const hasLegacy = !!legacyTickers.data?.some(t => t.symbol === symbol);
+  const merged = new Map<string, Ticker & { legacy: boolean; name?: string }>();
+  for (const ticker of legacyTickers.data || []) if (ticker.symbol.includes(search.trim().toUpperCase())) merged.set(ticker.symbol, { ...ticker, legacy: true });
+  for (const ticker of secCompanies.data?.data || []) {
+    const old = merged.get(ticker.symbol);
+    merged.set(ticker.symbol, { symbol: ticker.symbol, coverage: [...new Set([...(old?.coverage || []), 'sec_filings'])], legacy: !!old?.legacy, name: ticker.name });
   }
-  const tickers = useQuery({ queryKey: ['tickers', search], queryFn: ({ signal }) => api<Ticker[]>(`/tickers?limit=2000&q=${encodeURIComponent(search)}`, signal) });
-  useEffect(() => { if (!symbol && tickers.data?.length) navigate(tickers.data[0].symbol, true); }, [symbol, tickers.data]);
-  const company = useQuery({ queryKey: ['company', symbol], queryFn: ({ signal }) => api<Company>(`/companies/${encodeURIComponent(symbol)}`, signal), enabled: !!symbol });
-  const metrics = useQuery({ queryKey: ['metrics', symbol, period, years], queryFn: ({ signal }) => api<Metrics>(`/companies/${encodeURIComponent(symbol)}/metrics?period=${period}&limit=${years}`, signal), enabled: !!symbol });
-  const statements = useQuery({ queryKey: ['statements', symbol, statementType, period, years], queryFn: ({ signal }) => api<Statement[]>(`/companies/${encodeURIComponent(symbol)}/statements/${statementType}?period=${period}&limit=${years}`, signal), enabled: !!symbol && view === 'statements' });
-  const prices = useQuery({ queryKey: ['prices', symbol, from, to], queryFn: ({ signal }) => api<Price[]>(`/companies/${encodeURIComponent(symbol)}/prices?limit=5000&from=${from}&to=${to}`, signal), enabled: !!symbol && view === 'prices' && (!from || !to || from <= to) });
-  const splits = useQuery({ queryKey: ['splits', symbol], queryFn: ({ signal }) => api<Split[]>(`/companies/${encodeURIComponent(symbol)}/splits`, signal), enabled: !!symbol && view === 'prices' });
-  const current = company.data;
+  const tickers = { data: [...merged.values()].sort((a, b) => a.symbol.localeCompare(b.symbol)), isPending: legacyTickers.isPending && secCompanies.isPending, isError: legacyTickers.isError,
+    refetch: () => Promise.all([legacyTickers.refetch(), secCompanies.refetch()]) };
+  const validSearch = /^[A-Z0-9][A-Z0-9.\-]{0,19}$/.test(search.trim().toUpperCase());
+  const searchComplete = legacyTickers.isSuccess && secCompanies.isSuccess;
+  function navigate(next: string, replace = false, target?: View, nextJob = '') {
+    const nextView = target || (legacyTickers.data?.some(t => t.symbol === next) ? 'overview' : 'sec');
+    const query = new URLSearchParams(); if (nextView === 'sec') query.set('view', 'sec'); if (nextJob) query.set('job', nextJob);
+    history[replace ? 'replaceState' : 'pushState']({}, '', `/companies/${encodeURIComponent(next)}${query.size ? '?' + query : ''}`);
+    setSymbol(next); setView(nextView); setJobId(nextJob); setFrom(''); setTo('');
+  }
+  function selectView(next: View) { setView(next); const query = new URLSearchParams(location.search); if (next === 'sec') query.set('view', 'sec'); else query.delete('view'); history.replaceState({}, '', location.pathname + (query.size ? '?' + query : '')); }
+  function showJob(job: SECJob) { setSearch(''); navigate(job.symbol || symbol, false, 'sec', job.id); }
+  useEffect(() => { if (!symbol && tickers.data.length) navigate(tickers.data[0].symbol, true); }, [symbol, legacyTickers.data, secCompanies.data]);
+  useEffect(() => { if (symbol && legacyTickers.isSuccess && !hasLegacy) setView('sec'); }, [symbol, hasLegacy, legacyTickers.isSuccess]);
+  const secCompany = useQuery({ queryKey: ['sec-company', symbol], queryFn: ({ signal }) => secAPI<SECCompany>(`/companies/${encodeURIComponent(symbol)}`, { signal }), enabled: !!symbol && (view === 'sec' || !hasLegacy), retry: false });
+  const company = useQuery({ queryKey: ['company', symbol], queryFn: ({ signal }) => api<Company>(`/companies/${encodeURIComponent(symbol)}`, signal), enabled: !!symbol && hasLegacy });
+  const metrics = useQuery({ queryKey: ['metrics', symbol, period, years], queryFn: ({ signal }) => api<Metrics>(`/companies/${encodeURIComponent(symbol)}/metrics?period=${period}&limit=${years}`, signal), enabled: !!symbol && hasLegacy && view === 'overview' });
+  const statements = useQuery({ queryKey: ['statements', symbol, statementType, period, years], queryFn: ({ signal }) => api<Statement[]>(`/companies/${encodeURIComponent(symbol)}/statements/${statementType}?period=${period}&limit=${years}`, signal), enabled: !!symbol && hasLegacy && view === 'statements' });
+  const prices = useQuery({ queryKey: ['prices', symbol, from, to], queryFn: ({ signal }) => api<Price[]>(`/companies/${encodeURIComponent(symbol)}/prices?limit=5000&from=${from}&to=${to}`, signal), enabled: !!symbol && hasLegacy && view === 'prices' && (!from || !to || from <= to) });
+  const splits = useQuery({ queryKey: ['splits', symbol], queryFn: ({ signal }) => api<Split[]>(`/companies/${encodeURIComponent(symbol)}/splits`, signal), enabled: !!symbol && hasLegacy && view === 'prices' });
+  const secCurrent = secCompany.data?.data;
+  const current = company.data || (secCurrent ? { symbol, name: secCurrent.name, description: secCurrent.sicDescription || '', exchange: secCurrent.exchanges?.join(', ') || '', sector: 'SEC filer', industry: '', country: '', currency: '', ceo: '', website: '', employees: null, marketCap: null, price: null, asOf: secCurrent.lastUpdated || null } : undefined);
   const latest = metrics.data?.points.at(-1);
   const currency = latest?.currency || current?.currency || '';
   const points = metrics.data?.points.filter(p => p.currency === currency) || [];
@@ -72,17 +97,20 @@ export default function App() {
       <nav aria-label="Companies" className="company-list">
         {tickers.isPending && <Pending />}
         {tickers.isError && <Notice text="Company list unavailable" retry={() => void tickers.refetch()} />}
-        {tickers.data?.map(t => <a key={t.symbol} href={`/companies/${encodeURIComponent(t.symbol)}`} className={t.symbol === symbol ? 'company-link active' : 'company-link'} aria-current={t.symbol === symbol ? 'page' : undefined} onClick={e => { if (!e.metaKey && !e.ctrlKey) { e.preventDefault(); navigate(t.symbol); } }}><span className="ticker-avatar">{t.symbol.slice(0, 2)}</span><span>{t.symbol}<small>{t.coverage.filter(c => c.includes('statement') || c === 'balance_sheet').length} statement types</small></span><span className="link-arrow">↗</span></a>)}
-        {tickers.data?.length === 0 && <Notice text={search ? 'No matching companies.' : 'No stored companies yet.'} />}
+        {tickers.data?.map(t => <a key={t.symbol} href={`/companies/${encodeURIComponent(t.symbol)}`} className={t.symbol === symbol ? 'company-link active' : 'company-link'} aria-current={t.symbol === symbol ? 'page' : undefined} onClick={e => { if (!e.metaKey && !e.ctrlKey) { e.preventDefault(); navigate(t.symbol); } }}><span className="ticker-avatar">{t.symbol.slice(0, 2)}</span><span>{t.symbol}<small>{t.legacy ? `${t.coverage.filter(c => c.includes('statement') || c === 'balance_sheet').length} statement types` : 'SEC filings'}{t.legacy && t.coverage.includes('sec_filings') ? ' · SEC' : ''}</small></span><span className="link-arrow">↗</span></a>)}
+        {searchComplete && tickers.data.length === 0 && <><Notice text={search ? 'No matching companies.' : 'No stored companies yet.'} />{validSearch && !secCompanies.data?.meta?.suggestions?.some(t => t.symbol === search.trim().toUpperCase()) && <ScrapeButton symbol={search.trim().toUpperCase()} onJob={showJob} />}</>}
+        {secCompanies.isError && <Notice text="SEC company search unavailable." retry={() => void secCompanies.refetch()} />}
+        {!!secCompanies.data?.meta?.suggestions?.length && <div className="registry-results"><div className="list-heading">SEC REGISTRY · NOT IMPORTED</div>{secCompanies.data.meta.suggestions.map(t => <div className="registry-result" key={t.symbol}><strong>{t.symbol}</strong><small>{t.name}</small><ScrapeButton symbol={t.symbol} onJob={showJob} /></div>)}</div>}
       </nav>
       <div className="sidebar-bottom"><span className="status-dot" /> Private workspace <button className="theme-button" aria-label={`Switch to ${theme === 'dark' ? 'light' : 'dark'} theme`} onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}>{theme === 'dark' ? '☀' : '☾'}</button></div>
     </aside>
     <main>
       <header className="topbar"><span>WORKSPACE <span className="breadcrumb-slash">/</span> COMPANY RESEARCH</span><span className="topbar-actions"><span className="snapshot-badge">◷ Stored financial data</span><button className="mobile-theme" aria-label={`Switch to ${theme === 'dark' ? 'light' : 'dark'} theme`} onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}>{theme === 'dark' ? '☀' : '☾'}</button></span></header>
       {!symbol ? <div className="empty-workspace"><div className="eyebrow">START EXPLORING</div><h1>Your next insight<br />starts here.</h1><p>Select a company to explore its financial story.</p>{tickers.isError && <Notice text="We couldn’t connect to your data." retry={() => void tickers.refetch()} />}</div> : <>
-        <section className="company-heading"><div><div className="eyebrow">{current?.sector || 'COMPANY RESEARCH'} <span> / {symbol}</span></div><h1>{current?.name || symbol}<span className="company-symbol">{symbol}</span></h1><p>{[current?.exchange, current?.industry, current?.country].filter(Boolean).join(' · ') || 'Financial statements and historical performance'}</p></div><div className="stored-price"><span>Stored share price</span><strong>{format(current?.price, 'currency', current?.currency || currency)}</strong><small>{current?.asOf ? `As of ${current.asOf.slice(0, 10)}` : 'Snapshot date unavailable'}</small></div></section>
+        <section className="company-heading"><div><div className="eyebrow">{current?.sector || 'COMPANY RESEARCH'} <span> / {symbol}</span></div><h1>{current?.name || symbol}<span className="company-symbol">{symbol}</span></h1><p>{[current?.exchange, current?.industry, current?.country].filter(Boolean).join(' · ') || (hasLegacy ? 'Financial statements and historical performance' : 'SEC filings and reported facts')}</p></div>{hasLegacy && <div className="stored-price"><span>Stored share price</span><strong>{format(current?.price, 'currency', current?.currency || currency)}</strong><small>{current?.asOf ? `As of ${current.asOf.slice(0, 10)}` : 'Snapshot date unavailable'}</small></div>}</section>
         {company.isError && <Notice text={(company.error as ApiError).message} retry={() => void company.refetch()} />}
-        <div className="toolbar"><div className="tabs" role="tablist" aria-label="Company views">{(['overview', 'statements', 'prices'] as View[]).map(tab => <button key={tab} role="tab" aria-selected={view === tab} onClick={() => setView(tab)}>{tab === 'prices' ? 'Price history' : label(tab)}</button>)}</div>{view !== 'prices' && <div className="filters"><label>Period<select aria-label="Reporting period" value={period} onChange={e => setPeriod(e.target.value)}>{['FY', 'Q1', 'Q2', 'Q3', 'Q4'].map(p => <option key={p} value={p}>{p === 'FY' ? 'Annual' : p}</option>)}</select></label><label>History<select aria-label="History length" value={years} onChange={e => setYears(e.target.value)}>{['5', '10', '20'].map(y => <option key={y} value={y}>{y} periods</option>)}</select></label></div>}</div>
+        <div className="toolbar"><div className="tabs" role="tablist" aria-label="Company views">{((hasLegacy ? ['overview', 'statements', 'prices', 'sec'] : ['sec']) as View[]).map(tab => <button key={tab} role="tab" aria-selected={view === tab} onClick={() => selectView(tab)}>{tab === 'prices' ? 'Price history' : tab === 'sec' ? 'SEC filings' : label(tab)}</button>)}</div>{view !== 'prices' && view !== 'sec' && <div className="filters"><label>Period<select aria-label="Reporting period" value={period} onChange={e => setPeriod(e.target.value)}>{['FY', 'Q1', 'Q2', 'Q3', 'Q4'].map(p => <option key={p} value={p}>{p === 'FY' ? 'Annual' : p}</option>)}</select></label><label>History<select aria-label="History length" value={years} onChange={e => setYears(e.target.value)}>{['5', '10', '20'].map(y => <option key={y} value={y}>{y} periods</option>)}</select></label></div>}</div>
+        {view === 'sec' && <SECPanel symbol={symbol} company={secCompany.data?.data} companyError={secCompany.error} jobId={jobId} onJob={showJob} canDiscover={searchComplete} />}
         {view === 'overview' && <section aria-label="Overview">
           <div className="section-heading"><h2>The financial picture</h2><span>{latest ? `${latest.year} ${latest.period} · ${currency}` : 'Stored reporting periods'}</span></div>
           {metrics.isPending && <Pending />}{metrics.isError && <Notice text="Financial metrics unavailable." retry={() => void metrics.refetch()} />}

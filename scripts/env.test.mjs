@@ -39,7 +39,7 @@ test('dotenv quoting preserves URI punctuation literally', t => {
   const root = fixture(t, { '.env.production': "MONGODB_URI='mongodb://user:p%24ss@host/db?x=1&y=2#fragment'" });
   assert.equal(loadEnvironment('production', { root, env: {} }).MONGODB_URI, 'mongodb://user:p%24ss@host/db?x=1&y=2#fragment');
 });
-test('production workflow Secrets use the canonical nine keys', () => {
+test('production workflow Secrets use the canonical deployment keys', () => {
   const workflow = readFileSync(join(projectRoot, '.github/workflows/ci.yml'), 'utf8');
   const bindings = [...workflow.matchAll(/^      ([A-Z_]+): \$\{\{ secrets\.([A-Z_]+) \}\}/gm)];
   assert.deepEqual(bindings.map(match => match[1]).sort(), [...deploymentKeys].sort());
@@ -48,7 +48,7 @@ test('production workflow Secrets use the canonical nine keys', () => {
 });
 test('preflight validates injected Secrets without invoking Wrangler or printing values', () => {
   const env = Object.fromEntries(deploymentKeys.map(key => [key, 'private-value']));
-  Object.assign(env, { CI: 'true', ACCESS_TEAM_DOMAIN: 'example.cloudflareaccess.com', CLOUDFLARE_HOSTNAME: 'dashboard.example.com' });
+  Object.assign(env, { CI: 'true', ACCESS_TEAM_DOMAIN: 'example.cloudflareaccess.com', CLOUDFLARE_HOSTNAME: 'dashboard.example.com', SEC_MONGODB_DATABASE: 'SECIngestion', SEC_MONGODB_URI: 'mongodb://writer:private-value@localhost/SECIngestion', SEC_USER_AGENT: 'Ledger contact@ledger.invalid' });
   const result = spawnSync(process.execPath, [join(projectRoot, 'scripts/deploy.mjs'), '--check'], { env, encoding: 'utf8' });
   assert.equal(result.status, 0, result.stderr);
   assert.ok(!result.stdout.includes('private-value'));

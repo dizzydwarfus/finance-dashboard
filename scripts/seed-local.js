@@ -5,3 +5,7 @@ for (const [collection, records] of Object.entries(fixture)) {
   if (records.length) finance[collection].insertMany(records);
 }
 finance.createUser({ user: 'dashboard', pwd: 'local-fixture-only', roles: [{ role: 'read', db: 'FinanceApp' }] });
+
+const sec = db.getSiblingDB('SECIngestion');
+sec.createCollection('schema');
+sec.createUser({ user: 'sec-ingestion', pwd: 'local-sec-only', roles: [{ role: 'readWrite', db: 'SECIngestion' }] });

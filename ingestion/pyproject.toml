@@ -1,0 +1,21 @@
+[build-system]
+requires = ["setuptools==84.2.1"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ledger-sec-ingestion"
+version = "0.1.0"
+requires-python = ">=3.14,<3.15"
+dependencies = ["arelle-release", "fastapi", "uvicorn", "pymongo", "httpx", "python-dotenv"]
+
+[project.optional-dependencies]
+test = ["pytest", "mongomock", "jsonschema"]
+
+[tool.setuptools.packages.find]
+include = ["sec_ingestion*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.setuptools.package-data]
+"sec_ingestion.vendor.sec_transform" = ["LICENSE", "UPSTREAM.json"]

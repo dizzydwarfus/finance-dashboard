@@ -1,0 +1,18 @@
+{
+  "repository": "https://github.com/Arelle/EDGAR",
+  "commit": "4891c4c9889c77af247428ceff4fa7cc52d534ea",
+  "files": [
+    {
+      "path": "LICENSE",
+      "sha256": "5537d4d10b76b81b6e8dfd8b644480a4b1efa332fbb0cdb61126c5be781ef7b4"
+    },
+    {
+      "path": "__init__.py",
+      "sha256": "2296586f945ffd95ab37d3d4147c4e45f42ce4e5f397f61143e053208adefbf1"
+    },
+    {
+      "path": "text2num.py",
+      "sha256": "6c9b26354320a2fb34fe380cdc71ff7f8d1cc712811e6b10c661e512f0383409"
+    }
+  ]
+}

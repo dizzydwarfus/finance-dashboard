@@ -1,8 +1,8 @@
 # Ledger · Finance dashboard
 
-A private company-research dashboard: **Go API**, **React + TypeScript**, **MongoDB Atlas**, and two **Cloudflare Containers** behind a Cloudflare Access gateway.
+A private company-research dashboard: **Go API**, **React + TypeScript**, **MongoDB Atlas**, a separate **Python/Arelle SEC ingestion service**, and three **Cloudflare Containers** behind a Cloudflare Access gateway.
 
-Browse stored company profiles, financial statements, metrics, year-over-year growth, candlestick prices, volume, and stock splits. All application endpoints are read-only. Prices and profiles are stored snapshots, not live market data. DCF and ingestion are deferred.
+Browse stored company profiles, financial statements, metrics, year-over-year growth, candlestick prices, volume, and stock splits. The Go financial API remains read-only. Explicitly import a missing ticker from SEC, follow the saved job, and explore filing facts and segment dimensions in the SEC view. Prices and profiles are stored snapshots. DCF and mapping SEC facts into legacy financial tables are deferred.
 
 ## Run locally
 
@@ -24,12 +24,13 @@ npm ci
 npm run dev
 ```
 
-Open [the dashboard](http://127.0.0.1:5173). Vite proxies API requests to port 8080. Local servers bind to loopback and do not use Cloudflare Access; deployed traffic always requires validated Access authentication.
+Open [the dashboard](http://127.0.0.1:5173). Vite proxies financial requests to port 8080 and SEC requests to port 8081. See [SEC setup and local development](docs/sec-ingestion.md) to start ingestion. Local servers bind to loopback and do not use Cloudflare Access; deployed traffic always requires validated Access authentication.
 
 For **synthetic data** with no Atlas connection:
 
 ```sh
-docker compose --profile fixtures up --build
+docker compose --profile fixtures up -d --build
+docker compose exec -T ingestion python -m sec_ingestion bootstrap
 ```
 
 Open [the containerized dashboard](http://127.0.0.1:3000/companies/DEMO). This creates a disposable local database with `DEMO` and `EMPTY`, plus a read-only application user. Keep `MONGODB_URI` unset to use the Compose default. To run the containers with your local Atlas configuration:
@@ -44,9 +45,10 @@ For a fixture database with the API running directly on your host, start `docker
 
 - `backend/`: Go HTTP handlers, domain services, read-only MongoDB repository, schema inspector, and fixtures/tests.
 - `frontend/`: React dashboard, generated API types, ECharts visualizations, and browser tests.
+- `ingestion/`: Python 3.14, offline Arelle parser, shared SEC transport, persistent queue/checkpoints, FastAPI API, and tests.
 - `infra/`: Access validation, routing, container lifecycle, Wrangler configuration, and gateway tests.
 - `docs/`: [API contract](docs/openapi.json), [data compatibility](docs/data-compatibility.md), and [deployment runbook](docs/deployment.md).
-- `legacy/sec_parser/`: experimental parser reference for a future Go port; excluded from both runtime images.
+- `legacy/sec_parser/`: experimental parser reference; excluded from all runtime images.
 
 ## Checks
 
@@ -76,18 +78,20 @@ npm test
 npx wrangler deploy --dry-run --env production
 ```
 
-Frontend types are generated from the OpenAPI contract; CI rejects stale generated types. CI also runs authenticated MongoDB integration tests and builds/tests both Linux AMD64 images.
+Frontend types are generated from the OpenAPI contract; CI rejects stale generated types. CI also runs authenticated MongoDB integration tests and builds/tests all three Linux AMD64 images.
 
 ## Deploy
 
-Keep `.env.production` for local deployment commands and the existing GitHub `production` environment’s **Secrets**. Both use the same nine keys listed in the deployment runbook; no GitHub Variables are needed. Run `node scripts/deploy.mjs` to deploy locally and `node scripts/smoke.mjs` to verify.
+Keep `.env.production` for local deployment commands and the existing GitHub `production` environment’s **Secrets**. Both use the same twelve keys listed in the deployment runbook; no GitHub Variables are needed. Run `node scripts/deploy.mjs` to deploy locally and `node scripts/smoke.mjs` to verify.
 
-Follow the [deployment runbook](docs/deployment.md) to configure Access, a read-only Atlas user, secrets, and hostnames. Workers Paid is required. There is one production Worker managing the two service containers. The gateway denies requests if Access configuration is missing; `workers.dev` and preview URLs are disabled.
+Follow the [deployment runbook](docs/deployment.md) to configure Access, a read-only Atlas user, secrets, and hostnames. Workers Paid is required. The production gateway manages the dashboard containers and uses a private service binding to the separate ingestion Worker/Durable Object. The gateway denies requests if Access configuration is missing; `workers.dev` and preview URLs are disabled.
 
 GitHub Actions runs checks automatically on pushes to `main` and pull requests. To deploy, manually run **Validate and deploy dashboard** from `main` in GitHub Actions (`workflow_dispatch`); it deploys only after checks pass, then runs authenticated smoke tests. Restore a known-good Cloudflare version with `node scripts/deploy.mjs --rollback VERSION_ID`, or revert a commit and manually deploy the revert. MongoDB data and schemas are not changed during deployment.
 
 ## Migration status
 
-The application has no Streamlit dependency or Python runtime. The retained SEC parser is reference material only. Old secret configuration was removed from tracked source; any live credentials previously committed must be rotated in their provider accounts. Deleting files does not remove them from Git history.
+The application has no Streamlit dependency. Python is isolated in the new ingestion container; Go and frontend runtime images remain free of Python. The retained experimental SEC parser is reference material only. Old secret configuration was removed from tracked source; any live credentials previously committed must be rotated in their provider accounts. Deleting files does not remove them from Git history.
 
-License: [MIT](LICENSE).
+SEC privacy, fair access, limits, recovery, and reuse rules: [SEC access policy](docs/sec-access-policy.md). The [ingestion runbook](docs/sec-ingestion.md) describes database/user setup and the first live rollout checks.
+
+License: [MIT](LICENSE); parser/plugin licenses are documented separately in the SEC policy.

@@ -7,8 +7,9 @@ export const deploymentKeys = [
   'CLOUDFLARE_API_TOKEN', 'CLOUDFLARE_ACCOUNT_ID', 'CLOUDFLARE_HOSTNAME',
   'ACCESS_TEAM_DOMAIN', 'ACCESS_AUD', 'MONGODB_URI', 'MONGODB_DATABASE',
   'CF_ACCESS_CLIENT_ID', 'CF_ACCESS_CLIENT_SECRET',
+  'SEC_MONGODB_URI', 'SEC_MONGODB_DATABASE', 'SEC_USER_AGENT',
 ];
-const localKeys = ['MONGODB_URI', 'MONGODB_DATABASE', 'LISTEN_ADDR', 'API_PROXY_TARGET'];
+const localKeys = ['MONGODB_URI', 'MONGODB_DATABASE', 'LISTEN_ADDR', 'API_PROXY_TARGET', 'SEC_PROXY_TARGET', 'SEC_MONGODB_URI', 'SEC_MONGODB_DATABASE', 'SEC_USER_AGENT', 'SEC_OFFLINE'];
 // Local files override stale exported credentials. CI uses injected Secrets exclusively.
 // Production never falls back to local files or exported deployment credentials.
 export function loadEnvironment(stage, { root = projectRoot, env = process.env } = {}) {

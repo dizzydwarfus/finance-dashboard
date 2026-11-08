@@ -1,0 +1,7 @@
+<link:linkbase xmlns:link="http://www.xbrl.org/2003/linkbase" xmlns:xlink="http://www.w3.org/1999/xlink">
+ <link:labelLink xlink:type="extended" xlink:role="http://www.xbrl.org/2003/role/link">
+  <link:loc xlink:type="locator" xlink:href="taxonomy.xsd#demo_Revenue" xlink:label="revenue"/>
+  <link:label xlink:type="resource" xlink:label="revenue_label" xlink:role="http://www.xbrl.org/2003/role/label" xml:lang="en-US">Revenue &amp; sales</link:label>
+  <link:labelArc xlink:type="arc" xlink:arcrole="http://www.xbrl.org/2003/arcrole/concept-label" xlink:from="revenue" xlink:to="revenue_label"/>
+ </link:labelLink>
+</link:linkbase>

@@ -1,0 +1,8 @@
+*
+!Dockerfile
+!requirements.lock
+!pyproject.toml
+!sec_ingestion/
+!sec_ingestion/**
+**/__pycache__
+**/*.pyc

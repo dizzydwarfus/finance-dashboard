@@ -61,6 +61,12 @@
             }
           }
         }
+      ],
+      "services": [
+        {
+          "binding": "SEC_INGESTION",
+          "service": "finance-sec-ingestion-production"
+        }
       ]
     }
   }

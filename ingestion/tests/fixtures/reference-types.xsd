@@ -1,0 +1,6 @@
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" xmlns:link="http://www.xbrl.org/2003/linkbase" targetNamespace="https://ledger.invalid/roles">
+ <xs:annotation><xs:appinfo>
+  <link:roleType id="statement_role" roleURI="https://ledger.invalid/role/statement"><link:definition>Synthetic statement</link:definition><link:usedOn>link:presentationLink</link:usedOn><link:usedOn>link:definitionLink</link:usedOn></link:roleType>
+  <link:arcroleType id="custom_arcrole" arcroleURI="https://ledger.invalid/arcrole/custom" cyclesAllowed="any"><link:definition>Synthetic custom relationship</link:definition><link:usedOn>link:definitionArc</link:usedOn></link:arcroleType>
+ </xs:appinfo></xs:annotation>
+</xs:schema>

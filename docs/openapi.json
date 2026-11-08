@@ -725,6 +725,686 @@
           }
         }
       }
+    },
+    "/api/v1/sec/companies": {
+      "get": {
+        "tags": [
+          "SEC ingestion"
+        ],
+        "summary": "Search imported issuers and cached registry suggestions",
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 2000,
+              "default": 100
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SECCompanyPage"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Access authentication required"
+          },
+          "403": {
+            "description": "Invalid origin"
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "409": {
+            "description": "Conflicting request or active cooldown"
+          },
+          "413": {
+            "description": "Body too large"
+          },
+          "415": {
+            "description": "JSON required"
+          },
+          "422": {
+            "description": "Invalid inputs or unsupported issuer"
+          },
+          "503": {
+            "description": "Database, ingestion, or SEC unavailable"
+          }
+        }
+      }
+    },
+    "/api/v1/sec/companies/{symbol}": {
+      "get": {
+        "tags": [
+          "SEC ingestion"
+        ],
+        "summary": "Read SEC issuer metadata and coverage",
+        "parameters": [
+          {
+            "name": "symbol",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SECCompanyResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Access authentication required"
+          },
+          "403": {
+            "description": "Invalid origin"
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "409": {
+            "description": "Conflicting request or active cooldown"
+          },
+          "413": {
+            "description": "Body too large"
+          },
+          "415": {
+            "description": "JSON required"
+          },
+          "422": {
+            "description": "Invalid inputs or unsupported issuer"
+          },
+          "503": {
+            "description": "Database, ingestion, or SEC unavailable"
+          }
+        }
+      }
+    },
+    "/api/v1/sec/companies/{symbol}/filings": {
+      "get": {
+        "tags": [
+          "SEC ingestion"
+        ],
+        "summary": "List complete imported filings",
+        "parameters": [
+          {
+            "name": "symbol",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 25
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SECFilingPage"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Access authentication required"
+          },
+          "403": {
+            "description": "Invalid origin"
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "409": {
+            "description": "Conflicting request or active cooldown"
+          },
+          "413": {
+            "description": "Body too large"
+          },
+          "415": {
+            "description": "JSON required"
+          },
+          "422": {
+            "description": "Invalid inputs or unsupported issuer"
+          },
+          "503": {
+            "description": "Database, ingestion, or SEC unavailable"
+          }
+        }
+      }
+    },
+    "/api/v1/sec/filings/{accession}/facts": {
+      "get": {
+        "tags": [
+          "SEC ingestion"
+        ],
+        "summary": "Read published numeric facts with concept and dimension filters",
+        "parameters": [
+          {
+            "name": "accession",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "concept",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "dimension",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 500,
+              "default": 100
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SECFactPage"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Access authentication required"
+          },
+          "403": {
+            "description": "Invalid origin"
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "409": {
+            "description": "Conflicting request or active cooldown"
+          },
+          "413": {
+            "description": "Body too large"
+          },
+          "415": {
+            "description": "JSON required"
+          },
+          "422": {
+            "description": "Invalid inputs or unsupported issuer"
+          },
+          "503": {
+            "description": "Database, ingestion, or SEC unavailable"
+          }
+        }
+      }
+    },
+    "/api/v1/sec/companies/{symbol}/company-facts": {
+      "get": {
+        "tags": [
+          "SEC ingestion"
+        ],
+        "summary": "Read a separately refreshed company-facts snapshot",
+        "parameters": [
+          {
+            "name": "symbol",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "concept",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 500,
+              "default": 100
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SECFactPage"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Access authentication required"
+          },
+          "403": {
+            "description": "Invalid origin"
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "409": {
+            "description": "Conflicting request or active cooldown"
+          },
+          "413": {
+            "description": "Body too large"
+          },
+          "415": {
+            "description": "JSON required"
+          },
+          "422": {
+            "description": "Invalid inputs or unsupported issuer"
+          },
+          "503": {
+            "description": "Database, ingestion, or SEC unavailable"
+          }
+        }
+      }
+    },
+    "/api/v1/sec/jobs": {
+      "post": {
+        "tags": [
+          "SEC ingestion"
+        ],
+        "summary": "Submit or attach to a single-issuer import",
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 8,
+              "maxLength": 128
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SECJobResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Access authentication required"
+          },
+          "403": {
+            "description": "Invalid origin"
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "409": {
+            "description": "Conflicting request or active cooldown"
+          },
+          "413": {
+            "description": "Body too large"
+          },
+          "415": {
+            "description": "JSON required"
+          },
+          "422": {
+            "description": "Invalid inputs or unsupported issuer"
+          },
+          "503": {
+            "description": "Database, ingestion, or SEC unavailable"
+          },
+          "202": {
+            "description": "Persisted and queued; duplicate requests attach to existing work",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SECJobResponse"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SECJobRequest"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/sec/jobs/{id}": {
+      "get": {
+        "tags": [
+          "SEC ingestion"
+        ],
+        "summary": "Read persistent import progress and diagnostics",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SECJobResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Access authentication required"
+          },
+          "403": {
+            "description": "Invalid origin"
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "409": {
+            "description": "Conflicting request or active cooldown"
+          },
+          "413": {
+            "description": "Body too large"
+          },
+          "415": {
+            "description": "JSON required"
+          },
+          "422": {
+            "description": "Invalid inputs or unsupported issuer"
+          },
+          "503": {
+            "description": "Database, ingestion, or SEC unavailable"
+          }
+        }
+      }
+    },
+    "/api/v1/sec/jobs/{id}/cancel": {
+      "post": {
+        "tags": [
+          "SEC ingestion"
+        ],
+        "summary": "Cancel remaining import work",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SECJobResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Access authentication required"
+          },
+          "403": {
+            "description": "Invalid origin"
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "409": {
+            "description": "Conflicting request or active cooldown"
+          },
+          "413": {
+            "description": "Body too large"
+          },
+          "415": {
+            "description": "JSON required"
+          },
+          "422": {
+            "description": "Invalid inputs or unsupported issuer"
+          },
+          "503": {
+            "description": "Database, ingestion, or SEC unavailable"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SECEmptyRequest"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/sec/jobs/{id}/retry": {
+      "post": {
+        "tags": [
+          "SEC ingestion"
+        ],
+        "summary": "Explicitly resume a failed or cancelled persisted request",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SECJobResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Access authentication required"
+          },
+          "403": {
+            "description": "Invalid origin"
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "409": {
+            "description": "Conflicting request or active cooldown"
+          },
+          "413": {
+            "description": "Body too large"
+          },
+          "415": {
+            "description": "JSON required"
+          },
+          "422": {
+            "description": "Invalid inputs or unsupported issuer"
+          },
+          "503": {
+            "description": "Database, ingestion, or SEC unavailable"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SECEmptyRequest"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/sec/maintenance": {
+      "post": {
+        "tags": [
+          "SEC ingestion"
+        ],
+        "summary": "Acquire or release the idle-only deployment guard",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SECMaintenanceResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Access authentication required"
+          },
+          "403": {
+            "description": "Invalid origin"
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "409": {
+            "description": "Conflicting request or active cooldown"
+          },
+          "413": {
+            "description": "Body too large"
+          },
+          "415": {
+            "description": "JSON required"
+          },
+          "422": {
+            "description": "Invalid inputs or unsupported issuer"
+          },
+          "503": {
+            "description": "Database, ingestion, or SEC unavailable"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SECMaintenanceRequest"
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -1141,6 +1821,585 @@
           }
         },
         "additionalProperties": false
+      },
+      "SECDimension": {
+        "type": "object",
+        "properties": {
+          "axis": {
+            "type": "string"
+          },
+          "member": {
+            "type": "string",
+            "nullable": true
+          },
+          "typedValue": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "required": [
+          "axis"
+        ],
+        "additionalProperties": true
+      },
+      "SECCompany": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "cik": {
+            "type": "string",
+            "pattern": "^[0-9]{10}$"
+          },
+          "symbol": {
+            "type": "string"
+          },
+          "symbols": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "name": {
+            "type": "string"
+          },
+          "imported": {
+            "type": "boolean"
+          },
+          "coverage": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "exchanges": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "sicDescription": {
+            "type": "string"
+          },
+          "activeJobId": {
+            "type": "string",
+            "nullable": true
+          },
+          "freshJobId": {
+            "type": "string",
+            "nullable": true
+          },
+          "lastUpdated": {
+            "type": "string",
+            "nullable": true
+          },
+          "lastSuccessfullyScrapedAt": {
+            "type": "string",
+            "nullable": true
+          },
+          "companyFactsCount": {
+            "type": "integer"
+          },
+          "companyFactsUpdatedAt": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "required": [
+          "cik",
+          "symbol",
+          "name"
+        ],
+        "additionalProperties": true
+      },
+      "SECFiling": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "accession": {
+            "type": "string"
+          },
+          "cik": {
+            "type": "string"
+          },
+          "form": {
+            "type": "string"
+          },
+          "filingDate": {
+            "type": "string"
+          },
+          "reportDate": {
+            "type": "string"
+          },
+          "sourceUrl": {
+            "type": "string"
+          },
+          "factCount": {
+            "type": "integer"
+          },
+          "lastUpdated": {
+            "type": "string"
+          },
+          "sourceAvailability": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "accession",
+          "form",
+          "filingDate",
+          "sourceUrl",
+          "factCount",
+          "lastUpdated",
+          "sourceAvailability"
+        ],
+        "additionalProperties": true
+      },
+      "SECFact": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "concept": {
+            "type": "string"
+          },
+          "label": {
+            "type": "string"
+          },
+          "value": {
+            "type": "string",
+            "nullable": true,
+            "description": "Exact decimal string; never converted through binary floating point"
+          },
+          "rawValue": {
+            "type": "string",
+            "nullable": true
+          },
+          "nil": {
+            "type": "boolean"
+          },
+          "unitRef": {
+            "type": "string",
+            "nullable": true
+          },
+          "unit": {
+            "type": "object",
+            "properties": {
+              "numerator": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "denominator": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            },
+            "required": [
+              "numerator",
+              "denominator"
+            ],
+            "additionalProperties": true,
+            "nullable": true
+          },
+          "decimals": {
+            "type": "string",
+            "nullable": true
+          },
+          "contextRef": {
+            "type": "string",
+            "nullable": true
+          },
+          "startDate": {
+            "type": "string",
+            "nullable": true
+          },
+          "endDate": {
+            "type": "string",
+            "nullable": true
+          },
+          "instant": {
+            "type": "string",
+            "nullable": true
+          },
+          "dimensions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SECDimension"
+            }
+          },
+          "sourceUrl": {
+            "type": "string"
+          },
+          "sourceId": {
+            "type": "string",
+            "nullable": true
+          },
+          "sourcePath": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "concept",
+          "label",
+          "value",
+          "nil",
+          "dimensions"
+        ],
+        "additionalProperties": true
+      },
+      "SECFailure": {
+        "type": "object",
+        "properties": {
+          "accession": {
+            "type": "string"
+          },
+          "code": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "diagnostics": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 20,
+            "description": "Bounded parser diagnostic codes; excludes raw source text, paths, and exception messages."
+          }
+        },
+        "required": [
+          "accession",
+          "code",
+          "message"
+        ],
+        "additionalProperties": true
+      },
+      "SECJob": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "cik": {
+            "type": "string"
+          },
+          "symbol": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "queued",
+              "running",
+              "paused_rate_limit",
+              "completed",
+              "partial_failed",
+              "failed",
+              "blocked",
+              "cancelled",
+              "superseded"
+            ]
+          },
+          "stage": {
+            "type": "string"
+          },
+          "completed": {
+            "type": "integer"
+          },
+          "total": {
+            "type": "integer"
+          },
+          "currentAccession": {
+            "type": "string",
+            "nullable": true
+          },
+          "createdAt": {
+            "type": "string"
+          },
+          "updatedAt": {
+            "type": "string"
+          },
+          "retryAt": {
+            "type": "string",
+            "nullable": true
+          },
+          "error": {
+            "type": "object",
+            "properties": {
+              "code": {
+                "type": "string"
+              },
+              "message": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "code",
+              "message"
+            ],
+            "additionalProperties": true,
+            "nullable": true
+          },
+          "warnings": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "failures": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SECFailure"
+            }
+          },
+          "attempt": {
+            "type": "integer"
+          },
+          "parserVersion": {
+            "type": "string"
+          },
+          "accessBlocked": {
+            "type": "boolean",
+            "description": "A persisted global SEC access block is preventing this accepted job from progressing."
+          },
+          "accessRetryAt": {
+            "type": "string",
+            "nullable": true,
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "cik",
+          "symbol",
+          "status",
+          "stage",
+          "completed",
+          "total",
+          "createdAt",
+          "updatedAt",
+          "warnings",
+          "failures"
+        ],
+        "additionalProperties": true
+      },
+      "SECJobRequest": {
+        "type": "object",
+        "properties": {
+          "symbol": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 20,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9.\\-]*$"
+          },
+          "action": {
+            "type": "string",
+            "enum": [
+              "scrape",
+              "refresh"
+            ],
+            "default": "scrape"
+          },
+          "selection": {
+            "type": "string",
+            "enum": [
+              "latest",
+              "range",
+              "10-K",
+              "10-Q",
+              "company-facts"
+            ],
+            "default": "latest"
+          },
+          "fromDate": {
+            "type": "string",
+            "nullable": true,
+            "format": "date"
+          },
+          "toDate": {
+            "type": "string",
+            "nullable": true,
+            "format": "date"
+          },
+          "retryAccess": {
+            "type": "boolean",
+            "default": false,
+            "description": "Explicit retry after diagnosing a block during ticker lookup. Never bypasses a persisted cooldown."
+          }
+        },
+        "required": [
+          "symbol"
+        ],
+        "additionalProperties": false
+      },
+      "SECPageMeta": {
+        "type": "object",
+        "properties": {
+          "total": {
+            "type": "integer"
+          },
+          "offset": {
+            "type": "integer"
+          },
+          "limit": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "total",
+          "offset",
+          "limit"
+        ],
+        "additionalProperties": true
+      },
+      "SECCompanyPage": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SECCompany"
+            }
+          },
+          "meta": {
+            "type": "object",
+            "properties": {
+              "suggestions": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/SECCompany"
+                }
+              },
+              "registryUpdatedAt": {
+                "type": "string",
+                "nullable": true
+              }
+            },
+            "required": [
+              "suggestions",
+              "registryUpdatedAt"
+            ],
+            "additionalProperties": true
+          }
+        },
+        "required": [
+          "data",
+          "meta"
+        ],
+        "additionalProperties": true
+      },
+      "SECFilingPage": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SECFiling"
+            }
+          },
+          "meta": {
+            "$ref": "#/components/schemas/SECPageMeta"
+          }
+        },
+        "required": [
+          "data",
+          "meta"
+        ],
+        "additionalProperties": true
+      },
+      "SECFactPage": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SECFact"
+            }
+          },
+          "meta": {
+            "$ref": "#/components/schemas/SECPageMeta"
+          }
+        },
+        "required": [
+          "data",
+          "meta"
+        ],
+        "additionalProperties": true
+      },
+      "SECCompanyResponse": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/SECCompany"
+          }
+        },
+        "required": [
+          "data"
+        ],
+        "additionalProperties": true
+      },
+      "SECJobResponse": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/SECJob"
+          }
+        },
+        "required": [
+          "data"
+        ],
+        "additionalProperties": true
+      },
+      "SECEmptyRequest": {
+        "type": "object",
+        "properties": {},
+        "required": [],
+        "additionalProperties": false
+      },
+      "SECMaintenanceRequest": {
+        "type": "object",
+        "properties": {
+          "enabled": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "enabled"
+        ],
+        "additionalProperties": false
+      },
+      "SECMaintenanceResponse": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "object",
+            "properties": {
+              "maintenance": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "maintenance"
+            ],
+            "additionalProperties": true
+          }
+        },
+        "required": [
+          "data"
+        ],
+        "additionalProperties": true
       }
     },
     "securitySchemes": {

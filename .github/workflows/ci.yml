@@ -32,6 +32,32 @@ jobs:
           MONGODB_TEST_URI: mongodb://fixture-admin:fixture-admin-only@127.0.0.1:27017/?authSource=admin
       - run: go vet ./...
         working-directory: backend
+  ingestion:
+    runs-on: ubuntu-latest
+    services:
+      mongodb:
+        image: mongo:7.0
+        ports: [27017:27017]
+        env:
+          MONGO_INITDB_ROOT_USERNAME: fixture-admin
+          MONGO_INITDB_ROOT_PASSWORD: fixture-admin-only
+        options: >-
+          --health-cmd "mongosh --quiet --eval 'db.adminCommand({ping:1})'"
+          --health-interval 5s --health-timeout 5s --health-retries 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.14'
+          cache: pip
+          cache-dependency-path: ingestion/requirements-dev.lock
+      - run: pip install --require-hashes -r requirements-dev.lock && pip install --no-deps -e .
+        working-directory: ingestion
+      - run: pytest -q
+        working-directory: ingestion
+        env:
+          SEC_OFFLINE: 'true'
+          SEC_TEST_MONGODB_URI: mongodb://fixture-admin:fixture-admin-only@127.0.0.1:27017/?authSource=admin
   frontend:
     runs-on: ubuntu-latest
     steps:
@@ -67,7 +93,7 @@ jobs:
           cache-dependency-path: infra/package-lock.json
       - run: npm ci && npm run typecheck && npm test
         working-directory: infra
-      - run: npx wrangler deploy --dry-run --env production
+      - run: npx wrangler deploy --dry-run --env production && npx wrangler deploy --dry-run --config wrangler.ingestion.jsonc --env production
         working-directory: infra
   containers:
     runs-on: ubuntu-latest
@@ -75,17 +101,21 @@ jobs:
       - uses: actions/checkout@v4
       - uses: docker/setup-buildx-action@v3
       - run: docker compose --profile fixtures up -d --build
-      - name: Verify both images and real database reads
+      - name: Verify all three images and real database reads
         run: |
           curl --fail --retry 30 --retry-all-errors --retry-delay 2 http://127.0.0.1:8080/readyz
           curl --fail --retry 10 --retry-all-errors http://127.0.0.1:3000/companies/DEMO
           curl --fail http://127.0.0.1:3000/api/v1/companies/DEMO/metrics
           docker compose exec -T api /api healthcheck
+          docker compose exec -T ingestion python -m sec_ingestion bootstrap
+          curl --fail --retry 20 --retry-all-errors http://127.0.0.1:8081/readyz
+          curl --fail http://127.0.0.1:3000/api/v1/sec/companies
+          docker compose exec -T ingestion python -m sec_ingestion healthcheck
       - if: always()
         run: docker compose --profile fixtures down --volumes
   deploy-production:
     if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'
-    needs: [backend, frontend, gateway, containers]
+    needs: [backend, ingestion, frontend, gateway, containers]
     runs-on: ubuntu-latest
     environment: production
     concurrency:
@@ -101,6 +131,9 @@ jobs:
       MONGODB_DATABASE: ${{ secrets.MONGODB_DATABASE }}
       CF_ACCESS_CLIENT_ID: ${{ secrets.CF_ACCESS_CLIENT_ID }}
       CF_ACCESS_CLIENT_SECRET: ${{ secrets.CF_ACCESS_CLIENT_SECRET }}
+      SEC_MONGODB_URI: ${{ secrets.SEC_MONGODB_URI }}
+      SEC_MONGODB_DATABASE: ${{ secrets.SEC_MONGODB_DATABASE }}
+      SEC_USER_AGENT: ${{ secrets.SEC_USER_AGENT }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4

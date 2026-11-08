@@ -1,4 +1,4 @@
-export interface StartConfig { internet: boolean; env: Record<string, string>; readinessPath: string; }
+export interface StartConfig { internet: boolean; env: Record<string, string>; readinessPath: string; instance?: 'lite' | 'standard-1'; }
 export class Lifecycle {
   private readyImage = '';
   private starting?: Promise<void>;
@@ -22,7 +22,7 @@ export class Lifecycle {
       const info = await container.inspect();
       if (info?.image && (info.image !== image || info.labels?.config !== configHash)) await container.destroy();
     }
-    if (!container.running) container.start({ image, instance: 'lite', enableInternet: this.config.internet, env: this.config.env, labels: { config: configHash } });
+    if (!container.running) container.start({ image, instance: this.config.instance || 'lite', enableInternet: this.config.internet, env: this.config.env, labels: { config: configHash } });
     // Cloudflare rejects timeout changes before a container has been started.
     await container.setInactivityTimeout(10 * 60 * 1000);
     let startupError: Error | undefined;

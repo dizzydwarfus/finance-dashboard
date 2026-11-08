@@ -36,3 +36,35 @@ describe('gateway routing', () => {
     expect((await gateway(new Request('https://example.com/api'), {} as Env, async () => {})).status).toBe(503);
   });
 });
+
+describe('SEC service boundary', () => {
+  const authenticate = async () => {};
+  function env() {
+    const fetch = vi.fn(async (request: Request) => new Response(JSON.stringify({ data: { id: 'job', status: 'queued' } }), { headers: { 'Content-Type': 'application/json' } }));
+    return { binding: { SEC_INGESTION: { fetch }, CLOUDFLARE_HOSTNAME: 'example.com' } as unknown as Env, fetch };
+  }
+  it('authenticates before forwarding SEC mutations and strips all credentials', async () => {
+    const e = env();
+    const request = new Request('https://example.com/api/v1/sec/jobs', { method: 'POST', headers: { Origin: 'https://example.com', 'Content-Type': 'application/json', 'Cf-Access-Jwt-Assertion': 'private', Cookie: 'private', 'Idempotency-Key': 'request-key' }, body: '{"symbol":"DEMO"}' });
+    expect((await gateway(request, e.binding)).status).toBe(401); expect(e.fetch).not.toHaveBeenCalled();
+    expect((await gateway(request, e.binding, authenticate)).status).toBe(200);
+    const forwarded = e.fetch.mock.calls[0][0];
+    expect(forwarded.headers.has('Cookie')).toBe(false); expect(forwarded.headers.has('Cf-Access-Jwt-Assertion')).toBe(false);
+    expect(forwarded.headers.get('Idempotency-Key')).toBe('request-key');
+    expect(await forwarded.json()).toEqual({ symbol: 'DEMO' });
+  });
+  it('rejects cross-origin writes, unlisted mutation paths, wrong types, and financial writes', async () => {
+    const e = env();
+    const post = (path: string, origin = 'https://evil.example', type = 'application/json') => new Request('https://example.com' + path, { method: 'POST', headers: { Origin: origin, 'Content-Type': type }, body: '{}' });
+    expect((await gateway(post('/api/v1/sec/jobs'), e.binding, authenticate)).status).toBe(403);
+    expect((await gateway(post('/api/v1/sec/jobs', 'https://example.com', 'text/plain'), e.binding, authenticate)).status).toBe(415);
+    expect((await gateway(post('/api/v1/sec/arbitrary', 'https://example.com'), e.binding, authenticate)).status).toBe(405);
+    expect((await gateway(post('/api/v1/companies/DEMO', 'https://example.com'), e.binding, authenticate)).status).toBe(405);
+    expect(e.fetch).not.toHaveBeenCalled();
+  });
+  it('routes only explicit SEC reads to the private binding', async () => {
+    const e = env();
+    expect((await gateway(new Request('https://example.com/api/v1/sec/companies?q=DEMO'), e.binding, authenticate)).status).toBe(200);
+    expect((await gateway(new Request('https://example.com/api/v1/sec/_internal/wake'), e.binding, authenticate)).status).toBe(405);
+  });
+});

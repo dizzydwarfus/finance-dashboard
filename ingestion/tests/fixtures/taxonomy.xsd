@@ -1,0 +1,14 @@
+<?xml version="1.0"?>
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" xmlns:xbrli="http://www.xbrl.org/2003/instance" xmlns:xbrldt="http://xbrl.org/2005/xbrldt" xmlns:link="http://www.xbrl.org/2003/linkbase" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns:demo="https://ledger.invalid/taxonomy/2025" targetNamespace="https://ledger.invalid/taxonomy/2025" elementFormDefault="qualified">
+ <xs:import namespace="http://www.xbrl.org/2003/instance" schemaLocation="http://www.xbrl.org/2003/xbrl-instance-2003-12-31.xsd"/>
+ <xs:import namespace="http://xbrl.org/2005/xbrldt" schemaLocation="http://www.xbrl.org/2005/xbrldt-2005.xsd"/>
+ <xs:annotation><xs:appinfo><link:linkbaseRef xlink:type="simple" xlink:href="labels.xml" xlink:role="http://www.xbrl.org/2003/role/labelLinkbaseRef" xlink:arcrole="http://www.w3.org/1999/xlink/properties/linkbase"/></xs:appinfo></xs:annotation>
+ <xs:element name="Revenue" id="demo_Revenue" type="xbrli:monetaryItemType" substitutionGroup="xbrli:item" xbrli:periodType="duration" nillable="true"/>
+ <xs:element name="NetIncome" id="demo_NetIncome" type="xbrli:monetaryItemType" substitutionGroup="xbrli:item" xbrli:periodType="duration" nillable="true"/>
+ <xs:element name="Shares" id="demo_Shares" type="xbrli:sharesItemType" substitutionGroup="xbrli:item" xbrli:periodType="instant"/>
+ <xs:element name="EPS" id="demo_EPS" type="xbrli:decimalItemType" substitutionGroup="xbrli:item" xbrli:periodType="duration"/>
+ <xs:element name="SegmentAxis" id="demo_SegmentAxis" type="xbrli:stringItemType" substitutionGroup="xbrldt:dimensionItem" xbrli:periodType="duration" abstract="true"/>
+ <xs:element name="HardwareMember" id="demo_HardwareMember" type="xbrli:stringItemType" substitutionGroup="xbrli:item" xbrli:periodType="duration" abstract="true"/>
+ <xs:element name="RegionAxis" id="demo_RegionAxis" type="xbrli:stringItemType" substitutionGroup="xbrldt:dimensionItem" xbrli:periodType="duration" abstract="true" xbrldt:typedDomainRef="#demo_RegionDomain"/>
+ <xs:element name="RegionDomain" id="demo_RegionDomain" type="xs:string"/>
+</xs:schema>

@@ -1,0 +1,16 @@
+<?xml version="1.0"?>
+<xbrli:xbrl xmlns:xbrli="http://www.xbrl.org/2003/instance" xmlns:link="http://www.xbrl.org/2003/linkbase" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns:demo="https://ledger.invalid/taxonomy/2025" xmlns:xbrldi="http://xbrl.org/2006/xbrldi" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:iso4217="http://www.xbrl.org/2003/iso4217">
+ <link:schemaRef xlink:type="simple" xlink:href="taxonomy.xsd"/>
+ <xbrli:context id="annual"><xbrli:entity><xbrli:identifier scheme="http://www.sec.gov/CIK">0000000001</xbrli:identifier></xbrli:entity><xbrli:period><xbrli:startDate>2024-09-29</xbrli:startDate><xbrli:endDate>2025-09-27</xbrli:endDate></xbrli:period></xbrli:context>
+ <xbrli:context id="segment"><xbrli:entity><xbrli:identifier scheme="http://www.sec.gov/CIK">0000000001</xbrli:identifier><xbrli:segment><xbrldi:explicitMember dimension="demo:SegmentAxis">demo:HardwareMember</xbrldi:explicitMember></xbrli:segment></xbrli:entity><xbrli:period><xbrli:startDate>2024-09-29</xbrli:startDate><xbrli:endDate>2025-09-27</xbrli:endDate></xbrli:period></xbrli:context>
+ <xbrli:context id="instant"><xbrli:entity><xbrli:identifier scheme="http://www.sec.gov/CIK">0000000001</xbrli:identifier></xbrli:entity><xbrli:period><xbrli:instant>2025-09-27</xbrli:instant></xbrli:period></xbrli:context>
+ <xbrli:unit id="USD"><xbrli:measure>iso4217:USD</xbrli:measure></xbrli:unit>
+ <xbrli:unit id="shares"><xbrli:measure>xbrli:shares</xbrli:measure></xbrli:unit>
+ <xbrli:unit id="EPS"><xbrli:divide><xbrli:unitNumerator><xbrli:measure>iso4217:USD</xbrli:measure></xbrli:unitNumerator><xbrli:unitDenominator><xbrli:measure>xbrli:shares</xbrli:measure></xbrli:unitDenominator></xbrli:divide></xbrli:unit>
+ <demo:Revenue id="revenue" contextRef="annual" unitRef="USD" decimals="0">123456789012345678.00</demo:Revenue>
+ <demo:Revenue contextRef="annual" unitRef="USD" decimals="0">123456789012345679.00</demo:Revenue>
+ <demo:Revenue contextRef="segment" unitRef="USD" decimals="0">95000</demo:Revenue>
+ <demo:NetIncome contextRef="annual" unitRef="USD" xsi:nil="true"/>
+ <demo:Shares contextRef="instant" unitRef="shares" decimals="0">1000</demo:Shares>
+ <demo:EPS contextRef="annual" unitRef="EPS" decimals="2">-1.25</demo:EPS>
+</xbrli:xbrl>

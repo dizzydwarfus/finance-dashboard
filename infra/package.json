@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "wrangler dev --env production",
     "typecheck": "tsc --noEmit",
-    "test": "node --test ../scripts/env.test.mjs && vitest run",
+    "test": "node --test ../scripts/*.test.mjs && vitest run",
     "deploy": "node ../scripts/deploy.mjs",
     "smoke": "node ../scripts/smoke.mjs",
     "rollback": "node ../scripts/deploy.mjs --rollback"

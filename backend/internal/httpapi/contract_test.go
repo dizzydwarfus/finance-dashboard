@@ -25,6 +25,9 @@ func TestOpenAPIResponseSchemas(t *testing.T) {
 	schemas := spec["components"].(map[string]any)["schemas"].(map[string]any)
 	h := (&Server{Service: &service.Service{Repo: &fakeRepo{}}, Log: slog.New(slog.NewTextHandler(io.Discard, nil))}).Handler()
 	for path, entry := range spec["paths"].(map[string]any) {
+		if strings.HasPrefix(path, "/api/v1/sec/") {
+			continue // SEC endpoints belong to the independently tested Python service.
+		}
 		t.Run(path, func(t *testing.T) {
 			url := strings.ReplaceAll(strings.ReplaceAll(path, "{symbol}", "DEMO"), "{type}", "income")
 			rec := httptest.NewRecorder()

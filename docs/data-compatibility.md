@@ -26,4 +26,4 @@ Observed indexes were `_id` and `index_id`, without a `symbol` index. This migra
 
 ## Future work
 
-DCF will need a new documented calculation model and financial validation fixtures. SEC ingestion will need a Go parser, normalized facts, provider throttling, and durable jobs. Neither is invoked on dashboard reads.
+DCF will need a new documented calculation model and financial validation fixtures. SEC ingestion now uses the separate Python/Arelle service described in [the SEC runbook](sec-ingestion.md), with its own database, throttling, and durable jobs. Mapping those facts into legacy financial statements remains deferred. Dashboard reads never start ingestion.
