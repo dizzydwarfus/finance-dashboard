@@ -59,6 +59,7 @@ type Unit struct {
 }
 
 type Source struct {
+	Generation    string  `json:"generation,omitempty"`
 	Accession     string  `json:"accession"`
 	URL           string  `json:"url"`
 	Form          string  `json:"form"`

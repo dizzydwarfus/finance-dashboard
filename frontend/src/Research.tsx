@@ -10,7 +10,7 @@ type Period = components['schemas']['ResearchPeriod'];
 type Cell = components['schemas']['ResearchCell'];
 const modeNames = { annual: 'Annual', quarter: 'Standalone quarter', ytd: 'Year to date' } as const;
 const issues: Record<string, string> = {
-  not_reported: 'Not reported', conflicting_values: 'Conflicting reported values', conflicting_units: 'Incompatible units',
+  missing_comparable_period:'No unique comparable prior period', not_reported: 'Not reported', conflicting_values: 'Conflicting reported values', conflicting_units: 'Incompatible units',
   invalid_value: 'Invalid reported value', missing_inputs: 'Required inputs unavailable', zero_denominator: 'Zero denominator',
   unexpected_capex_sign: 'Unexpected capital expenditure sign',
 };

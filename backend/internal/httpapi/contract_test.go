@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http/httptest"
+	"net/url"
 	"os"
 	"strings"
 	"testing"
@@ -22,16 +23,30 @@ func TestOpenAPIResponseSchemas(t *testing.T) {
 	schemas := spec["components"].(map[string]any)["schemas"].(map[string]any)
 	h := server()
 	for path, entry := range spec["paths"].(map[string]any) {
-		if strings.HasPrefix(path, "/api/v1/sec/") {
-			continue // SEC endpoints belong to the independently tested Python service.
+		if strings.HasPrefix(path, "/api/v1/sec/") || strings.HasPrefix(path, "/api/v1/workspaces") || entry.(map[string]any)["get"] == nil {
+			continue // Workspace operations and model evaluation have dedicated authenticated/mutation tests.
 		}
 		t.Run(path, func(t *testing.T) {
-			url := strings.ReplaceAll(strings.ReplaceAll(path, "{symbol}", "DEMO"), "{type}", "income")
+			target := strings.ReplaceAll(strings.ReplaceAll(path, "{symbol}", "DEMO"), "{type}", "income")
 			if strings.HasSuffix(path, "/segments") {
-				url += "?accession=" + accession + "&fact=" + fakeID
+				target += "?accession=" + accession + "&fact=" + fakeID
+			}
+			if strings.HasSuffix(path, "/compare") {
+				target += "?symbols=DEMO"
+			}
+			if strings.HasSuffix(path, "/pivot") {
+				discovery := httptest.NewRecorder()
+				h.ServeHTTP(discovery, httptest.NewRequest("GET", "/api/v1/companies/DEMO/dimensions", nil))
+				var result struct {
+					Data []struct{ ID, Concept string }
+				}
+				if err := json.Unmarshal(discovery.Body.Bytes(), &result); err != nil || len(result.Data) == 0 {
+					t.Fatal("missing fixture slice")
+				}
+				target += "?slice=" + result.Data[0].ID + "&concept=" + url.QueryEscape(result.Data[0].Concept)
 			}
 			rec := httptest.NewRecorder()
-			h.ServeHTTP(rec, httptest.NewRequest("GET", url, nil))
+			h.ServeHTTP(rec, httptest.NewRequest("GET", target, nil))
 			if rec.Code != 200 {
 				t.Fatal(rec.Code)
 			}

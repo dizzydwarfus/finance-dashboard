@@ -4,7 +4,7 @@ The dashboard has one deployment: [dizzydwarfus.com](https://dizzydwarfus.com). 
 
 ## Configuration
 
-Keep the existing repository-root `.env.production` for local deployment commands and the GitHub environment named `production` for Actions. Both use these same eleven keys. Store each parsed key/value pair as an individual GitHub **Environment Secret**, without dotenv quotes. No GitHub Variables are needed.
+Keep the existing repository-root `.env.production` for local deployment commands and the GitHub environment named `production` for Actions. Both use these same twelve keys. Store each parsed key/value pair as an individual GitHub **Environment Secret**, without dotenv quotes. No GitHub Variables are needed.
 
 | Key | Value |
 | --- | --- |
@@ -13,6 +13,7 @@ Keep the existing repository-root `.env.production` for local deployment command
 | `CLOUDFLARE_HOSTNAME` | `dizzydwarfus.com`, without scheme or path |
 | `ACCESS_TEAM_DOMAIN` | Access team domain, e.g. `yourteam.cloudflareaccess.com` |
 | `ACCESS_AUD` | Audience tag for the Access application covering all production paths |
+| `SEC_WORKSPACE_MONGODB_URI` | Separate collection-scoped Atlas workspace credential, injected into Go |
 | `SEC_READ_MONGODB_URI` | Separate Atlas user with the built-in `read` role on `SECIngestion` only; single-quote the URI in the env file |
 | `CF_ACCESS_CLIENT_ID` | Access service-token client ID authorized for smoke tests |
 | `CF_ACCESS_CLIENT_SECRET` | Matching Access service-token secret |
@@ -76,3 +77,11 @@ Local Go/Vite development uses `.env.local`, falling back to `.env`; Go requires
 - Token source-location rejection: update the token's permitted deployment context; the scripts do not change its restrictions.
 - Local Podman disk exhaustion: prune unused untagged images with `podman image prune -f` and build with `podman-compose --parallel 1`; VM disk space is separate from available macOS disk space. See [local SEC setup](sec-ingestion.md).
 - Local Podman: set `WRANGLER_DOCKER_BIN` to the absolute path of `scripts/podman-docker.mjs` and keep its VM running. CI uses Docker.
+
+
+## Provision private analyst saves
+
+1. In Atlas, create a custom database role granting `find`, `insert`, `update`, and `remove` on database `SECIngestion`, collection `analyst_workspaces`. Assign only that role to a new password user.
+2. Open mongosh with an account authorized to create collections and indexes. From the repository root run `load("scripts/bootstrap-workspace.js")`. This creates the collection and its owner index.
+3. Set the new user's connection string as `SEC_WORKSPACE_MONGODB_URI` in the local production dotenv file and in the GitHub production environment. Use manual workflow dispatch for rollout.
+4. Compose fixture initialization creates its own workspace user and index. For standalone local Go development, set `LOCAL_WORKSPACE=true` and the fixture workspace URI in `.env.local`, and bind Go to loopback. Local saves use the dedicated local identity. Production derives the owner from Cloudflare Access.

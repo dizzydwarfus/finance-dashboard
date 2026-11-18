@@ -30,8 +30,9 @@ type Reader interface {
 	Issuer(context.Context, string) (domain.Issuer, error)
 	Related(context.Context, domain.Issuer) ([]domain.Issuer, error)
 	Filings(context.Context, string) ([]domain.Filing, error)
+	FilingWindow(context.Context, string, string, bool, int) ([]domain.Filing, error)
 	Facts(context.Context, []domain.Filing, bson.M) ([]domain.Fact, error)
-	Contexts(context.Context, []domain.Filing) ([]domain.Context, error)
+	Contexts(context.Context, []domain.Filing, []domain.Fact) ([]domain.Context, error)
 	Units(context.Context, []domain.Filing) ([]domain.Unit, error)
 }
 
@@ -95,6 +96,24 @@ func (m *Mongo) Filings(ctx context.Context, cik string) ([]domain.Filing, error
 		bson.D{{Key: "filingDate", Value: -1}, {Key: "_id", Value: -1}})
 }
 
+// FilingWindow reads only published metadata in descending filing order.
+func (m *Mongo) FilingWindow(ctx context.Context, cik, through string, annual bool, limit int) ([]domain.Filing, error) {
+	query := bson.M{"cik": cik, "generation": bson.M{"$exists": true}}
+	if through != "" {
+		query["filingDate"] = bson.M{"$lte": through}
+	}
+	if annual {
+		query["form"] = bson.M{"$in": bson.A{"10-K", "10-K/A"}}
+	}
+	cur, err := m.DB.Collection("filings").Find(ctx, query, options.Find().SetSort(bson.D{{Key: "filingDate", Value: -1}, {Key: "_id", Value: -1}}).SetLimit(int64(limit)))
+	if err != nil {
+		return nil, err
+	}
+	var result []domain.Filing
+	err = cur.All(ctx, &result)
+	return result, err
+}
+
 // Each accession is paired with the generation read from its published pointer.
 func published(filings []domain.Filing) bson.A {
 	pairs := make(bson.A, 0, len(filings))
@@ -109,11 +128,31 @@ func (m *Mongo) Facts(ctx context.Context, filings []domain.Filing, extra bson.M
 	}
 	return find[domain.Fact](ctx, m.DB.Collection("facts"), bson.M{"$and": bson.A{bson.M{"$or": published(filings)}, extra}}, MaxFacts, nil)
 }
-func (m *Mongo) Contexts(ctx context.Context, filings []domain.Filing) ([]domain.Context, error) {
+func (m *Mongo) Contexts(ctx context.Context, filings []domain.Filing, facts []domain.Fact) ([]domain.Context, error) {
 	if len(filings) == 0 {
 		return nil, nil
 	}
-	return find[domain.Context](ctx, m.DB.Collection("contexts"), bson.M{"$or": published(filings)}, MaxFacts, nil)
+	refs := map[string]map[string]bool{}
+	for _, f := range facts {
+		if refs[f.Accession] == nil {
+			refs[f.Accession] = map[string]bool{}
+		}
+		refs[f.Accession][f.ContextRef] = true
+	}
+	pairs := bson.A{}
+	for _, f := range filings {
+		var ids []string
+		for id := range refs[f.Accession] {
+			ids = append(ids, id)
+		}
+		if len(ids) > 0 {
+			pairs = append(pairs, bson.M{"accession": f.Accession, "generation": f.Generation, "contextRef": bson.M{"$in": ids}})
+		}
+	}
+	if len(pairs) == 0 {
+		return nil, nil
+	}
+	return find[domain.Context](ctx, m.DB.Collection("contexts"), bson.M{"$or": pairs}, MaxFacts, nil)
 }
 func (m *Mongo) Units(ctx context.Context, filings []domain.Filing) ([]domain.Unit, error) {
 	if len(filings) == 0 {

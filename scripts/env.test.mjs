@@ -48,7 +48,7 @@ test('production workflow Secrets use the canonical deployment keys', () => {
 });
 test('preflight validates injected Secrets without invoking Wrangler or printing values', () => {
   const env = Object.fromEntries(deploymentKeys.map(key => [key, 'private-value']));
-  Object.assign(env, { CI: 'true', ACCESS_TEAM_DOMAIN: 'example.cloudflareaccess.com', CLOUDFLARE_HOSTNAME: 'dashboard.example.com', SEC_MONGODB_DATABASE: 'SECIngestion', SEC_READ_MONGODB_URI: 'mongodb://reader:private-value@localhost/SECIngestion', SEC_MONGODB_URI: 'mongodb://writer:private-value@localhost/SECIngestion', SEC_USER_AGENT: 'Ledger contact@ledger.invalid' });
+  Object.assign(env, { CI: 'true', ACCESS_TEAM_DOMAIN: 'example.cloudflareaccess.com', CLOUDFLARE_HOSTNAME: 'dashboard.example.com', SEC_MONGODB_DATABASE: 'SECIngestion', SEC_WORKSPACE_MONGODB_URI: 'mongodb://workspace:private-value@localhost/SECIngestion', SEC_READ_MONGODB_URI: 'mongodb://reader:private-value@localhost/SECIngestion', SEC_MONGODB_URI: 'mongodb://writer:private-value@localhost/SECIngestion', SEC_USER_AGENT: 'Ledger contact@ledger.invalid' });
   const result = spawnSync(process.execPath, [join(projectRoot, 'scripts/deploy.mjs'), '--check'], { env, encoding: 'utf8' });
   assert.equal(result.status, 0, result.stderr);
   assert.ok(!result.stdout.includes('private-value'));

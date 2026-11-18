@@ -65,7 +65,12 @@ func (s *Service) table(ctx context.Context, symbol, kind, mode string, limit in
 	if err != nil {
 		return domain.Table{}, err
 	}
-	filings, err := s.Repo.Filings(ctx, issuer.CIK)
+	var filings []domain.Filing
+	if mode == "annual" && kind == "metrics" {
+		filings, err = s.Repo.FilingWindow(ctx, issuer.CIK, "", true, min(100, limit+10))
+	} else {
+		filings, err = s.Repo.Filings(ctx, issuer.CIK)
+	}
 	if err != nil {
 		return domain.Table{}, err
 	}
@@ -74,7 +79,14 @@ func (s *Service) table(ctx context.Context, symbol, kind, mode string, limit in
 		for _, name := range []string{"income", "balance", "cash-flow"} {
 			fields = append(fields, statementFields[name]...)
 		}
-		fields = append(fields, mapping{operatingMargin, nil}, mapping{netMargin, nil})
+		fields = append(fields,
+			mapping{domain.Field{Key: "da", Label: "Depreciation and amortization", Format: "money"}, []string{"DepreciationDepletionAndAmortization"}},
+			mapping{domain.Field{Key: "taxExpense", Label: "Income tax expense", Format: "money"}, []string{"IncomeTaxExpenseBenefit"}},
+			mapping{domain.Field{Key: "pretaxIncome", Label: "Pretax income", Format: "money"}, []string{"IncomeLossFromContinuingOperationsBeforeIncomeTaxesExtraordinaryItemsNoncontrollingInterest"}},
+			mapping{operatingMargin, nil}, mapping{netMargin, nil},
+			mapping{domain.Field{Key: "daRatio", Label: "D&A / revenue", Format: "ratio"}, nil},
+			mapping{domain.Field{Key: "capexRatio", Label: "Capex / revenue", Format: "ratio"}, nil},
+			mapping{domain.Field{Key: "taxRate", Label: "Effective income tax rate", Format: "ratio"}, nil})
 	} else {
 		fields = statementFields[kind]
 	}
@@ -172,6 +184,9 @@ func (s *Service) table(ctx context.Context, symbol, kind, mode string, limit in
 		}
 		if kind == "metrics" {
 			row.Values[operatingMargin.Key] = calculate(row.Values["operatingIncome"], row.Values["revenue"], true)
+			row.Values["daRatio"] = calculate(row.Values["da"], row.Values["revenue"], true)
+			row.Values["capexRatio"] = calculate(row.Values["capex"], row.Values["revenue"], true)
+			row.Values["taxRate"] = calculate(row.Values["taxExpense"], row.Values["pretaxIncome"], true)
 			row.Values[netMargin.Key] = calculate(row.Values["netIncome"], row.Values["revenue"], true)
 		}
 		out.Rows = append(out.Rows, row)
@@ -223,7 +238,7 @@ func (s *Service) observations(ctx context.Context, issuer domain.Issuer, filing
 	if err != nil || len(facts) == 0 {
 		return nil, err
 	}
-	contexts, err := s.Repo.Contexts(ctx, filings)
+	contexts, err := s.Repo.Contexts(ctx, filings, facts)
 	if err != nil {
 		return nil, err
 	}
@@ -247,7 +262,7 @@ func (s *Service) observations(ctx context.Context, issuer domain.Issuer, filing
 	out := make([]observation, 0, len(facts))
 	for _, fact := range facts {
 		c, ok := ctxIndex[key{fact.Accession, fact.Generation, fact.ContextRef}]
-		if !ok || strings.TrimLeft(c.Entity, "0") != strings.TrimLeft(issuer.CIK, "0") {
+		if !ok || (c.EntityScheme != "" && c.EntityScheme != "http://www.sec.gov/CIK" && c.EntityScheme != "https://www.sec.gov/CIK") || strings.TrimLeft(c.Entity, "0") != strings.TrimLeft(issuer.CIK, "0") {
 			continue
 		}
 		u, ok := unitIndex[key{fact.Accession, fact.Generation, fact.UnitRef}]
@@ -364,7 +379,7 @@ func setFiscalLabel(p *domain.Period, group map[string][]observation) {
 }
 
 func provenance(o observation) domain.Source {
-	return domain.Source{Accession: o.filing.Accession, URL: o.filing.SourceURL, Form: o.filing.Form, Filed: o.filing.Filed, Concept: o.fact.Concept, Ordinal: o.fact.Ordinal, ReportedValue: o.fact.Value, RawValue: o.fact.RawValue}
+	return domain.Source{Generation: o.filing.Generation, Accession: o.filing.Accession, URL: o.filing.SourceURL, Form: o.filing.Form, Filed: o.filing.Filed, Concept: o.fact.Concept, Ordinal: o.fact.Ordinal, ReportedValue: o.fact.Value, RawValue: o.fact.RawValue}
 }
 
 func missing(issue string) domain.Cell { return domain.Cell{Issue: issue, Sources: []domain.Source{}} }
@@ -453,7 +468,12 @@ func fractionDigits(s string) int {
 func calculate(a, b domain.Cell, ratio bool) domain.Cell {
 	x, y := asDecimal(a.Value), asDecimal(b.Value)
 	if x == nil || y == nil {
-		return missing("missing_inputs")
+		cell := missing("missing_inputs")
+		cell.Sources = append(slices.Clone(a.Sources), b.Sources...)
+		if cell.Sources == nil {
+			cell.Sources = []domain.Source{}
+		}
+		return cell
 	}
 	out := domain.Cell{Unit: a.Unit, Sources: append(slices.Clone(a.Sources), b.Sources...)}
 	if a.Unit != b.Unit {

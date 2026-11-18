@@ -4,6 +4,8 @@ services:
       context: ./backend
     platform: linux/amd64
     environment:
+      LOCAL_WORKSPACE: "true"
+      SEC_WORKSPACE_MONGODB_URI: ${SEC_WORKSPACE_MONGODB_URI:-mongodb://workspace:local-only@mongo:27017/SECIngestion}
       SEC_READ_MONGODB_URI: ${SEC_READ_MONGODB_URI:-mongodb://sec-reader:local-reader-only@mongo:27017/SECIngestion?authSource=SECIngestion}
     ports: ["127.0.0.1:8080:8080"]
   ingestion:

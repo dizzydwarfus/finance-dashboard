@@ -20,3 +20,18 @@
 .brand small { display: block; font-size: .65rem; letter-spacing: .08em; color: #a2b29b; }
 .panel a[download], .cell-note a { color: var(--accent); text-decoration: underline; }
 .panel a[download] { font-size: .8rem; }
+
+.panel fieldset { border: 0; padding: 0; margin: 1.2rem 0; min-width: 0; }
+.panel legend { font-weight: 650; margin-bottom: .65rem; }
+.panel input[type=number] { width: 6.8rem; font-variant-numeric: tabular-nums; }
+.sec-filters select { max-width: min(40rem, 75vw); }
+.tabs { flex-wrap: wrap; }
+.panel:has(fieldset), .panel:has(.sec-filters) { overflow-wrap: anywhere; }
+.panel fieldset button, .panel .sec-filters button, .panel button[aria-pressed], .panel:has(.sec-filters) > button {
+  border: 1px solid var(--line); border-radius: .35rem; padding: .45rem .7rem; margin: .2rem;
+  background: var(--panel); font-size: .8rem;
+}
+.panel button[aria-pressed=true] { color: var(--accent); border-color: var(--accent); background: var(--chip); }
+.panel button:disabled { opacity: .5; cursor: default; }
+.panel fieldset input[type=number] { border: 1px solid var(--line); border-radius: .3rem; color: var(--text); background: var(--bg); padding: .4rem; }
+.panel h3 { font-weight: 600; margin: 1rem 0 .5rem; }

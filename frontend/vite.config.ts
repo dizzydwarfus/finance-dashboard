@@ -18,5 +18,5 @@ function proxyTarget(key = 'API_PROXY_TARGET', defaultTarget = 'http://127.0.0.1
 }
 export default defineConfig({
   plugins: [react(), tailwindcss()],
-  server: { proxy: { '/api/v1/sec': proxyTarget('SEC_PROXY_TARGET', 'http://127.0.0.1:8081'), '/api': proxyTarget() } },
+  server: { proxy: { '/api/v1/sec': proxyTarget('SEC_PROXY_TARGET', 'http://127.0.0.1:8081'), '/api': { target: proxyTarget(), changeOrigin: false } } },
 });

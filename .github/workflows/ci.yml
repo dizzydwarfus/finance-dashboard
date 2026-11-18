@@ -112,6 +112,14 @@ jobs:
           curl --fail --retry 20 --retry-all-errors http://127.0.0.1:8081/readyz
           curl --fail http://127.0.0.1:3000/api/v1/sec/companies
           docker compose exec -T ingestion python -m sec_ingestion healthcheck
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Exercise analyst workflows against disposable filings
+        working-directory: frontend
+        run: npm ci && npx playwright install --with-deps chromium && npm test -- tests/sec.live.spec.ts
+        env:
+          SEC_LIVE_TEST: 'true'
       - if: always()
         run: docker compose --profile fixtures down --volumes
   deploy-production:
@@ -128,6 +136,7 @@ jobs:
       CLOUDFLARE_HOSTNAME: ${{ secrets.CLOUDFLARE_HOSTNAME }}
       ACCESS_TEAM_DOMAIN: ${{ secrets.ACCESS_TEAM_DOMAIN }}
       ACCESS_AUD: ${{ secrets.ACCESS_AUD }}
+      SEC_WORKSPACE_MONGODB_URI: ${{ secrets.SEC_WORKSPACE_MONGODB_URI }}
       SEC_READ_MONGODB_URI: ${{ secrets.SEC_READ_MONGODB_URI }}
       CF_ACCESS_CLIENT_ID: ${{ secrets.CF_ACCESS_CLIENT_ID }}
       CF_ACCESS_CLIENT_SECRET: ${{ secrets.CF_ACCESS_CLIENT_SECRET }}

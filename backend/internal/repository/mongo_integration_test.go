@@ -84,6 +84,7 @@ func TestPublishedSECFilingReads(t *testing.T) {
 		t.Fatalf("broader credential allowed: %v", err)
 	}
 
+	verifyWorkspace(t, ctx, db, uri.Host)
 	s := &service.Service{Repo: reader}
 	start := time.Now()
 	metrics, err := s.Metrics(ctx, "DEMO", "all", 20)
@@ -135,6 +136,37 @@ func TestPublishedSECFilingReads(t *testing.T) {
 	if err != nil || len(related) != 1 || related[0].Symbols[0] != "PEER" {
 		t.Fatalf("related issuers: %+v %v", related, err)
 	}
+	// A later EUR filing exercises separate currency columns and non-aligned annual ends.
+	peerFil := bson.M{"_id": "0000000020-26-000001", "cik": "0000000020", "generation": "p", "form": "10-K", "filingDate": "2026-02-01", "reportDate": "2025-12-31", "sourceUrl": "https://www.sec.gov/Archives/peer"}
+	if _, err = db.Collection("filings").InsertOne(ctx, peerFil); err != nil {
+		t.Fatal(err)
+	}
+	base := func() bson.M { return bson.M{"accession": peerFil["_id"], "generation": "p"} }
+	c := base()
+	c["contextRef"] = "ctx"
+	c["entity"] = "0000000020"
+	c["startDate"] = "2025-01-01"
+	c["endDate"] = "2025-12-31"
+	c["dimensions"] = bson.A{}
+	u := base()
+	u["unitRef"] = "eur"
+	u["numerator"] = bson.A{"{http://www.xbrl.org/2003/iso4217}EUR"}
+	f := base()
+	f["concept"] = "{http://fasb.org/us-gaap/2026}Revenues"
+	f["unitRef"] = "eur"
+	f["contextRef"] = "ctx"
+	f["value"] = "100"
+	f["dimensions"] = bson.A{}
+	for collection, doc := range map[string]bson.M{"contexts": c, "units": u, "facts": f} {
+		if _, err = db.Collection(collection).InsertOne(ctx, doc); err != nil {
+			t.Fatal(err)
+		}
+	}
+	peers, err := s.Compare(ctx, []string{"DEMO", "PEER"}, true)
+	if err != nil || len(peers) != 2 || !peers[1].Misaligned || len(peers[1].Rows) != 1 || peers[1].Rows[0].Values["revenue"].Unit != "EUR" || peers[0].Rows[0].Values["revenue"].Unit != "USD" {
+		t.Fatal(peers, err)
+	}
+
 }
 
 func expect(t *testing.T, value *string, want string) {

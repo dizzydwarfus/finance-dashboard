@@ -7,7 +7,7 @@ The Go API reads published XBRL generations from `SECIngestion`. It uses the acc
 | Income | Revenue (contract revenue excluding assessed tax, then Revenues, SalesRevenueNet, or contract revenue including assessed tax), operating income, net income attributable to parent, and diluted EPS |
 | Balance | Assets, liabilities, and stockholders’ equity attributable to parent |
 | Cash flow | Operating cash flow, capital expenditure reported as an outflow magnitude, and free cash flow (operating cash flow minus capital expenditure) |
-| Metrics | The above, plus operating and net income margins |
+| Metrics | The above, plus operating and net income margins, D&A, pretax income, income tax expense, D&A/revenue, capex/revenue, and effective income tax rate |
 
 - Use non-dimensional contexts belonging to the filer for normalized statements. The importer keeps original qualified names, reported decimal values, nils, and dimensions. Currency must be an ISO 4217 XBRL measure. Diluted EPS requires currency per share. No currency conversion or unit inference.
 - Group reported duration facts by exact start and end dates. Use the filing report date and matching prior-year comparative columns. Annual ranges, standalone quarters, and longer year-to-date ranges remain separate. Use point-in-time contexts for balance rows and show verified DEI fiscal labels when available. Older saved generations fall back to actual report dates. No subtraction of year-to-date values to manufacture a quarter or Q4.

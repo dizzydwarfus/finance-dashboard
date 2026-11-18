@@ -13,7 +13,7 @@ describe('Access authentication', () => {
     const jwk = await exportJWK(publicKey); const keys = createLocalJWKSet({ keys: [{ ...jwk, alg: 'RS256' }] });
     const token = async (aud = 'dashboard', exp = '2h', issuer = 'https://example.cloudflareaccess.com') => new SignJWT({ type: 'app' }).setProtectedHeader({ alg: 'RS256' }).setSubject('user').setIssuer(issuer).setAudience(aud).setIssuedAt().setExpirationTime(exp).sign(privateKey);
     const request = (value: string) => new Request('https://example.com', { headers: { 'Cf-Access-Jwt-Assertion': value } });
-    await expect(verifyAccess(request(await token()), config, keys)).resolves.toBeUndefined();
+    await expect(verifyAccess(request(await token()), config, keys)).resolves.toContain("user");
     const serviceToken = await new SignJWT({ type: 'app', common_name: 'ci.access' }).setProtectedHeader({ alg: 'RS256' }).setSubject('').setIssuer('https://example.cloudflareaccess.com').setAudience('dashboard').setIssuedAt().setExpirationTime('2h').sign(privateKey);
     await expect(verifyAccess(request(serviceToken), config, keys)).resolves.toBeUndefined();
     for (const bad of [await token('other'), await token('dashboard', '-1h'), await token('dashboard', '2h', 'https://wrong.example'), 'invalid.jwt.value']) await expect(verifyAccess(request(bad), config, keys)).rejects.toThrow();
@@ -66,5 +66,19 @@ describe('SEC service boundary', () => {
     const e = env();
     expect((await gateway(new Request('https://example.com/api/v1/sec/companies?q=DEMO'), e.binding, authenticate)).status).toBe(200);
     expect((await gateway(new Request('https://example.com/api/v1/sec/_internal/wake'), e.binding, authenticate)).status).toBe(405);
+  });
+});
+
+describe('analyst workspace access',()=>{
+  const fetch = vi.fn(async (_request:Request)=>new Response('ok'));
+  const namespace={idFromName:()=>'',get:()=>({fetch})};
+  const env={API:namespace,CLOUDFLARE_HOSTNAME:'example.com'} as unknown as Env;
+  const url='https://example.com/api/v1/workspaces';
+  const request=(origin:string)=>new Request(url,{method:'POST',headers:{Origin:origin,'Content-Type':'application/json','X-Workspace-Owner':'from-browser'},body:'{}'});
+  it('requires a human Access identity and a same-origin mutation',async()=>{
+    expect((await gateway(request('https://example.com'),env,async()=>{})).status).toBe(403);
+    expect((await gateway(request('https://other.example'),env,async()=>'verified')).status).toBe(403);
+    expect((await gateway(request('https://example.com'),env,async()=>'verified')).status).toBe(200);
+    expect(fetch.mock.lastCall?.[0].headers.get('X-Workspace-Owner')).toBe('verified');
   });
 });

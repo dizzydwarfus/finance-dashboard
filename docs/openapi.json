@@ -1121,6 +1121,482 @@
           }
         }
       }
+    },
+    "/api/v1/companies/{symbol}/dimensions": {
+      "get": {
+        "summary": "Discover up to 200 reported dimension slices matching the search",
+        "parameters": [
+          {
+            "name": "symbol",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "through",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/AnalystSlice"
+                      }
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Request failed"
+          }
+        }
+      }
+    },
+    "/api/v1/companies/{symbol}/pivot": {
+      "get": {
+        "summary": "Pivot comparable member contexts",
+        "parameters": [
+          {
+            "name": "symbol",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "slice",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "concept",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "display",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "member",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          },
+          {
+            "name": "format",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "through",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/Pivot"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              },
+              "text/csv": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Request failed"
+          }
+        }
+      }
+    },
+    "/api/v1/compare": {
+      "get": {
+        "summary": "Compare up to five imported issuers",
+        "parameters": [
+          {
+            "name": "symbols",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "trend",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "format",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/PeerResult"
+                      }
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              },
+              "text/csv": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Request failed"
+          }
+        }
+      }
+    },
+    "/api/v1/model/evaluate": {
+      "post": {
+        "summary": "Evaluate five annual forecasts per scenario",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/Evaluation"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Request failed"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ModelInput"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/workspaces": {
+      "get": {
+        "summary": "List saved items for the signed-in analyst",
+        "parameters": [
+          {
+            "name": "symbol",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "kind",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/WorkspaceItem"
+                      }
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Request failed"
+          }
+        }
+      },
+      "post": {
+        "summary": "Save private analysis",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/WorkspaceItem"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Request failed"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WorkspaceInput"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/workspaces/{id}": {
+      "get": {
+        "summary": "Open private saved analysis",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/WorkspaceItem"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Request failed"
+          }
+        }
+      },
+      "put": {
+        "summary": "Update a saved revision",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "If-Match",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/WorkspaceItem"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Request failed"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WorkspaceInput"
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "summary": "Delete a saved revision",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "If-Match",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Request failed"
+          }
+        }
+      }
     }
   },
   "components": {
@@ -1803,6 +2279,9 @@
           },
           "rawValue": {
             "type": "string"
+          },
+          "generation": {
+            "type": "string"
           }
         },
         "required": [
@@ -2041,6 +2520,424 @@
           "sic"
         ],
         "additionalProperties": false
+      },
+      "AnalystSlice": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "concept": {
+            "type": "string"
+          },
+          "label": {
+            "type": "string"
+          },
+          "axis": {
+            "type": "string"
+          },
+          "fixed": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "axis": {
+                  "type": "string"
+                },
+                "member": {
+                  "type": "string",
+                  "nullable": true
+                },
+                "typedValue": {
+                  "type": "string",
+                  "nullable": true
+                }
+              },
+              "required": [
+                "axis",
+                "member",
+                "typedValue"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "unit": {
+            "type": "string"
+          },
+          "mode": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "concept",
+          "label",
+          "axis",
+          "fixed",
+          "unit",
+          "mode"
+        ]
+      },
+      "Pivot": {
+        "type": "object",
+        "properties": {
+          "periods": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ResearchPeriod"
+            }
+          },
+          "members": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "type": "string"
+                },
+                "cells": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ResearchCell"
+                  }
+                }
+              },
+              "required": [
+                "name",
+                "cells"
+              ]
+            }
+          }
+        },
+        "required": [
+          "periods",
+          "members"
+        ]
+      },
+      "PeerResult": {
+        "type": "object",
+        "properties": {
+          "symbol": {
+            "type": "string"
+          },
+          "rows": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ResearchRow"
+            }
+          },
+          "misaligned": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "symbol",
+          "rows",
+          "misaligned"
+        ]
+      },
+      "Drivers": {
+        "type": "object",
+        "properties": {
+          "growth": {
+            "type": "string"
+          },
+          "margin": {
+            "type": "string"
+          },
+          "tax": {
+            "type": "string"
+          },
+          "da": {
+            "type": "string"
+          },
+          "capex": {
+            "type": "string"
+          },
+          "wc": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "growth",
+          "margin",
+          "tax",
+          "da",
+          "capex",
+          "wc"
+        ]
+      },
+      "Scenario": {
+        "type": "object",
+        "properties": {
+          "years": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Drivers"
+            }
+          },
+          "openingWC": {
+            "type": "string"
+          },
+          "wacc": {
+            "type": "string"
+          },
+          "terminalGrowth": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "years",
+          "openingWC",
+          "wacc",
+          "terminalGrowth"
+        ]
+      },
+      "ModelInput": {
+        "type": "object",
+        "properties": {
+          "revenue": {
+            "type": "string"
+          },
+          "scenarios": {
+            "type": "object",
+            "additionalProperties": {
+              "$ref": "#/components/schemas/Scenario"
+            }
+          }
+        },
+        "required": [
+          "revenue",
+          "scenarios"
+        ]
+      },
+      "Forecast": {
+        "type": "object",
+        "properties": {
+          "years": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "string",
+                "nullable": true
+              }
+            }
+          },
+          "pv": {
+            "type": "string",
+            "nullable": true
+          },
+          "terminalPV": {
+            "type": "string",
+            "nullable": true
+          },
+          "ev": {
+            "type": "string",
+            "nullable": true
+          },
+          "grid": {
+            "type": "array",
+            "items": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "nullable": true
+              }
+            }
+          },
+          "issue": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "years",
+          "pv",
+          "terminalPV",
+          "ev",
+          "grid",
+          "issue"
+        ]
+      },
+      "Evaluation": {
+        "type": "object",
+        "properties": {
+          "version": {
+            "type": "string"
+          },
+          "forecasts": {
+            "type": "object",
+            "additionalProperties": {
+              "$ref": "#/components/schemas/Forecast"
+            }
+          }
+        },
+        "required": [
+          "version",
+          "forecasts"
+        ]
+      },
+      "WorkspaceInput": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "explore",
+              "compare",
+              "model"
+            ]
+          },
+          "symbol": {
+            "type": "string"
+          },
+          "payload": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/SavedExplore"
+              },
+              {
+                "$ref": "#/components/schemas/SavedComparison"
+              },
+              {
+                "$ref": "#/components/schemas/SavedModel"
+              }
+            ]
+          }
+        },
+        "required": [
+          "name",
+          "kind",
+          "symbol",
+          "payload"
+        ]
+      },
+      "WorkspaceItem": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "explore",
+              "compare",
+              "model"
+            ]
+          },
+          "symbol": {
+            "type": "string"
+          },
+          "payload": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/SavedExplore"
+              },
+              {
+                "$ref": "#/components/schemas/SavedComparison"
+              },
+              {
+                "$ref": "#/components/schemas/SavedModel"
+              }
+            ]
+          },
+          "id": {
+            "type": "string"
+          },
+          "revision": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "name",
+          "kind",
+          "symbol",
+          "id",
+          "revision"
+        ]
+      },
+      "SavedExplore": {
+        "type": "object",
+        "properties": {
+          "q": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "concept": {
+            "type": "string"
+          },
+          "through": {
+            "type": "string"
+          },
+          "display": {
+            "type": "string",
+            "enum": [
+              "value",
+              "growth",
+              "share"
+            ]
+          },
+          "members": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "q",
+          "id",
+          "concept",
+          "through",
+          "display",
+          "members"
+        ]
+      },
+      "SavedComparison": {
+        "type": "object",
+        "properties": {
+          "peers": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "trend": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "peers",
+          "trend"
+        ]
+      },
+      "SavedModel": {
+        "type": "object",
+        "properties": {
+          "baseline": {
+            "$ref": "#/components/schemas/ResearchRow"
+          },
+          "scenarios": {
+            "type": "object",
+            "additionalProperties": {
+              "$ref": "#/components/schemas/Scenario"
+            }
+          },
+          "result": {
+            "$ref": "#/components/schemas/Evaluation"
+          }
+        },
+        "required": [
+          "baseline",
+          "scenarios",
+          "result"
+        ]
       }
     },
     "securitySchemes": {

@@ -1190,6 +1190,408 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/companies/{symbol}/dimensions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Discover up to 200 reported dimension slices matching the search */
+        get: {
+            parameters: {
+                query?: {
+                    q?: string;
+                    through?: string;
+                };
+                header?: never;
+                path: {
+                    symbol: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Success */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: components["schemas"]["AnalystSlice"][];
+                        };
+                    };
+                };
+                /** @description Request failed */
+                default: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/companies/{symbol}/pivot": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Pivot comparable member contexts */
+        get: {
+            parameters: {
+                query: {
+                    slice: string;
+                    concept: string;
+                    display?: string;
+                    member?: string[];
+                    format?: string;
+                    through?: string;
+                };
+                header?: never;
+                path: {
+                    symbol: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Success */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: components["schemas"]["Pivot"];
+                        };
+                        "text/csv": string;
+                    };
+                };
+                /** @description Request failed */
+                default: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/compare": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Compare up to five imported issuers */
+        get: {
+            parameters: {
+                query: {
+                    symbols: string;
+                    trend?: string;
+                    format?: string;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Success */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: components["schemas"]["PeerResult"][];
+                        };
+                        "text/csv": string;
+                    };
+                };
+                /** @description Request failed */
+                default: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/model/evaluate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Evaluate five annual forecasts per scenario */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["ModelInput"];
+                };
+            };
+            responses: {
+                /** @description Success */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: components["schemas"]["Evaluation"];
+                        };
+                    };
+                };
+                /** @description Request failed */
+                default: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workspaces": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List saved items for the signed-in analyst */
+        get: {
+            parameters: {
+                query?: {
+                    symbol?: string;
+                    kind?: string;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Success */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: components["schemas"]["WorkspaceItem"][];
+                        };
+                    };
+                };
+                /** @description Request failed */
+                default: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        put?: never;
+        /** Save private analysis */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["WorkspaceInput"];
+                };
+            };
+            responses: {
+                /** @description Success */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: components["schemas"]["WorkspaceItem"];
+                        };
+                    };
+                };
+                /** @description Request failed */
+                default: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workspaces/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Open private saved analysis */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Success */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: components["schemas"]["WorkspaceItem"];
+                        };
+                    };
+                };
+                /** @description Request failed */
+                default: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        /** Update a saved revision */
+        put: {
+            parameters: {
+                query?: never;
+                header: {
+                    "If-Match": string;
+                };
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["WorkspaceInput"];
+                };
+            };
+            responses: {
+                /** @description Success */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: components["schemas"]["WorkspaceItem"];
+                        };
+                    };
+                };
+                /** @description Request failed */
+                default: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        post?: never;
+        /** Delete a saved revision */
+        delete: {
+            parameters: {
+                query?: never;
+                header: {
+                    "If-Match": string;
+                };
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Success */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: boolean;
+                        };
+                    };
+                };
+                /** @description Request failed */
+                default: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -1402,6 +1804,7 @@ export interface components {
             ordinal: number;
             reportedValue: string | null;
             rawValue: string;
+            generation?: string;
         };
         ResearchCell: {
             value: string | null;
@@ -1455,6 +1858,103 @@ export interface components {
             name: string;
             symbols: string[];
             sic: string;
+        };
+        AnalystSlice: {
+            id: string;
+            concept: string;
+            label: string;
+            axis: string;
+            fixed: {
+                axis: string;
+                member: string | null;
+                typedValue: string | null;
+            }[];
+            unit: string;
+            mode: string;
+        };
+        Pivot: {
+            periods: components["schemas"]["ResearchPeriod"][];
+            members: {
+                name: string;
+                cells: components["schemas"]["ResearchCell"][];
+            }[];
+        };
+        PeerResult: {
+            symbol: string;
+            rows: components["schemas"]["ResearchRow"][];
+            misaligned: boolean;
+        };
+        Drivers: {
+            growth: string;
+            margin: string;
+            tax: string;
+            da: string;
+            capex: string;
+            wc: string;
+        };
+        Scenario: {
+            years: components["schemas"]["Drivers"][];
+            openingWC: string;
+            wacc: string;
+            terminalGrowth: string;
+        };
+        ModelInput: {
+            revenue: string;
+            scenarios: {
+                [key: string]: components["schemas"]["Scenario"];
+            };
+        };
+        Forecast: {
+            years: {
+                [key: string]: string | null;
+            }[];
+            pv: string | null;
+            terminalPV: string | null;
+            ev: string | null;
+            grid: (string | null)[][];
+            issue: string;
+        };
+        Evaluation: {
+            version: string;
+            forecasts: {
+                [key: string]: components["schemas"]["Forecast"];
+            };
+        };
+        WorkspaceInput: {
+            name: string;
+            /** @enum {string} */
+            kind: "explore" | "compare" | "model";
+            symbol: string;
+            payload: components["schemas"]["SavedExplore"] | components["schemas"]["SavedComparison"] | components["schemas"]["SavedModel"];
+        };
+        WorkspaceItem: {
+            name: string;
+            /** @enum {string} */
+            kind: "explore" | "compare" | "model";
+            symbol: string;
+            payload?: components["schemas"]["SavedExplore"] | components["schemas"]["SavedComparison"] | components["schemas"]["SavedModel"];
+            id: string;
+            revision: number;
+        };
+        SavedExplore: {
+            q: string;
+            id: string;
+            concept: string;
+            through: string;
+            /** @enum {string} */
+            display: "value" | "growth" | "share";
+            members: string[];
+        };
+        SavedComparison: {
+            peers: string[];
+            trend: boolean;
+        };
+        SavedModel: {
+            baseline: components["schemas"]["ResearchRow"];
+            scenarios: {
+                [key: string]: components["schemas"]["Scenario"];
+            };
+            result: components["schemas"]["Evaluation"];
         };
     };
     responses: never;

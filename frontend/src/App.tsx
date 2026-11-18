@@ -1,15 +1,17 @@
 import { useEffect, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { api, ApiError } from './api';
+import {Explore,Compare} from './Analyst';
+import Model from './Model';
 import SECPanel, { ScrapeButton } from './SECPanel';
 import Research, { type ResearchTable } from './Research';
 import { secAPI, type SECCompany, type SECJob } from './sec-api';
 import type { components } from './api.generated';
 
-type View = 'overview' | 'statements' | 'sec';
+type View = 'overview' | 'statements' | 'sec' | 'explore' | 'compare' | 'model';
 function pathView(): View | null {
   const view = new URLSearchParams(location.search).get('view');
-  return view === 'overview' || view === 'statements' || view === 'sec' ? view : null;
+  return view === 'overview' || view === 'statements' || view === 'sec' || view === 'explore' || view === 'compare' || view === 'model' ? view : null;
 }
 function pathJob() { return new URLSearchParams(location.search).get('job') || ''; }
 function pathSymbol() {
@@ -56,7 +58,7 @@ export default function App() {
   const metrics = useQuery({
     queryKey: ['research-metrics', symbol],
     queryFn: ({ signal }) => api<ResearchTable>(`/companies/${encodeURIComponent(symbol)}/metrics?limit=200`, signal),
-    enabled: !!issuer && requestedView !== 'sec',
+    enabled: !!issuer && !['sec','explore','compare'].includes(requestedView || ''),
     retry: false,
   });
   const hasMappedData = metrics.data?.rows.some(row => Object.values(row.values).some(cell => cell.value !== null));
@@ -117,14 +119,17 @@ export default function App() {
         {!issuer && !jobId && company.isFetching && <Notice text="Loading company…" />}
         {!issuer && !jobId && company.isError && !missing && <Notice text={company.error.message} retry={() => void company.refetch()} />}
         {issuer && (requestedView || !metrics.isPending) && <div className="toolbar"><div className="tabs" role="tablist" aria-label="Company views">
-          {(['overview', 'statements', 'sec'] as const).map(tab => <button role="tab" key={tab} aria-selected={view === tab} onClick={() => navigate(symbol, tab, jobId)}>
-            {{ overview: 'Overview', statements: 'Statements', sec: 'Filings' }[tab]}
+          {(['overview', 'statements', 'explore','compare','model','sec'] as const).map(tab => <button role="tab" key={tab} aria-selected={view === tab} onClick={() => navigate(symbol, tab, jobId)}>
+            {{ overview: 'Overview', statements: 'Statements', sec: 'Filings', explore:'Explore',compare:'Compare',model:'Model' }[tab]}
           </button>)}
         </div></div>}
         {issuer && !requestedView && metrics.isPending && <Notice text="Checking financial statement coverage…" />}
         {(missing || !!jobId || (!!issuer && view === 'sec' && (!!requestedView || !metrics.isPending))) &&
           <div hidden={!!issuer && view !== 'sec'}><SECPanel key={symbol} symbol={symbol} company={issuer} companyError={company.error} jobId={jobId} onJob={showJob} canDiscover={companies.isSuccess} theme={theme} /></div>}
-        {issuer && view !== 'sec' && <>
+        {issuer && view==='explore' && <Explore key={symbol} symbol={symbol} theme={theme}/>}
+        {issuer && view==='compare' && <Compare key={symbol} symbol={symbol} theme={theme}/>}
+        {issuer && view==='model' && <Model key={symbol} symbol={symbol} metrics={metrics.data} error={metrics.error?.message}/>}
+        {issuer && (view==='overview'||view==='statements') && <>
           <Research key={symbol} symbol={symbol} view={view} theme={theme} metrics={metrics} />
           {view === 'overview' && (related.isError ? <Notice text={related.error.message} retry={() => void related.refetch()} /> :
             !!related.data?.length && <section className="panel"><h2>Related SEC issuers</h2><p>Imported companies with the same SEC SIC code.</p>

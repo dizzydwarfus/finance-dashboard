@@ -11,7 +11,7 @@ abstract class ServiceContainer extends DurableObject<Env> {
     if (this.backend && !this.env.SEC_READ_MONGODB_URI) throw new Error('Database secret missing');
     this.lifecycle ??= new Lifecycle(container, {
       internet: this.backend,
-      env: this.backend ? { SEC_READ_MONGODB_URI: this.env.SEC_READ_MONGODB_URI } : {},
+      env: this.backend ? { SEC_READ_MONGODB_URI: this.env.SEC_READ_MONGODB_URI, ...(this.env.SEC_WORKSPACE_MONGODB_URI ? {SEC_WORKSPACE_MONGODB_URI:this.env.SEC_WORKSPACE_MONGODB_URI} : {}) } : {},
       readinessPath: this.backend ? '/readyz' : '/healthz',
     });
     await this.lifecycle.ready();

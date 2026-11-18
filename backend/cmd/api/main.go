@@ -41,7 +41,17 @@ func main() {
 		logger.Error("invalid MongoDB configuration")
 		os.Exit(1)
 	}
-	server := http.Server{Addr: cfg.Address, Handler: (&httpapi.Server{Service: &service.Service{Repo: repo}, Log: logger, Timeout: cfg.QueryTimeout}).Handler(), ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 10 * time.Second, WriteTimeout: 15 * time.Second, IdleTimeout: 60 * time.Second}
+	api := &httpapi.Server{Service: &service.Service{Repo: repo}, Log: logger, Timeout: cfg.QueryTimeout, LocalWorkspace: cfg.LocalWorkspace}
+	if cfg.WorkspaceURI != "" {
+		ws, err := repository.Open(cfg.WorkspaceURI)
+		if err == nil {
+			api.Workspaces = ws.DB.Collection(repository.WorkspaceCollection)
+			defer ws.Client.Disconnect(context.Background())
+		} else {
+			logger.Warn("Private workspace configuration unavailable")
+		}
+	}
+	server := http.Server{Addr: cfg.Address, Handler: api.Handler(), ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 10 * time.Second, WriteTimeout: 15 * time.Second, IdleTimeout: 60 * time.Second}
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 	go func() {

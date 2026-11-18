@@ -5,11 +5,14 @@ import (
 	"encoding/csv"
 	"encoding/json"
 	"errors"
+	"go.mongodb.org/mongo-driver/v2/mongo"
 	"log/slog"
 	"net/http"
+	"net/url"
 	"regexp"
 	"strconv"
 	"strings"
+	"sync/atomic"
 	"time"
 	"unicode"
 
@@ -19,9 +22,12 @@ import (
 )
 
 type Server struct {
-	Service *service.Service
-	Log     *slog.Logger
-	Timeout time.Duration
+	workspaceVerified atomic.Bool
+	Workspaces        *mongo.Collection
+	LocalWorkspace    bool
+	Service           *service.Service
+	Log               *slog.Logger
+	Timeout           time.Duration
 }
 
 type response struct {
@@ -71,6 +77,13 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("GET /api/v1/companies/{symbol}/metrics", s.metrics)
 	mux.HandleFunc("GET /api/v1/companies/{symbol}/related", s.related)
 	mux.HandleFunc("GET /api/v1/companies/{symbol}/segments", s.segment)
+	mux.HandleFunc("GET /api/v1/companies/{symbol}/dimensions", s.dimensions)
+	mux.HandleFunc("GET /api/v1/companies/{symbol}/pivot", s.pivot)
+	mux.HandleFunc("GET /api/v1/compare", s.compare)
+	mux.HandleFunc("POST /api/v1/model/evaluate", s.evaluate)
+	for _, route := range []string{"GET /api/v1/workspaces", "POST /api/v1/workspaces", "GET /api/v1/workspaces/{id}", "PUT /api/v1/workspaces/{id}", "DELETE /api/v1/workspaces/{id}"} {
+		mux.HandleFunc(route, s.workspace)
+	}
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) { problem(w, 404, "not_found", "Endpoint not found") })
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		start := time.Now()
@@ -91,6 +104,19 @@ func (s *Server) Handler() http.Handler {
 			s.Log.Info("request", "method", r.Method, "path", r.URL.Path, "status", recorded.status, "duration_ms", time.Since(start).Milliseconds())
 		}()
 		if r.Method != http.MethodGet && r.Method != http.MethodHead {
+			pattern := r.URL.Path
+			workspace := pattern == "/api/v1/workspaces" || strings.HasPrefix(pattern, "/api/v1/workspaces/")
+			if workspace || pattern == "/api/v1/model/evaluate" {
+				if s.LocalWorkspace {
+					origin, err := url.Parse(r.Header.Get("Origin"))
+					if err != nil || origin.Host != r.Host || (origin.Scheme != "http" && origin.Scheme != "https") || (origin.Hostname() != "localhost" && origin.Hostname() != "127.0.0.1") {
+						problem(recorded, 403, "invalid_origin", "Use the local dashboard")
+						return
+					}
+				}
+				mux.ServeHTTP(recorded, r.WithContext(ctx))
+				return
+			}
 			recorded.Header().Set("Allow", "GET, HEAD")
 			problem(recorded, 405, "method_not_allowed", "This API is read-only")
 			return

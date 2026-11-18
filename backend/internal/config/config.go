@@ -10,8 +10,9 @@ import (
 )
 
 type Config struct {
-	MongoURI, Address string
-	QueryTimeout      time.Duration
+	MongoURI, WorkspaceURI, Address string
+	LocalWorkspace                  bool
+	QueryTimeout                    time.Duration
 }
 
 // Local runs select the repository-root .env.local, falling back to .env.
@@ -27,7 +28,7 @@ func Load() (Config, error) {
 		}
 		return os.Getenv(key)
 	}
-	c := Config{MongoURI: get("SEC_READ_MONGODB_URI"), Address: get("LISTEN_ADDR"), QueryTimeout: 8 * time.Second}
+	c := Config{WorkspaceURI: get("SEC_WORKSPACE_MONGODB_URI"), LocalWorkspace: get("LOCAL_WORKSPACE") == "true", MongoURI: get("SEC_READ_MONGODB_URI"), Address: get("LISTEN_ADDR"), QueryTimeout: 8 * time.Second}
 	if c.MongoURI == "" {
 		return c, errors.New("SEC_READ_MONGODB_URI is required")
 	}

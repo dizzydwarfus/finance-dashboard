@@ -4,6 +4,8 @@ A private company-research dashboard: **Go API**, **React + TypeScript**, **Mong
 
 Import a ticker from SEC, follow the saved job, and explore its statements, trends, and original filing facts. Go reads published SEC filings from Atlas and computes financial metrics. The Filings view keeps exact reported values, dimensions, and source links. Download statements, filings, filtered facts, and segment trends as CSV.
 
+Use **Explore** to compare reported dimension members across periods, **Compare** to benchmark up to five imported issuers, and **Model** to evaluate five-year operating scenarios and enterprise value. Saved models preserve the historical inputs and calculated outputs used for that revision. See the [analyst guide](docs/analyst.md).
+
 ## Run locally
 
 Prerequisites: Go 1.26, Node.js 24+, and an accessible MongoDB database. Docker with Compose is needed for container development. The existing `.nvmrc` is preserved.
@@ -80,7 +82,7 @@ Frontend types are generated from the OpenAPI contract; CI rejects stale generat
 
 ## Deploy
 
-Keep `.env.production` for local deployment commands and the existing GitHub `production` environment’s **Secrets**. Both use the same eleven keys listed in the deployment runbook; no GitHub Variables are needed. Run `node scripts/deploy.mjs` to deploy locally and `node scripts/smoke.mjs` to verify.
+Keep `.env.production` for local deployment commands and the existing GitHub `production` environment’s **Secrets**. Both use the same twelve keys listed in the deployment runbook; no GitHub Variables are needed. Run `node scripts/deploy.mjs` to deploy locally and `node scripts/smoke.mjs` to verify.
 
 Follow the [deployment runbook](docs/deployment.md) to configure Access, a read-only Atlas user, secrets, and hostnames. Workers Paid is required. The production gateway manages the dashboard containers and uses a private service binding to the separate ingestion Worker/Durable Object. The gateway denies requests if Access configuration is missing; `workers.dev` and preview URLs are disabled.
 

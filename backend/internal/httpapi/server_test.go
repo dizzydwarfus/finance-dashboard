@@ -2,6 +2,7 @@ package httpapi
 
 import (
 	"context"
+	"encoding/json"
 	"io"
 	"log/slog"
 	"net/http"
@@ -34,15 +35,18 @@ func (*fakeRepo) Related(context.Context, domain.Issuer) ([]domain.Issuer, error
 func (*fakeRepo) Filings(context.Context, string) ([]domain.Filing, error) {
 	return []domain.Filing{{Accession: accession, Generation: "g1", Form: "10-K", ReportDate: "2026-09-26", Filed: "2026-11-03", SourceURL: "https://www.sec.gov/Archives/edgar/filing.html"}}, nil
 }
+func (f *fakeRepo) FilingWindow(ctx context.Context, cik, _ string, _ bool, _ int) ([]domain.Filing, error) {
+	return f.Filings(ctx, cik)
+}
 func (*fakeRepo) Facts(_ context.Context, _ []domain.Filing, filter bson.M) ([]domain.Fact, error) {
 	value := "123"
 	ctx := "ctx"
-	if filter["_id"] != nil || filter["dimensions.0"] != nil {
+	if filter["_id"] != nil || filter["dimensions.0"] != nil || filter["concept"] == "{http://fasb.org/us-gaap/2026}Revenues" {
 		ctx = "seg"
 	}
 	return []domain.Fact{{Accession: accession, Generation: "g1", Concept: "{http://fasb.org/us-gaap/2026}Revenues", Label: "=not a formula", Value: &value, ContextRef: ctx, UnitRef: "usd", RawValue: "-123"}}, nil
 }
-func (*fakeRepo) Contexts(context.Context, []domain.Filing) ([]domain.Context, error) {
+func (*fakeRepo) Contexts(context.Context, []domain.Filing, []domain.Fact) ([]domain.Context, error) {
 	main := domain.Context{Accession: accession, Generation: "g1", ContextRef: "ctx", Entity: "0000000001", StartDate: "2025-09-28", EndDate: "2026-09-26"}
 	seg := main
 	seg.ContextRef = "seg"
@@ -88,5 +92,43 @@ func TestStatementAndSegmentCSV(t *testing.T) {
 		if strings.HasPrefix(suffix, "segments") && !strings.Contains(body, "'=not a formula") {
 			t.Fatalf("unescaped formula: %s", body)
 		}
+	}
+}
+
+func TestWorkspaceModelSnapshots(t *testing.T) {
+	row, err := (&service.Service{Repo: &fakeRepo{}}).Metrics(context.Background(), "DEMO", "annual", 5)
+	if err != nil || len(row.Rows) == 0 {
+		t.Fatal(err)
+	}
+	scenarios := map[string]service.Scenario{}
+	for _, name := range []string{"bear", "base", "bull"} {
+		s := service.Scenario{OpeningWC: "0", WACC: "10", TerminalGrowth: "0"}
+		for range 5 {
+			s.Years = append(s.Years, service.Drivers{Growth: "0", Margin: "10", Tax: "0", DA: "0", Capex: "0", WC: "0"})
+		}
+		scenarios[name] = s
+	}
+	payload, err := json.Marshal(map[string]any{"baseline": row.Rows[0], "scenarios": scenarios, "result": map[string]any{"version": service.ModelVersion}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	item := savedItem{Kind: "model", Payload: payload}
+	if err = validateAnalysis(&item); err != nil {
+		t.Fatal(err)
+	}
+	var result struct {
+		Baseline domain.Row
+		Result   struct {
+			Forecasts map[string]service.Forecast
+			Version   string
+		}
+	}
+	if err = json.Unmarshal(item.Payload, &result); err != nil {
+		t.Fatal(err)
+	}
+	f := result.Result.Forecasts["base"]
+	c := result.Baseline.Values["revenue"]
+	if *f.EV != "123.0000" || *c.Value != "123" || c.Sources[0].Generation != "g1" || result.Result.Version != service.ModelVersion {
+		t.Fatal(result)
 	}
 }
