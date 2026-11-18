@@ -2,6 +2,7 @@ package httpapi
 
 import (
 	"context"
+	"encoding/csv"
 	"encoding/json"
 	"errors"
 	"log/slog"
@@ -10,6 +11,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"unicode"
 
 	"finance-dashboard/backend/internal/domain"
 	"finance-dashboard/backend/internal/repository"
@@ -21,6 +23,7 @@ type Server struct {
 	Log     *slog.Logger
 	Timeout time.Duration
 }
+
 type response struct {
 	Data any `json:"data"`
 }
@@ -28,7 +31,6 @@ type apiError struct {
 	Code    string `json:"code"`
 	Message string `json:"message"`
 }
-
 type statusWriter struct {
 	http.ResponseWriter
 	status int
@@ -48,7 +50,10 @@ func (w *statusWriter) Write(data []byte) (int, error) {
 	return w.ResponseWriter.Write(data)
 }
 
-var symbolPattern = regexp.MustCompile(`^[A-Z0-9][A-Z0-9.^-]{0,19}$`)
+var symbolPattern = regexp.MustCompile(`^[A-Z0-9][A-Z0-9.-]{0,19}$`)
+var csvNumber = regexp.MustCompile(`^-?[0-9]+(?:\.[0-9]+)?$`)
+var factIDPattern = regexp.MustCompile(`^[0-9a-f]{64}$`)
+var accessionPattern = regexp.MustCompile(`^[0-9]{10}-[0-9]{2}-[0-9]{6}$`)
 
 func (s *Server) Handler() http.Handler {
 	mux := http.NewServeMux()
@@ -56,44 +61,41 @@ func (s *Server) Handler() http.Handler {
 		write(w, 200, response{Data: map[string]string{"status": "ok"}})
 	})
 	mux.HandleFunc("GET /readyz", func(w http.ResponseWriter, r *http.Request) {
-		if err := s.Service.Repo.Ping(r.Context()); err != nil {
-			s.fail(w, r, err)
+		if err := s.Service.Repo.Ready(r.Context()); err != nil {
+			s.fail(w, err)
 			return
 		}
 		write(w, 200, response{Data: map[string]string{"status": "ready"}})
 	})
-	mux.HandleFunc("GET /api/v1/tickers", s.tickers)
-	mux.HandleFunc("GET /api/v1/companies/{symbol}", s.company)
 	mux.HandleFunc("GET /api/v1/companies/{symbol}/statements/{type}", s.statements)
 	mux.HandleFunc("GET /api/v1/companies/{symbol}/metrics", s.metrics)
-	mux.HandleFunc("GET /api/v1/companies/{symbol}/prices", s.prices)
-	mux.HandleFunc("GET /api/v1/companies/{symbol}/splits", s.splits)
+	mux.HandleFunc("GET /api/v1/companies/{symbol}/related", s.related)
+	mux.HandleFunc("GET /api/v1/companies/{symbol}/segments", s.segment)
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) { problem(w, 404, "not_found", "Endpoint not found") })
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		start := time.Now()
 		recorded := &statusWriter{ResponseWriter: w}
-		w = recorded
 		timeout := s.Timeout
 		if timeout == 0 {
 			timeout = 8 * time.Second
 		}
 		ctx, cancel := context.WithTimeout(r.Context(), timeout)
 		defer cancel()
-		w.Header().Set("Cache-Control", "no-store")
-		w.Header().Set("X-Content-Type-Options", "nosniff")
+		recorded.Header().Set("Cache-Control", "no-store")
+		recorded.Header().Set("X-Content-Type-Options", "nosniff")
 		defer func() {
 			if recover() != nil {
 				s.Log.Error("request panic")
-				problem(w, 500, "internal_error", "Unexpected server error")
+				problem(recorded, 500, "internal_error", "Unexpected server error")
 			}
 			s.Log.Info("request", "method", r.Method, "path", r.URL.Path, "status", recorded.status, "duration_ms", time.Since(start).Milliseconds())
 		}()
 		if r.Method != http.MethodGet && r.Method != http.MethodHead {
-			w.Header().Set("Allow", "GET, HEAD")
-			problem(w, http.StatusMethodNotAllowed, "method_not_allowed", "This API is read-only")
+			recorded.Header().Set("Allow", "GET, HEAD")
+			problem(recorded, 405, "method_not_allowed", "This API is read-only")
 			return
 		}
-		mux.ServeHTTP(w, r.WithContext(ctx))
+		mux.ServeHTTP(recorded, r.WithContext(ctx))
 	})
 }
 func write(w http.ResponseWriter, status int, v any) {
@@ -104,93 +106,61 @@ func write(w http.ResponseWriter, status int, v any) {
 func problem(w http.ResponseWriter, status int, code, message string) {
 	write(w, status, map[string]any{"error": apiError{Code: code, Message: message}})
 }
-func (s *Server) fail(w http.ResponseWriter, r *http.Request, err error) {
-	if errors.Is(err, service.ErrNotFound) {
-		problem(w, 404, "company_not_found", "Company not found")
-		return
+func (s *Server) fail(w http.ResponseWriter, err error) {
+	switch {
+	case errors.Is(err, repository.ErrNotFound):
+		problem(w, 404, "company_not_found", "No imported filings exist for this ticker")
+	case errors.Is(err, service.ErrSegmentNotFound):
+		problem(w, 404, "segment_not_found", "This fact has no comparable segment series")
+	case errors.Is(err, repository.ErrTooManyRecords):
+		problem(w, 422, "dataset_too_large", "The dataset exceeds the supported analysis size")
+	case errors.Is(err, repository.ErrReaderRole):
+		problem(w, 503, "reader_role_not_scoped", "The financial service requires read access on SECIngestion only")
+	default:
+		s.Log.Error("database request failed", "timeout", errors.Is(err, context.DeadlineExceeded))
+		problem(w, 503, "database_unavailable", "Data is temporarily unavailable. Please retry.")
 	}
-	if errors.Is(err, repository.ErrTooManyRecords) {
-		problem(w, 422, "dataset_too_large", "Company dataset exceeds the supported read bound")
-		return
-	}
-	// Never emit driver errors: they may contain credentials or private host names.
-	s.Log.Error("database request failed", "timeout", errors.Is(err, context.DeadlineExceeded))
-	problem(w, 503, "database_unavailable", "Data is temporarily unavailable; please retry")
 }
 func symbol(w http.ResponseWriter, r *http.Request) (string, bool) {
-	v := strings.ToUpper(r.PathValue("symbol"))
-	if !symbolPattern.MatchString(v) {
+	value := strings.ToUpper(r.PathValue("symbol"))
+	if !symbolPattern.MatchString(value) {
 		problem(w, 400, "invalid_symbol", "Invalid ticker symbol")
 		return "", false
 	}
-	return v, true
+	return value, true
 }
-func limit(w http.ResponseWriter, r *http.Request, defaultValue, max int) (int, bool) {
-	v := r.URL.Query().Get("limit")
-	if v == "" {
-		return defaultValue, true
+func filters(w http.ResponseWriter, r *http.Request) (string, int, bool) {
+	mode := strings.ToLower(r.URL.Query().Get("period"))
+	if mode == "" {
+		mode = "all"
 	}
-	n, err := strconv.Atoi(v)
-	if err != nil || n < 1 || n > max {
-		problem(w, 400, "invalid_limit", "Limit is outside the supported range")
-		return 0, false
-	}
-	return n, true
-}
-func period(w http.ResponseWriter, r *http.Request) (string, bool) {
-	v := strings.ToUpper(r.URL.Query().Get("period"))
-	switch v {
-	case "", "FY", "Q1", "Q2", "Q3", "Q4":
-		return v, true
+	switch mode {
+	case "all", "annual", "quarter", "ytd":
 	default:
-		problem(w, 400, "invalid_period", "Period must be FY, Q1, Q2, Q3, or Q4")
-		return "", false
+		problem(w, 400, "invalid_period", "Choose annual, quarter, ytd, or all")
+		return "", 0, false
 	}
-}
-func (s *Server) known(w http.ResponseWriter, r *http.Request, symbol string) bool {
-	if err := s.Service.Exists(r.Context(), symbol); err != nil {
-		s.fail(w, r, err)
-		return false
-	}
-	return true
-}
-func (s *Server) tickers(w http.ResponseWriter, r *http.Request) {
-	n, ok := limit(w, r, 100, 2000)
-	if !ok {
-		return
-	}
-	q := strings.ToUpper(strings.TrimSpace(r.URL.Query().Get("q")))
-	if len(q) > 50 {
-		problem(w, 400, "invalid_query", "Search is limited to 50 characters")
-		return
-	}
-	rows, err := s.Service.Repo.Tickers(r.Context())
-	if err != nil {
-		s.fail(w, r, err)
-		return
-	}
-	out := []domain.Ticker{}
-	for _, row := range rows {
-		if strings.Contains(row.Symbol, q) {
-			out = append(out, row)
-			if len(out) == n {
-				break
-			}
+	n := 20
+	if raw := r.URL.Query().Get("limit"); raw != "" {
+		var err error
+		n, err = strconv.Atoi(raw)
+		if err != nil || n < 1 || n > 200 {
+			problem(w, 400, "invalid_limit", "Limit must be between 1 and 200")
+			return "", 0, false
 		}
 	}
-	write(w, 200, response{Data: out})
+	return mode, n, true
 }
-func (s *Server) company(w http.ResponseWriter, r *http.Request) {
-	v, ok := symbol(w, r)
-	if !ok {
-		return
+func exportFormat(w http.ResponseWriter, r *http.Request) (bool, bool) {
+	switch r.URL.Query().Get("format") {
+	case "", "json":
+		return false, true
+	case "csv":
+		return true, true
+	default:
+		problem(w, 400, "invalid_format", "Choose json or csv")
+		return false, false
 	}
-	c, err := s.Service.Company(r.Context(), v)
-	if err != nil {
-		s.fail(w, r, err)
-		return
-	}
-	write(w, 200, response{Data: c})
 }
 func (s *Server) statements(w http.ResponseWriter, r *http.Request) {
 	v, ok := symbol(w, r)
@@ -198,125 +168,131 @@ func (s *Server) statements(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	kind := r.PathValue("type")
-	if _, ok := service.StatementCollections[kind]; !ok {
+	if !service.ValidStatement(kind) {
 		problem(w, 400, "invalid_statement_type", "Type must be income, balance, or cash-flow")
 		return
 	}
-	n, ok := limit(w, r, 10, 200)
+	mode, n, ok := filters(w, r)
 	if !ok {
 		return
 	}
-	p, ok := period(w, r)
+	export, ok := exportFormat(w, r)
 	if !ok {
 		return
 	}
-	rows, err := s.Service.Statements(r.Context(), v, kind)
+	table, err := s.Service.Statements(r.Context(), v, kind, mode, n)
 	if err != nil {
-		s.fail(w, r, err)
+		s.fail(w, err)
 		return
 	}
-	if len(rows) == 0 && !s.known(w, r, v) {
+	if !export {
+		write(w, 200, response{Data: table})
 		return
 	}
-	out := []domain.Statement{}
-	for _, row := range rows {
-		if p == "" || row.Period == p {
-			out = append(out, row)
-			if len(out) == n {
-				break
-			}
+	out := newCSV(w, v+"-"+kind)
+	for _, row := range table.Rows {
+		for _, field := range table.Fields {
+			writeCell(out, field.Label, row.Period, row.Values[field.Key])
 		}
 	}
-	write(w, 200, response{Data: out})
+	out.Flush()
 }
 func (s *Server) metrics(w http.ResponseWriter, r *http.Request) {
 	v, ok := symbol(w, r)
 	if !ok {
 		return
 	}
-	n, ok := limit(w, r, 20, 200)
+	mode, n, ok := filters(w, r)
 	if !ok {
 		return
 	}
-	p, ok := period(w, r)
-	if !ok {
-		return
-	}
-	result, err := s.Service.Metrics(r.Context(), v)
+	table, err := s.Service.Metrics(r.Context(), v, mode, n)
 	if err != nil {
-		s.fail(w, r, err)
+		s.fail(w, err)
 		return
 	}
-	if len(result.Points) == 0 && !s.known(w, r, v) {
-		return
-	}
-	points := []domain.MetricPoint{}
-	for _, row := range result.Points {
-		if p == "" || row.Period == p {
-			points = append(points, row)
-		}
-	}
-	if len(points) > n {
-		points = points[len(points)-n:]
-	}
-	result.Points = points
-	write(w, 200, response{Data: result})
+	write(w, 200, response{Data: table})
 }
-func (s *Server) prices(w http.ResponseWriter, r *http.Request) {
+func (s *Server) related(w http.ResponseWriter, r *http.Request) {
 	v, ok := symbol(w, r)
 	if !ok {
 		return
 	}
-	n, ok := limit(w, r, 365, 5000)
+	issuer, err := s.Service.Repo.Issuer(r.Context(), v)
+	if err != nil {
+		s.fail(w, err)
+		return
+	}
+	rows, err := s.Service.Repo.Related(r.Context(), issuer)
+	if err != nil {
+		s.fail(w, err)
+		return
+	}
+	write(w, 200, response{Data: rows})
+}
+func (s *Server) segment(w http.ResponseWriter, r *http.Request) {
+	v, ok := symbol(w, r)
 	if !ok {
 		return
 	}
-	q := r.URL.Query()
-	from, to := q.Get("from"), q.Get("to")
-	for _, d := range []string{from, to} {
-		if d != "" {
-			if _, err := time.Parse("2006-01-02", d); err != nil {
-				problem(w, 400, "invalid_date", "Dates must use YYYY-MM-DD")
-				return
+	accession := r.URL.Query().Get("accession")
+	factID := r.URL.Query().Get("fact")
+	if !accessionPattern.MatchString(accession) || !factIDPattern.MatchString(factID) {
+		problem(w, 400, "invalid_fact", "Select an accession and a published fact")
+		return
+	}
+	export, ok := exportFormat(w, r)
+	if !ok {
+		return
+	}
+	series, err := s.Service.Segment(r.Context(), v, accession, factID)
+	if err != nil {
+		s.fail(w, err)
+		return
+	}
+	if !export {
+		write(w, 200, response{Data: series})
+		return
+	}
+	dimensions, _ := json.Marshal(series.Dimensions)
+	out := newCSV(w, v+"-segment")
+	for _, point := range series.Points {
+		writeCell(out, series.Label+" "+string(dimensions), point.Period, point.Cell)
+	}
+	out.Flush()
+}
+
+func newCSV(w http.ResponseWriter, name string) *csv.Writer {
+	w.Header().Set("Content-Type", "text/csv; charset=utf-8")
+	w.Header().Set("Content-Disposition", `attachment; filename="`+name+`.csv"`)
+	out := csv.NewWriter(w)
+	_ = out.Write([]string{"field", "period", "start", "end", "fiscal_year", "fiscal_period", "value", "unit", "issue", "accession", "source_url", "concept", "reported_value", "raw_value"})
+	return out
+}
+func csvText(value string) string {
+	trimmed := strings.TrimLeftFunc(value, unicode.IsSpace)
+	if strings.HasPrefix(value, "\t") || strings.HasPrefix(value, "\r") || strings.HasPrefix(value, "\n") || (trimmed != "" && strings.ContainsRune("=+-@", rune(trimmed[0]))) {
+		return "'" + value
+	}
+	return value
+}
+func writeCell(out *csv.Writer, label string, p domain.Period, cell domain.Cell) {
+	sources := cell.Sources
+	if len(sources) == 0 {
+		sources = []domain.Source{{}}
+	}
+	for _, source := range sources {
+		record := []string{csvText(label), p.Mode, p.Start, p.End, p.FiscalYear, p.FiscalPeriod, "", csvText(cell.Unit), cell.Issue, csvText(source.Accession), csvText(source.URL), csvText(source.Concept), "", csvText(source.RawValue)}
+		if cell.Value != nil {
+			record[6] = *cell.Value
+		}
+		if source.ReportedValue != nil {
+			if csvNumber.MatchString(*source.ReportedValue) {
+				record[12] = *source.ReportedValue
+			} else {
+				record[12] = csvText(*source.ReportedValue)
 			}
 		}
+		_ = out.Write(record)
 	}
-	if from != "" && to != "" && from > to {
-		problem(w, 400, "invalid_date_range", "From must be on or before to")
-		return
-	}
-	rows, err := s.Service.Prices(r.Context(), v, from, to)
-	if err != nil {
-		s.fail(w, r, err)
-		return
-	}
-	if len(rows) == 0 && !s.known(w, r, v) {
-		return
-	}
-	if len(rows) > n {
-		rows = rows[len(rows)-n:]
-	}
-	write(w, 200, response{Data: rows})
-}
-func (s *Server) splits(w http.ResponseWriter, r *http.Request) {
-	v, ok := symbol(w, r)
-	if !ok {
-		return
-	}
-	n, ok := limit(w, r, 200, 1000)
-	if !ok {
-		return
-	}
-	rows, err := s.Service.Splits(r.Context(), v)
-	if err != nil {
-		s.fail(w, r, err)
-		return
-	}
-	if len(rows) == 0 && !s.known(w, r, v) {
-		return
-	}
-	if len(rows) > n {
-		rows = rows[len(rows)-n:]
-	}
-	write(w, 200, response{Data: rows})
 }

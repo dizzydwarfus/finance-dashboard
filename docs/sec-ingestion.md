@@ -1,6 +1,6 @@
 # SEC ingestion
 
-The dashboard can import US 10-K, 10-Q, and associated amendments explicitly from its SEC view. Python 3.14 runs Arelle in one offline subprocess at a time; FastAPI handles control/read requests and PyMongo stores checkpoints and complete extraction generations. The experimental parser in `legacy/sec_parser` stays reference-only.
+The dashboard can import US 10-K, 10-Q, and associated amendments explicitly from its SEC view. Python 3.14 runs Arelle in one offline subprocess at a time; FastAPI handles control/read requests and PyMongo stores checkpoints and complete extraction generations.
 
 ```mermaid
 flowchart LR
@@ -11,16 +11,16 @@ flowchart LR
     DO --> Python[Python container / one parser]
     Python --> SEC[SEC / taxonomy sources]
     Python --> Mongo[(Atlas SECIngestion)]
-    Go --> Finance[(Atlas FinanceApp / read only)]
+    Go -->|Read only| Mongo
 ```
 
-The ingestion Worker has no routes, preview URL, or `workers.dev` endpoint. Only the authenticated gateway calls its service binding. Browser mutations require same-origin JSON, a bounded body, and explicit allowed routes. The financial API remains read-only. SEC facts do not feed legacy statements, prices, metrics, or DCF.
+The ingestion Worker has no routes, preview URL, or `workers.dev` endpoint. Only the authenticated gateway calls its service binding. Browser mutations require same-origin JSON, a bounded body, and explicit allowed routes. The Go API uses a separate read-only credential and derives statements and metrics from published facts, contexts, and units.
 
 ## MongoDB setup
 
 1. In Atlas **Database → Browse Collections → Create Database**, create `SECIngestion` with collection `schema`.
 2. In **Database Access → Add New Database User → Password**, create `sec-ingestion-app` with a generated password. Choose a specific privilege: **readWrite on SECIngestion only**. Do not select read/write on all databases. This is a database user, not an Atlas API key.
-3. Copy the driver's MongoDB connection URI, replace its username/password with this user's percent-encoded credentials, and keep the existing Atlas network rules. Keep the Go dashboard's original read-only credential separate.
+3. Copy the driver's MongoDB connection URI, replace its username/password with this user's percent-encoded credentials, and keep the existing Atlas network rules. Create a second user with built-in `read` on `SECIngestion` for Go. Set `SEC_READ_MONGODB_URI` in the local and GitHub production configurations.
 4. Add these pairs to ignored `.env.production` and the GitHub **production Environment Secrets**, with the exact same names. Do not put dotenv quotes around the GitHub values.
 
 ```dotenv
@@ -95,11 +95,11 @@ The Python container runs on demand as `standard-1`; dashboard containers remain
 
 Before accepting the first import:
 
-1. Bootstrap and validate all twelve production keys without printing values. Deploy manually after checks pass.
-2. Through Access, verify legacy dashboard reads and SEC company-list reads. Confirm unauthenticated SEC mutations fail and ingestion has no public URL.
+1. Bootstrap and validate all eleven production keys without printing values. Deploy manually after checks pass.
+2. Through Access, verify SEC company-list, statement, and export reads. Confirm unauthenticated SEC mutations fail and ingestion has no public URL.
 3. Choose a known US issuer, choose a short advanced range containing **one filing**, and click scrape. This verifies Cloudflare-to-SEC egress and scoped Atlas writes. A `403` is a rollout blocker: follow the policy runbook rather than trying to bypass it.
 4. Reload the job link; verify completed facts, dimensions, labels, and original source links. Repeat a fresh request and confirm the same job ID. Then explicitly refresh and check unchanged generations do not add duplicate facts.
-5. Import a small date range; check cancellation, partial success, cold-start/restart recovery, and existing financial views. Live Cloudflare checks are required before calling rollout validated.
+5. Import a small date range; check cancellation, partial success, cold-start/restart recovery, and financial views. Live Cloudflare checks are required before calling rollout validated.
 
 Rollback the dashboard independently with `node scripts/deploy.mjs --rollback <dashboard-version-id>`. Roll back ingestion with `node scripts/deploy.mjs --rollback-sec <ingestion-version-id>`; this takes the same idle-only maintenance lock and preserves MongoDB data. Use the final version of a release after its secrets were installed. An incompatible version must start a fresh refresh rather than resume old jobs. Preserve old Cloudflare images for rollback.
 

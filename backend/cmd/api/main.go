@@ -36,7 +36,7 @@ func main() {
 		logger.Error(err.Error())
 		os.Exit(1)
 	}
-	repo, err := repository.Open(cfg.MongoURI, cfg.Database)
+	repo, err := repository.Open(cfg.MongoURI)
 	if err != nil {
 		logger.Error("invalid MongoDB configuration")
 		os.Exit(1)

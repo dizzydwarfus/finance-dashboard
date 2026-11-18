@@ -4,7 +4,7 @@ function container() {
   const c = { running: false, monitor: vi.fn(() => new Promise<void>(() => {})), images: { base: 'image-v1' }, start: vi.fn(() => { c.running = true; }), destroy: vi.fn(async () => { c.running = false; }), inspect: vi.fn(async () => ({ image: 'old-image', labels: { config: 'old-config' } })), setInactivityTimeout: vi.fn(async () => { if (!c.running) throw new Error('The container has not been started'); }), getTcpPort: vi.fn(() => ({ fetch: vi.fn(async () => new Response('ok')) })) };
   return c;
 }
-const config = { internet: true, env: { MONGODB_URI: 'secret' }, readinessPath: '/readyz' };
+const config = { internet: true, env: { SEC_READ_MONGODB_URI: 'secret' }, readinessPath: '/readyz' };
 describe('container lifecycle', () => {
   it('starts once for concurrent requests, reuses warm instances, and restarts after sleep', async () => {
     const c = container(); const lifecycle = new Lifecycle(c as unknown as Container, config);

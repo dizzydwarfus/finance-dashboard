@@ -54,3 +54,7 @@ The user's first import downloaded both AAPL filings but failed because the loca
 Temporary diagnostic copies of the exact failed filings now parse successfully: `0000320193-26-000026` yields 1,068 numeric facts and `0000320193-26-000020` yields 762. Existing temporary taxonomy copies were reused to limit downloads. These diagnostics did not retry the import, publish facts, or change the failed job's status.
 
 All 42 offline ingestion tests pass, including new custom-role/arcrole dependency fixtures and missing-dependency diagnostics. Parser failures now carry bounded error codes and controlled messages, without raw Arelle logs, filesystem paths, source contents, or exception messages. The OpenAPI contract and generated types describe these diagnostic codes. The user retains control of the live import retry.
+
+## SEC-only cutover verification
+
+The SEC analysis build uses the existing published filing generations. A disposable MongoDB fixture confirms separation of annual, standalone quarterly and year-to-date values, exact decimal calculations, amendment precedence, source attribution, scoped read-only access, and exclusion of unpublished generations. Its representative annual and quarterly values are documented in the [financial mapping notes](data-compatibility.md). Local browser tests cover navigation, coverage-based default tabs, CSV filters, and the saved import flow. The cutover leaves the two earlier databases untouched.

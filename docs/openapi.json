@@ -3,187 +3,19 @@
   "info": {
     "title": "Finance Dashboard API",
     "version": "1.0.0",
-    "description": "Private read-only API. Dates are UTC. Values are display-oriented IEEE-754 numbers, null when unavailable. Prices are stored unadjusted snapshots. No live provider requests. Growth is (current-previous)/abs(previous), comparing matching periods and currencies in consecutive fiscal years."
+    "description": "Private SEC research API. Financial views use published EDGAR filing generations. Reported and derived values are decimal strings with source provenance."
   },
   "paths": {
-    "/api/v1/tickers": {
-      "get": {
-        "operationId": "listTickers",
-        "parameters": [
-          {
-            "name": "q",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": "string",
-              "maxLength": 50
-            }
-          },
-          {
-            "name": "limit",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": "integer",
-              "minimum": 1,
-              "maximum": 2000,
-              "default": 100
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Success; empty collections return an empty array",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ListTickersResponse"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Invalid request",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Authentication required at gateway",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "Unknown company or endpoint",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Dataset exceeds supported read bound",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "503": {
-            "description": "Database or container temporarily unavailable",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/v1/companies/{symbol}": {
-      "get": {
-        "operationId": "getCompany",
-        "parameters": [
-          {
-            "name": "symbol",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "pattern": "^[A-Za-z0-9][A-Za-z0-9.^-]{0,19}$"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Success; empty collections return an empty array",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/GetCompanyResponse"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Invalid request",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Authentication required at gateway",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "Unknown company or endpoint",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Dataset exceeds supported read bound",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "503": {
-            "description": "Database or container temporarily unavailable",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
     "/api/v1/companies/{symbol}/statements/{type}": {
       "get": {
-        "operationId": "getStatements",
+        "summary": "Statements from published SEC filings",
         "parameters": [
           {
             "name": "symbol",
             "in": "path",
             "required": true,
             "schema": {
-              "type": "string",
-              "pattern": "^[A-Za-z0-9][A-Za-z0-9.^-]{0,19}$"
+              "type": "string"
             }
           },
           {
@@ -206,12 +38,12 @@
             "schema": {
               "type": "string",
               "enum": [
-                "FY",
-                "Q1",
-                "Q2",
-                "Q3",
-                "Q4"
-              ]
+                "all",
+                "annual",
+                "quarter",
+                "ytd"
+              ],
+              "default": "all"
             }
           },
           {
@@ -222,67 +54,44 @@
               "type": "integer",
               "minimum": 1,
               "maximum": 200,
-              "default": 10
+              "default": 20
+            }
+          },
+          {
+            "name": "format",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "json",
+                "csv"
+              ],
+              "default": "json"
             }
           }
         ],
         "responses": {
           "200": {
-            "description": "Success; empty collections return an empty array",
+            "description": "Result",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/GetStatementsResponse"
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/ResearchTable"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
                 }
-              }
-            }
-          },
-          "400": {
-            "description": "Invalid request",
-            "content": {
-              "application/json": {
+              },
+              "text/csv": {
                 "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Authentication required at gateway",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "Unknown company or endpoint",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Dataset exceeds supported read bound",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "503": {
-            "description": "Database or container temporarily unavailable",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
+                  "type": "string"
                 }
               }
             }
@@ -292,15 +101,14 @@
     },
     "/api/v1/companies/{symbol}/metrics": {
       "get": {
-        "operationId": "getMetrics",
+        "summary": "SEC financial metrics and comparable year-over-year growth",
         "parameters": [
           {
             "name": "symbol",
             "in": "path",
             "required": true,
             "schema": {
-              "type": "string",
-              "pattern": "^[A-Za-z0-9][A-Za-z0-9.^-]{0,19}$"
+              "type": "string"
             }
           },
           {
@@ -310,12 +118,12 @@
             "schema": {
               "type": "string",
               "enum": [
-                "FY",
-                "Q1",
-                "Q2",
-                "Q3",
-                "Q4"
-              ]
+                "all",
+                "annual",
+                "quarter",
+                "ytd"
+              ],
+              "default": "all"
             }
           },
           {
@@ -332,257 +140,20 @@
         ],
         "responses": {
           "200": {
-            "description": "Success; empty collections return an empty array",
+            "description": "Result",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/GetMetricsResponse"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Invalid request",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Authentication required at gateway",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "Unknown company or endpoint",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Dataset exceeds supported read bound",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "503": {
-            "description": "Database or container temporarily unavailable",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/v1/companies/{symbol}/prices": {
-      "get": {
-        "operationId": "getPrices",
-        "parameters": [
-          {
-            "name": "symbol",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "pattern": "^[A-Za-z0-9][A-Za-z0-9.^-]{0,19}$"
-            }
-          },
-          {
-            "name": "from",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": "string",
-              "format": "date"
-            }
-          },
-          {
-            "name": "to",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": "string",
-              "format": "date"
-            }
-          },
-          {
-            "name": "limit",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": "integer",
-              "minimum": 1,
-              "maximum": 5000,
-              "default": 365
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Success; empty collections return an empty array",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/GetPricesResponse"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Invalid request",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Authentication required at gateway",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "Unknown company or endpoint",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Dataset exceeds supported read bound",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "503": {
-            "description": "Database or container temporarily unavailable",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/v1/companies/{symbol}/splits": {
-      "get": {
-        "operationId": "getSplits",
-        "parameters": [
-          {
-            "name": "symbol",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "pattern": "^[A-Za-z0-9][A-Za-z0-9.^-]{0,19}$"
-            }
-          },
-          {
-            "name": "limit",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": "integer",
-              "minimum": 1,
-              "maximum": 1000,
-              "default": 200
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Success; empty collections return an empty array",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/GetSplitsResponse"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Invalid request",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Authentication required at gateway",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "Unknown company or endpoint",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Dataset exceeds supported read bound",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "503": {
-            "description": "Database or container temporarily unavailable",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/ResearchTable"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
                 }
               }
             }
@@ -879,6 +450,19 @@
               "type": "integer",
               "minimum": 0
             }
+          },
+          {
+            "name": "format",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "json",
+                "csv"
+              ],
+              "default": "json"
+            }
           }
         ],
         "responses": {
@@ -888,6 +472,11 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/SECFilingPage"
+                }
+              },
+              "text/csv": {
+                "schema": {
+                  "type": "string"
                 }
               }
             }
@@ -970,6 +559,19 @@
               "minimum": 0,
               "default": 0
             }
+          },
+          {
+            "name": "format",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "json",
+                "csv"
+              ],
+              "default": "json"
+            }
           }
         ],
         "responses": {
@@ -979,6 +581,11 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/SECFactPage"
+                }
+              },
+              "text/csv": {
+                "schema": {
+                  "type": "string"
                 }
               }
             }
@@ -1405,278 +1012,119 @@
           }
         }
       }
+    },
+    "/api/v1/companies/{symbol}/related": {
+      "get": {
+        "summary": "Imported issuers with the same SEC SIC code",
+        "parameters": [
+          {
+            "name": "symbol",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Result",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/RelatedIssuer"
+                      }
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/companies/{symbol}/segments": {
+      "get": {
+        "summary": "Comparable observations for a selected published dimensional fact",
+        "parameters": [
+          {
+            "name": "symbol",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "accession",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "fact",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "format",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "json",
+                "csv"
+              ],
+              "default": "json"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Result",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/SegmentSeries"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "text/csv": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
     "schemas": {
-      "Ticker": {
-        "type": "object",
-        "required": [
-          "symbol",
-          "coverage"
-        ],
-        "properties": {
-          "symbol": {
-            "type": "string"
-          },
-          "coverage": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
-          }
-        },
-        "additionalProperties": false
-      },
-      "Company": {
-        "type": "object",
-        "required": [
-          "symbol",
-          "name",
-          "description",
-          "sector",
-          "industry",
-          "country",
-          "exchange",
-          "website",
-          "currency",
-          "ceo",
-          "price",
-          "marketCap",
-          "employees",
-          "asOf"
-        ],
-        "properties": {
-          "symbol": {
-            "type": "string"
-          },
-          "name": {
-            "type": "string"
-          },
-          "description": {
-            "type": "string"
-          },
-          "sector": {
-            "type": "string"
-          },
-          "industry": {
-            "type": "string"
-          },
-          "country": {
-            "type": "string"
-          },
-          "exchange": {
-            "type": "string"
-          },
-          "website": {
-            "type": "string"
-          },
-          "currency": {
-            "type": "string"
-          },
-          "ceo": {
-            "type": "string"
-          },
-          "price": {
-            "type": "number",
-            "nullable": true
-          },
-          "marketCap": {
-            "type": "number",
-            "nullable": true
-          },
-          "employees": {
-            "type": "number",
-            "nullable": true
-          },
-          "asOf": {
-            "type": "string",
-            "nullable": true
-          }
-        },
-        "additionalProperties": false
-      },
-      "Statement": {
-        "type": "object",
-        "required": [
-          "date",
-          "year",
-          "period",
-          "currency",
-          "values"
-        ],
-        "properties": {
-          "date": {
-            "type": "string",
-            "format": "date"
-          },
-          "year": {
-            "type": "string"
-          },
-          "period": {
-            "type": "string"
-          },
-          "currency": {
-            "type": "string"
-          },
-          "values": {
-            "type": "object",
-            "additionalProperties": {
-              "type": "number",
-              "nullable": true
-            }
-          }
-        },
-        "additionalProperties": false
-      },
-      "Metric": {
-        "type": "object",
-        "required": [
-          "key",
-          "label",
-          "format"
-        ],
-        "properties": {
-          "key": {
-            "type": "string"
-          },
-          "label": {
-            "type": "string"
-          },
-          "format": {
-            "type": "string",
-            "enum": [
-              "currency",
-              "percent",
-              "number"
-            ]
-          }
-        },
-        "additionalProperties": false
-      },
-      "MetricPoint": {
-        "type": "object",
-        "required": [
-          "date",
-          "year",
-          "period",
-          "currency",
-          "values",
-          "growth"
-        ],
-        "properties": {
-          "date": {
-            "type": "string"
-          },
-          "year": {
-            "type": "string"
-          },
-          "period": {
-            "type": "string"
-          },
-          "currency": {
-            "type": "string"
-          },
-          "values": {
-            "type": "object",
-            "additionalProperties": {
-              "type": "number",
-              "nullable": true
-            }
-          },
-          "growth": {
-            "type": "object",
-            "additionalProperties": {
-              "type": "number",
-              "nullable": true
-            }
-          }
-        },
-        "additionalProperties": false
-      },
-      "Metrics": {
-        "type": "object",
-        "required": [
-          "definitions",
-          "points"
-        ],
-        "properties": {
-          "definitions": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/Metric"
-            }
-          },
-          "points": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/MetricPoint"
-            }
-          }
-        },
-        "additionalProperties": false
-      },
-      "Price": {
-        "type": "object",
-        "required": [
-          "date",
-          "open",
-          "high",
-          "low",
-          "close",
-          "volume"
-        ],
-        "properties": {
-          "date": {
-            "type": "string",
-            "format": "date"
-          },
-          "open": {
-            "type": "number",
-            "nullable": true
-          },
-          "high": {
-            "type": "number",
-            "nullable": true
-          },
-          "low": {
-            "type": "number",
-            "nullable": true
-          },
-          "close": {
-            "type": "number",
-            "nullable": true
-          },
-          "volume": {
-            "type": "number",
-            "nullable": true
-          }
-        },
-        "additionalProperties": false
-      },
-      "Split": {
-        "type": "object",
-        "required": [
-          "date",
-          "numerator",
-          "denominator"
-        ],
-        "properties": {
-          "date": {
-            "type": "string",
-            "format": "date"
-          },
-          "numerator": {
-            "type": "number",
-            "nullable": true
-          },
-          "denominator": {
-            "type": "number",
-            "nullable": true
-          }
-        },
-        "additionalProperties": false
-      },
       "Error": {
         "type": "object",
         "required": [
@@ -1710,90 +1158,6 @@
         "properties": {
           "status": {
             "type": "string"
-          }
-        },
-        "additionalProperties": false
-      },
-      "ListTickersResponse": {
-        "type": "object",
-        "required": [
-          "data"
-        ],
-        "properties": {
-          "data": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/Ticker"
-            }
-          }
-        },
-        "additionalProperties": false
-      },
-      "GetCompanyResponse": {
-        "type": "object",
-        "required": [
-          "data"
-        ],
-        "properties": {
-          "data": {
-            "$ref": "#/components/schemas/Company"
-          }
-        },
-        "additionalProperties": false
-      },
-      "GetStatementsResponse": {
-        "type": "object",
-        "required": [
-          "data"
-        ],
-        "properties": {
-          "data": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/Statement"
-            }
-          }
-        },
-        "additionalProperties": false
-      },
-      "GetMetricsResponse": {
-        "type": "object",
-        "required": [
-          "data"
-        ],
-        "properties": {
-          "data": {
-            "$ref": "#/components/schemas/Metrics"
-          }
-        },
-        "additionalProperties": false
-      },
-      "GetPricesResponse": {
-        "type": "object",
-        "required": [
-          "data"
-        ],
-        "properties": {
-          "data": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/Price"
-            }
-          }
-        },
-        "additionalProperties": false
-      },
-      "GetSplitsResponse": {
-        "type": "object",
-        "required": [
-          "data"
-        ],
-        "properties": {
-          "data": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/Split"
-            }
           }
         },
         "additionalProperties": false
@@ -1945,6 +1309,14 @@
           },
           "sourceAvailability": {
             "type": "string"
+          },
+          "fiscalYear": {
+            "type": "string",
+            "nullable": true
+          },
+          "fiscalPeriod": {
+            "type": "string",
+            "nullable": true
           }
         },
         "required": [
@@ -2045,6 +1417,9 @@
           },
           "sourcePath": {
             "type": "string"
+          },
+          "ordinal": {
+            "type": "integer"
           }
         },
         "required": [
@@ -2400,6 +1775,272 @@
           "data"
         ],
         "additionalProperties": true
+      },
+      "ResearchSource": {
+        "type": "object",
+        "properties": {
+          "accession": {
+            "type": "string"
+          },
+          "url": {
+            "type": "string"
+          },
+          "form": {
+            "type": "string"
+          },
+          "filed": {
+            "type": "string"
+          },
+          "concept": {
+            "type": "string"
+          },
+          "ordinal": {
+            "type": "integer"
+          },
+          "reportedValue": {
+            "type": "string",
+            "nullable": true
+          },
+          "rawValue": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "accession",
+          "url",
+          "form",
+          "filed",
+          "concept",
+          "ordinal",
+          "reportedValue",
+          "rawValue"
+        ],
+        "additionalProperties": false
+      },
+      "ResearchCell": {
+        "type": "object",
+        "properties": {
+          "value": {
+            "type": "string",
+            "nullable": true
+          },
+          "unit": {
+            "type": "string"
+          },
+          "issue": {
+            "type": "string"
+          },
+          "sources": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ResearchSource"
+            }
+          }
+        },
+        "required": [
+          "value",
+          "unit",
+          "sources"
+        ],
+        "additionalProperties": false
+      },
+      "ResearchPeriod": {
+        "type": "object",
+        "properties": {
+          "mode": {
+            "type": "string",
+            "enum": [
+              "annual",
+              "quarter",
+              "ytd",
+              "instant"
+            ]
+          },
+          "start": {
+            "type": "string"
+          },
+          "end": {
+            "type": "string"
+          },
+          "fiscalYear": {
+            "type": "string"
+          },
+          "fiscalPeriod": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "mode",
+          "start",
+          "end"
+        ],
+        "additionalProperties": false
+      },
+      "ResearchField": {
+        "type": "object",
+        "properties": {
+          "key": {
+            "type": "string"
+          },
+          "label": {
+            "type": "string"
+          },
+          "format": {
+            "type": "string",
+            "enum": [
+              "money",
+              "eps",
+              "ratio"
+            ]
+          }
+        },
+        "required": [
+          "key",
+          "label",
+          "format"
+        ],
+        "additionalProperties": false
+      },
+      "ResearchRow": {
+        "type": "object",
+        "properties": {
+          "period": {
+            "$ref": "#/components/schemas/ResearchPeriod"
+          },
+          "values": {
+            "type": "object",
+            "additionalProperties": {
+              "$ref": "#/components/schemas/ResearchCell"
+            }
+          },
+          "growth": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "number",
+              "nullable": true
+            }
+          }
+        },
+        "required": [
+          "period",
+          "values"
+        ],
+        "additionalProperties": false
+      },
+      "ResearchTable": {
+        "type": "object",
+        "properties": {
+          "fields": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ResearchField"
+            }
+          },
+          "rows": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ResearchRow"
+            }
+          }
+        },
+        "required": [
+          "fields",
+          "rows"
+        ],
+        "additionalProperties": false
+      },
+      "SegmentSeries": {
+        "type": "object",
+        "properties": {
+          "concept": {
+            "type": "string"
+          },
+          "label": {
+            "type": "string"
+          },
+          "dimensions": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "axis": {
+                  "type": "string"
+                },
+                "member": {
+                  "type": "string",
+                  "nullable": true
+                },
+                "typedValue": {
+                  "type": "string",
+                  "nullable": true
+                }
+              },
+              "required": [
+                "axis",
+                "member",
+                "typedValue"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "unit": {
+            "type": "string"
+          },
+          "points": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "period": {
+                  "$ref": "#/components/schemas/ResearchPeriod"
+                },
+                "cell": {
+                  "$ref": "#/components/schemas/ResearchCell"
+                }
+              },
+              "required": [
+                "period",
+                "cell"
+              ],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": [
+          "concept",
+          "label",
+          "dimensions",
+          "unit",
+          "points"
+        ],
+        "additionalProperties": false
+      },
+      "RelatedIssuer": {
+        "type": "object",
+        "properties": {
+          "cik": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "symbols": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "sic": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "cik",
+          "name",
+          "symbols",
+          "sic"
+        ],
+        "additionalProperties": false
       }
     },
     "securitySchemes": {

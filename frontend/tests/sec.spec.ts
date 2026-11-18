@@ -46,7 +46,7 @@ async function setup(page: Page, options: { complete?: boolean; failed?: boolean
 test('unknown ticker imports from the app and opens SEC facts without legacy API queries', async ({ page }) => {
   const state = await setup(page);
   await page.goto('/');
-  await page.getByRole('textbox', { name: 'Search tickers' }).fill('NEW');
+  await page.getByRole('textbox', { name: 'Search companies' }).fill('NEW');
   const start = page.getByRole('button', { name: 'Scrape NEW from SEC' });
   await expect(start).toBeVisible(); await start.click();
   await expect(page).toHaveURL(new RegExp(`/companies/NEW\\?view=sec&job=${id}`));
@@ -56,7 +56,7 @@ test('unknown ticker imports from the app and opens SEC facts without legacy API
   await expect(page.getByRole('cell', { name: '123,456,789,012,345,678.00', exact: true })).toBeVisible();
   await expect(page.getByText('ProductAxis: HardwareMember')).toBeVisible();
   expect(state.submitted).toBe(1); expect(state.legacyReads).toBe(0);
-  await expect(page.getByRole('tab', { name: 'Statements', exact: true })).toHaveCount(0);
+  await expect(page.getByRole('tab', { name: 'Filings', exact: true })).toHaveAttribute('aria-selected','true');
   await page.screenshot({path:'test-results/sec-filings.png',fullPage:true});
   await page.getByLabel('SEC concept filter').fill('Revenue');
   await page.getByRole('button', { name: 'Next', exact: true }).click();
@@ -79,8 +79,8 @@ test('blocked imports explain the problem and expose an explicit retry', async (
 });
 test('database errors do not offer a missing-company scrape action', async ({ page }) => {
   await setup(page, { listError: true }); await page.goto('/');
-  await page.getByRole('textbox', { name: 'Search tickers' }).fill('NEW');
-  await expect(page.getByText('SEC company search unavailable.')).toBeVisible();
+  await page.getByRole('textbox', { name: 'Search companies' }).fill('NEW');
+  await expect(page.getByText('SEC database unavailable',{exact:true})).toBeVisible();
   await expect(page.getByRole('button', { name: 'Scrape NEW from SEC' })).toHaveCount(0);
 });
 test('existing issuer refresh is explicit and supports company-facts snapshots', async ({ page }) => {
@@ -165,4 +165,22 @@ test('completion replaces a delayed initial missing-company response', async ({p
     await expect(page.getByRole('heading',{name:'New SEC Company NEW'})).toBeVisible();
     await expect(page.getByRole('table',{name:'SEC numeric facts and segment dimensions'})).toBeVisible();
   }finally{release();}
+});
+
+test('filtered exports and selected segment use the current filing', async ({ page }) => {
+  await setup(page, { complete: true });
+  await page.route('**/api/v1/companies/NEW/segments?*', route => route.fulfill({ json: { data: {
+    concept: '{http://www.apple.com/20260627}Revenue', label: 'Segment revenue',
+    dimensions: [{ axis: 'ProductAxis', member: 'HardwareMember', typedValue: null }], unit: 'USD',
+    points: [{ period: { mode: 'quarter', start: '2026-03-29', end: '2026-06-27' },
+      cell: { value: '18', unit: 'USD', sources: [{ accession: filing.accession, form: filing.form, url: filing.sourceUrl }] } }],
+  } } }));
+  await page.goto('/companies/NEW?view=sec');
+  await page.getByLabel('SEC concept filter').fill('Revenue');
+  await page.getByLabel('SEC dimension filter').fill('Hardware');
+  await expect(page.getByRole('link', { name: 'Download filtered facts CSV' })).toHaveAttribute('href', /format=csv&concept=Revenue&dimension=Hardware$/);
+  await expect(page.getByRole('link', { name: 'Download filing list CSV' })).toBeVisible();
+  await page.getByRole('button', { name: 'Trend', exact: true }).click();
+  await expect(page.getByRole('img', { name: 'Segment trend' })).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Download segment CSV' })).toHaveAttribute('href', /accession=0000000001-25-000001&fact=fact-0&format=csv$/);
 });

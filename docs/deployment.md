@@ -4,7 +4,7 @@ The dashboard has one deployment: [dizzydwarfus.com](https://dizzydwarfus.com). 
 
 ## Configuration
 
-Keep the existing repository-root `.env.production` for local deployment commands and the GitHub environment named `production` for Actions. Both use these same twelve keys. Store each parsed key/value pair as an individual GitHub **Environment Secret**, without dotenv quotes. No GitHub Variables are needed.
+Keep the existing repository-root `.env.production` for local deployment commands and the GitHub environment named `production` for Actions. Both use these same eleven keys. Store each parsed key/value pair as an individual GitHub **Environment Secret**, without dotenv quotes. No GitHub Variables are needed.
 
 | Key | Value |
 | --- | --- |
@@ -13,8 +13,7 @@ Keep the existing repository-root `.env.production` for local deployment command
 | `CLOUDFLARE_HOSTNAME` | `dizzydwarfus.com`, without scheme or path |
 | `ACCESS_TEAM_DOMAIN` | Access team domain, e.g. `yourteam.cloudflareaccess.com` |
 | `ACCESS_AUD` | Audience tag for the Access application covering all production paths |
-| `MONGODB_URI` | Read-only Atlas URI; single-quote it in the env file |
-| `MONGODB_DATABASE` | `FinanceApp` |
+| `SEC_READ_MONGODB_URI` | Separate Atlas user with the built-in `read` role on `SECIngestion` only; single-quote the URI in the env file |
 | `CF_ACCESS_CLIENT_ID` | Access service-token client ID authorized for smoke tests |
 | `CF_ACCESS_CLIENT_SECRET` | Matching Access service-token secret |
 | `SEC_MONGODB_URI` | Separate Atlas writer restricted to `readWrite` on `SECIngestion` only |
@@ -23,7 +22,7 @@ Keep the existing repository-root `.env.production` for local deployment command
 
 Local deployment commands load only `.env.production`; it overrides stale shell settings. Missing keys fail validation. In CI (`CI=true`), env files are ignored and injected GitHub Secrets are used. Values are literal, without `${VARIABLE}` interpolation; percent-encode MongoDB URI credentials where required. Credential files stay ignored by Git and excluded from images. Existing staging files and cloud resources are no longer used by the application workflows; removing them is separate account cleanup.
 
-Workers Paid, Containers, a managed domain, an Access application allowing your identity and the smoke-test service token, and Atlas network access are required. Keep the Atlas application user restricted to read access. Rotate any live credentials formerly committed in legacy configuration; deleting files does not remove Git history.
+Workers Paid, Containers, a managed domain, an Access application allowing your identity and the smoke-test service token, and Atlas network access are required. In Atlas Database Access, add a password-based user with the built-in `read` role on `SECIngestion` only. Copy the connection URI with this user’s percent-encoded credentials to both production configurations. Keep the separate ingestion writer and existing network controls. Rotate any live credentials formerly committed in legacy configuration; deleting files does not remove Git history.
 
 ## Deploy
 
@@ -42,7 +41,7 @@ node scripts/smoke.mjs
 
 From `infra/`, the equivalent shortcuts are `npm run deploy` and `npm run smoke`. `node scripts/deploy.mjs --dry-run` validates the bundle and builds images without deploying. The internal Wrangler environment stays named `production` to preserve the existing Worker and container identities; command-line environment selection is unnecessary.
 
-The script builds three Linux AMD64 images, deploys the private ingestion Worker followed by the gateway Worker, installs their separate secrets through stdin, and removes its temporary configuration. Logs are redacted. Only Go receives `MONGODB_URI`; only ingestion receives `SEC_MONGODB_URI` and `SEC_USER_AGENT`. Bootstrap the SEC database explicitly before the first release; see [SEC setup](sec-ingestion.md). Nginx runs one worker and writes errors through its existing stderr descriptor. The gateway records requests.
+The script builds three Linux AMD64 images, deploys the private ingestion Worker followed by the gateway Worker, installs their separate secrets through stdin, and removes its temporary configuration. Logs are redacted. Only Go receives `SEC_READ_MONGODB_URI`; only ingestion receives `SEC_MONGODB_URI` and `SEC_USER_AGENT`. Bootstrap the SEC database explicitly before the first release; see [SEC setup](sec-ingestion.md). Nginx runs one worker and writes errors through its existing stderr descriptor. The gateway records requests.
 
 Dashboard containers start on demand as `lite`; ingestion uses one `standard-1` instance and sleep after ten minutes of inactivity. Readiness polling is bounded to 25 seconds; startup failures return retryable 503 responses. The lifecycle code replaces containers when their deployed image or runtime configuration changes. Container state is disposable; MongoDB holds the data.
 
@@ -69,7 +68,7 @@ Ingestion rolls back independently using `node scripts/deploy.mjs --rollback-sec
 
 ## Local development and troubleshooting
 
-Local Go/Vite development uses `.env.local`, falling back to `.env`; it needs only `MONGODB_URI`, with `MONGODB_DATABASE` defaulting to `FinanceApp`. Optional `LISTEN_ADDR` defaults to `127.0.0.1:8080`; `API_PROXY_TARGET` defaults to `http://127.0.0.1:8080`. These are not required cloud Secrets. Use `docker compose --env-file .env.local up --build`, or `docker compose --profile fixtures up --build` for disposable fixtures. Inside Compose, a fixture URI uses hostname `mongo`.
+Local Go/Vite development uses `.env.local`, falling back to `.env`; Go requires `SEC_READ_MONGODB_URI`. Optional `LISTEN_ADDR` defaults to `127.0.0.1:8080`; `API_PROXY_TARGET` defaults to `http://127.0.0.1:8080`. These are not required cloud Secrets. Use `docker compose --env-file .env.local up --build`, or `docker compose --profile fixtures up --build` for disposable fixtures. Inside Compose, a fixture URI uses hostname `mongo`.
 
 - 401: check the Access team domain, audience, and identity/service-token policy.
 - 503: inspect container logs, readiness, Atlas network rules, TLS/SRV DNS, and read permissions. `/healthz` checks the process; `/readyz` checks MongoDB. Both require Access in production.
@@ -77,3 +76,5 @@ Local Go/Vite development uses `.env.local`, falling back to `.env`; it needs on
 - Token source-location rejection: update the token's permitted deployment context; the scripts do not change its restrictions.
 - Local Podman disk exhaustion: prune unused untagged images with `podman image prune -f` and build with `podman-compose --parallel 1`; VM disk space is separate from available macOS disk space. See [local SEC setup](sec-ingestion.md).
 - Local Podman: set `WRANGLER_DOCKER_BIN` to the absolute path of `scripts/podman-docker.mjs` and keep its VM running. CI uses Docker.
+
+For rollback to a pre-cutover version, keep the old `FinanceApp` credential and the final dashboard version that already has it. Preserve its container image in Cloudflare until the rollback window closes. The SEC analysis release uses the same published generations as the preceding ingestion release.

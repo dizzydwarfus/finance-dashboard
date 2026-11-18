@@ -8,10 +8,10 @@ abstract class ServiceContainer extends DurableObject<Env> {
   async fetch(request: Request): Promise<Response> {
     const container = this.ctx.container;
     if (!container) throw new Error('Container binding missing');
-    if (this.backend && !this.env.MONGODB_URI) throw new Error('Database secret missing');
+    if (this.backend && !this.env.SEC_READ_MONGODB_URI) throw new Error('Database secret missing');
     this.lifecycle ??= new Lifecycle(container, {
       internet: this.backend,
-      env: this.backend ? { MONGODB_URI: this.env.MONGODB_URI, MONGODB_DATABASE: this.env.MONGODB_DATABASE || 'FinanceApp' } : {},
+      env: this.backend ? { SEC_READ_MONGODB_URI: this.env.SEC_READ_MONGODB_URI } : {},
       readinessPath: this.backend ? '/readyz' : '/healthz',
     });
     await this.lifecycle.ready();

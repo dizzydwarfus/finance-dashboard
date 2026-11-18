@@ -2,16 +2,16 @@
 
 A private company-research dashboard: **Go API**, **React + TypeScript**, **MongoDB Atlas**, a separate **Python/Arelle SEC ingestion service**, and three **Cloudflare Containers** behind a Cloudflare Access gateway.
 
-Browse stored company profiles, financial statements, metrics, year-over-year growth, candlestick prices, volume, and stock splits. The Go financial API remains read-only. Explicitly import a missing ticker from SEC, follow the saved job, and explore filing facts and segment dimensions in the SEC view. Prices and profiles are stored snapshots. DCF and mapping SEC facts into legacy financial tables are deferred.
+Import a ticker from SEC, follow the saved job, and explore its statements, trends, and original filing facts. Go reads published SEC filings from Atlas and computes financial metrics. The Filings view keeps exact reported values, dimensions, and source links. Download statements, filings, filtered facts, and segment trends as CSV.
 
 ## Run locally
 
 Prerequisites: Go 1.26, Node.js 24+, and an accessible MongoDB database. Docker with Compose is needed for container development. The existing `.nvmrc` is preserved.
 
-Create `.env.local` in the repository root with `MONGODB_URI` set to your read-only MongoDB URI. The Go API automatically reads `.env.local` (or `.env` if no `.env.local` exists), including when launched from `backend/`. Vite reads the same file for its optional proxy setting. Existing credential files are never overwritten.
+Create `.env.local` in the repository root with `SEC_READ_MONGODB_URI` set to your read-only MongoDB URI. The Go API automatically reads `.env.local` (or `.env` if no `.env.local` exists), including when launched from `backend/`. Vite reads the same file for its optional proxy setting. Existing credential files are never overwritten.
 
 ```sh
-# Create or edit .env.local with MONGODB_URI before starting the API.
+# Create or edit .env.local with SEC_READ_MONGODB_URI before starting the API.
 cd backend
 go run ./cmd/api
 ```
@@ -33,22 +33,21 @@ docker compose --profile fixtures up -d --build
 docker compose exec -T ingestion python -m sec_ingestion bootstrap
 ```
 
-Open [the containerized dashboard](http://127.0.0.1:3000/companies/DEMO). This creates a disposable local database with `DEMO` and `EMPTY`, plus a read-only application user. Keep `MONGODB_URI` unset to use the Compose default. To run the containers with your local Atlas configuration:
+Open [the containerized dashboard](http://127.0.0.1:3000/companies/DEMO). This creates a disposable local database with `DEMO` and `PEER`, a read-only Go user, and a separate ingestion writer. The fixture combines selected figures from public filings with synthetic edge cases. Keep `SEC_READ_MONGODB_URI` unset to use the Compose default. To run the containers with your local Atlas configuration:
 
 ```sh
 docker compose --env-file .env.local up --build
 ```
 
-For a fixture database with the API running directly on your host, start `docker compose --profile fixtures up mongo` and set `MONGODB_URI` to `mongodb://dashboard:local-fixture-only@127.0.0.1:27017/FinanceApp?authSource=FinanceApp`. For the API inside Compose, use an Atlas URI or change the URI host to `mongo`; `127.0.0.1` inside the API container refers to that container itself.
+For a fixture database with the API running directly on your host, start `docker compose --profile fixtures up mongo` and set `SEC_READ_MONGODB_URI` to `mongodb://sec-reader:local-reader-only@127.0.0.1:27017/SECIngestion?authSource=SECIngestion`. For the API inside Compose, use an Atlas URI or change the URI host to `mongo`; `127.0.0.1` inside the API container refers to that container itself.
 
 ## Structure
 
-- `backend/`: Go HTTP handlers, domain services, read-only MongoDB repository, schema inspector, and fixtures/tests.
+- `backend/`: Go HTTP handlers, domain services, read-only MongoDB repository, and fixtures/tests.
 - `frontend/`: React dashboard, generated API types, ECharts visualizations, and browser tests.
 - `ingestion/`: Python 3.14, offline Arelle parser, shared SEC transport, persistent queue/checkpoints, FastAPI API, and tests.
 - `infra/`: Access validation, routing, container lifecycle, Wrangler configuration, and gateway tests.
 - `docs/`: [API contract](docs/openapi.json), [data compatibility](docs/data-compatibility.md), and [deployment runbook](docs/deployment.md).
-- `legacy/sec_parser/`: experimental parser reference; excluded from all runtime images.
 
 ## Checks
 
@@ -56,10 +55,9 @@ For a fixture database with the API running directly on your host, start `docker
 cd backend
 go test -race ./...
 go vet ./...
-go run ./cmd/inspect
 ```
 
-The inspector requires `MONGODB_URI` and prints only field types and index keys. Optional `MONGODB_SMOKE_URI` enables a read-only Atlas smoke test. `MONGODB_TEST_URI` enables the separate integration test that creates and drops a randomly named test database; use only a disposable MongoDB instance with authentication and user-admin permissions.
+`MONGODB_TEST_URI` enables the real integration test. Use only a disposable authenticated MongoDB instance bound to loopback, with an empty `SECIngestion` database. The test seeds and removes its own data and users.
 
 ```sh
 cd frontend
@@ -82,7 +80,7 @@ Frontend types are generated from the OpenAPI contract; CI rejects stale generat
 
 ## Deploy
 
-Keep `.env.production` for local deployment commands and the existing GitHub `production` environment’s **Secrets**. Both use the same twelve keys listed in the deployment runbook; no GitHub Variables are needed. Run `node scripts/deploy.mjs` to deploy locally and `node scripts/smoke.mjs` to verify.
+Keep `.env.production` for local deployment commands and the existing GitHub `production` environment’s **Secrets**. Both use the same eleven keys listed in the deployment runbook; no GitHub Variables are needed. Run `node scripts/deploy.mjs` to deploy locally and `node scripts/smoke.mjs` to verify.
 
 Follow the [deployment runbook](docs/deployment.md) to configure Access, a read-only Atlas user, secrets, and hostnames. Workers Paid is required. The production gateway manages the dashboard containers and uses a private service binding to the separate ingestion Worker/Durable Object. The gateway denies requests if Access configuration is missing; `workers.dev` and preview URLs are disabled.
 
@@ -90,7 +88,7 @@ GitHub Actions runs checks automatically on pushes to `main` and pull requests. 
 
 ## Migration status
 
-The application has no Streamlit dependency. Python is isolated in the new ingestion container; Go and frontend runtime images remain free of Python. The retained experimental SEC parser is reference material only. Old secret configuration was removed from tracked source; any live credentials previously committed must be rotated in their provider accounts. Deleting files does not remove them from Git history.
+The dashboard now uses published `SECIngestion` data. Keep the old `FinanceApp` credential available for the previous Cloudflare release during the rollback window. The old `SECRawData` database is managed separately. Rotate any live credentials previously committed in Git history.
 
 SEC privacy, fair access, limits, recovery, and reuse rules: [SEC access policy](docs/sec-access-policy.md). The [ingestion runbook](docs/sec-ingestion.md) describes database/user setup and the first live rollout checks.
 

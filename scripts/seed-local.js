@@ -1,11 +1,8 @@
-// Only mounted in the optional local fixture MongoDB service.
-const fixture = EJSON.parse(require('fs').readFileSync('/fixtures/financeapp.json', 'utf8'));
-const finance = db.getSiblingDB('FinanceApp');
-for (const [collection, records] of Object.entries(fixture)) {
-  if (records.length) finance[collection].insertMany(records);
-}
-finance.createUser({ user: 'dashboard', pwd: 'local-fixture-only', roles: [{ role: 'read', db: 'FinanceApp' }] });
-
+// Only mounted by the disposable Compose fixture profile.
+const fixture = EJSON.parse(require('fs').readFileSync('/fixtures/published.json', 'utf8'));
 const sec = db.getSiblingDB('SECIngestion');
-sec.createCollection('schema');
+for (const [collection, records] of Object.entries(fixture)) {
+  if (records.length) sec[collection].insertMany(records);
+}
+sec.createUser({ user: 'sec-reader', pwd: 'local-reader-only', roles: [{ role: 'read', db: 'SECIngestion' }] });
 sec.createUser({ user: 'sec-ingestion', pwd: 'local-sec-only', roles: [{ role: 'readWrite', db: 'SECIngestion' }] });

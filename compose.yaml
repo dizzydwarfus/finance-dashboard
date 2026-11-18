@@ -4,8 +4,7 @@ services:
       context: ./backend
     platform: linux/amd64
     environment:
-      MONGODB_URI: ${MONGODB_URI:-mongodb://dashboard:local-fixture-only@mongo:27017/FinanceApp?authSource=FinanceApp}
-      MONGODB_DATABASE: ${MONGODB_DATABASE:-FinanceApp}
+      SEC_READ_MONGODB_URI: ${SEC_READ_MONGODB_URI:-mongodb://sec-reader:local-reader-only@mongo:27017/SECIngestion?authSource=SECIngestion}
     ports: ["127.0.0.1:8080:8080"]
   ingestion:
     build:
@@ -35,7 +34,7 @@ services:
     ports: ["127.0.0.1:27017:27017"]
     volumes:
       - ./scripts/seed-local.js:/docker-entrypoint-initdb.d/seed.js:ro
-      - ./backend/testdata/financeapp.json:/fixtures/financeapp.json:ro
+      - ./backend/testdata/published.json:/fixtures/published.json:ro
     healthcheck:
       test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping')"]
       interval: 5s

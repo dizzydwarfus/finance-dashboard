@@ -3,6 +3,7 @@ from datetime import timedelta
 from decimal import Decimal, InvalidOperation
 from pathlib import Path
 import json
+import re
 import socket
 import sys
 from arelle.api.Session import Session
@@ -28,6 +29,7 @@ def parse_bundle(bundle, cache_dir):
     socket.socket.connect_ex = no_network
     source_map = {str(Path(source["file"]).resolve()): source["url"] for source in bundle["sources"]}
     output = {"facts": [], "contexts": [], "units": [], "labels": [], "relationships": [], "warnings": []}
+    metadata = {}
     options = RuntimeOptions(entrypointFile=bundle["entrypoint"], cacheDirectory=str(cache_dir),
                              internetConnectivity="offline", disablePersistentConfig=True, keepOpen=True, validate=True, formulaAction="none",
                              plugins=f"inlineXbrlDocumentSet|{Path(__file__).parent / 'vendor' / 'sec_transform'}", logFile="logToBuffer")
@@ -61,6 +63,15 @@ def parse_bundle(bundle, cache_dir):
                 if concept is None:
                     raise ValueError("A fact references an unresolved taxonomy concept")
                 if not concept.isNumeric:
+                    namespace = fact.qname.namespaceURI
+                    tag = fact.qname.localName
+                    context = contexts.get(fact.contextID)
+                    if (context and not context["dimensions"] and not fact.isNil
+                            and re.fullmatch(r"https?://xbrl\.sec\.gov/dei/[^/]+", namespace)
+                            and tag in {"DocumentPeriodEndDate", "DocumentFiscalYearFocus", "DocumentFiscalPeriodFocus"}):
+                        key = (context["entity"].lstrip("0"), context["endDate"] or context["instant"])
+                        value = str(fact.xValue).split("T")[0].split(" ")[0]
+                        metadata.setdefault(key, {}).setdefault(tag, set()).add(value)
                     continue
                 context = contexts.get(fact.contextID)
                 if not context:
@@ -89,6 +100,14 @@ def parse_bundle(bundle, cache_dir):
                 for relationship in model.relationshipSet(arcrole).modelRelationships:
                     output["relationships"].append({"arcrole": arcrole, "role": relationship.linkrole, "fromConcept": qname(relationship.fromModelObject.qname), "toConcept": qname(relationship.toModelObject.qname), "order": str(relationship.order), "weight": str(relationship.weight) if arcrole == XbrlConst.summationItem else None})
             output["warnings"].extend(sorted({str(code) for code in model.errors})[:50])
+    output["reportingMetadata"] = [
+        {"entity": entity, "reportDate": date, "fiscalYear": next(iter(fields["DocumentFiscalYearFocus"])),
+         "fiscalPeriod": next(iter(fields["DocumentFiscalPeriodFocus"]))}
+        for (entity, date), fields in metadata.items()
+        if fields.get("DocumentPeriodEndDate") == {date}
+        and len(fields.get("DocumentFiscalYearFocus", set())) == 1
+        and len(fields.get("DocumentFiscalPeriodFocus", set())) == 1
+    ]
     if not output["facts"]:
         raise ValueError("This filing contains no supported numeric XBRL facts")
     return output

@@ -1,67 +1,113 @@
-// Package domain describes the API independently of MongoDB and HTTP.
+// Package domain describes published EDGAR documents and the read API.
 package domain
 
-type Ticker struct {
-	Symbol   string   `json:"symbol"`
-	Coverage []string `json:"coverage"`
+type Issuer struct {
+	CIK     string   `bson:"_id" json:"cik"`
+	Name    string   `json:"name"`
+	Symbols []string `json:"symbols"`
+	SIC     string   `json:"sic"`
 }
 
-type Company struct {
-	Symbol      string   `json:"symbol"`
-	Name        string   `json:"name"`
-	Description string   `json:"description"`
-	Sector      string   `json:"sector"`
-	Industry    string   `json:"industry"`
-	Country     string   `json:"country"`
-	Exchange    string   `json:"exchange"`
-	Website     string   `json:"website"`
-	Currency    string   `json:"currency"`
-	CEO         string   `json:"ceo"`
-	Price       *float64 `json:"price"`
-	MarketCap   *float64 `json:"marketCap"`
-	Employees   *float64 `json:"employees"`
-	AsOf        *string  `json:"asOf"`
+type Filing struct {
+	Accession    string `bson:"_id"`
+	Generation   string
+	Form         string
+	Filed        string `bson:"filingDate"`
+	ReportDate   string `bson:"reportDate"`
+	SourceURL    string `bson:"sourceUrl"`
+	FiscalYear   string `bson:"fiscalYear"`
+	FiscalPeriod string `bson:"fiscalPeriod"`
 }
 
-type Statement struct {
-	Date     string              `json:"date"`
-	Year     string              `json:"year"`
-	Period   string              `json:"period"`
-	Currency string              `json:"currency"`
-	Values   map[string]*float64 `json:"values"`
+type Dimension struct {
+	Axis       string  `json:"axis"`
+	Member     *string `json:"member"`
+	TypedValue *string `bson:"typedValue" json:"typedValue"`
 }
 
-type Metric struct {
+type Fact struct {
+	Accession  string
+	Generation string
+	Ordinal    int64
+	Concept    string
+	Label      string
+	Value      *string
+	RawValue   string `bson:"rawValue"`
+	Nil        bool
+	ContextRef string `bson:"contextRef"`
+	UnitRef    string `bson:"unitRef"`
+}
+
+type Context struct {
+	Accession    string
+	Generation   string
+	ContextRef   string `bson:"contextRef"`
+	Entity       string
+	EntityScheme string `bson:"entityScheme"`
+	StartDate    string `bson:"startDate"`
+	EndDate      string `bson:"endDate"`
+	Instant      string
+	Dimensions   []Dimension
+}
+
+type Unit struct {
+	Accession   string
+	Generation  string
+	UnitRef     string `bson:"unitRef"`
+	Numerator   []string
+	Denominator []string
+}
+
+type Source struct {
+	Accession     string  `json:"accession"`
+	URL           string  `json:"url"`
+	Form          string  `json:"form"`
+	Filed         string  `json:"filed"`
+	Concept       string  `json:"concept"`
+	Ordinal       int64   `json:"ordinal"`
+	ReportedValue *string `json:"reportedValue"`
+	RawValue      string  `json:"rawValue"`
+}
+
+type Cell struct {
+	Value   *string  `json:"value"`
+	Unit    string   `json:"unit"`
+	Issue   string   `json:"issue,omitempty"`
+	Sources []Source `json:"sources"`
+}
+
+type Field struct {
 	Key    string `json:"key"`
 	Label  string `json:"label"`
 	Format string `json:"format"`
 }
 
-type MetricPoint struct {
-	Date     string              `json:"date"`
-	Year     string              `json:"year"`
-	Period   string              `json:"period"`
-	Currency string              `json:"currency"`
-	Values   map[string]*float64 `json:"values"`
-	Growth   map[string]*float64 `json:"growth"`
+type Period struct {
+	Mode         string `json:"mode"`
+	Start        string `json:"start"`
+	End          string `json:"end"`
+	FiscalYear   string `json:"fiscalYear,omitempty"`
+	FiscalPeriod string `json:"fiscalPeriod,omitempty"`
 }
 
-type Metrics struct {
-	Definitions []Metric      `json:"definitions"`
-	Points      []MetricPoint `json:"points"`
+type Row struct {
+	Period Period              `json:"period"`
+	Values map[string]Cell     `json:"values"`
+	Growth map[string]*float64 `json:"growth,omitempty"`
 }
 
-type Price struct {
-	Date   string   `json:"date"`
-	Open   *float64 `json:"open"`
-	High   *float64 `json:"high"`
-	Low    *float64 `json:"low"`
-	Close  *float64 `json:"close"`
-	Volume *float64 `json:"volume"`
+type Table struct {
+	Fields []Field `json:"fields"`
+	Rows   []Row   `json:"rows"`
 }
-
-type Split struct {
-	Date        string   `json:"date"`
-	Numerator   *float64 `json:"numerator"`
-	Denominator *float64 `json:"denominator"`
+type SegmentPoint struct {
+	Period Period `json:"period"`
+	Cell   Cell   `json:"cell"`
+}
+type SegmentSeries struct {
+	Concept    string         `json:"concept"`
+	Label      string         `json:"label"`
+	Dimensions []Dimension    `json:"dimensions"`
+	Unit       string         `json:"unit"`
+	Points     []SegmentPoint `json:"points"`
 }

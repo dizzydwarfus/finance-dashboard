@@ -1,10 +1,12 @@
 from contextlib import asynccontextmanager
+from csv import writer
+from io import StringIO
 import logging
 import re
-from typing import Annotated
+from typing import Annotated, Literal
 from fastapi import FastAPI, Query, Header, Request
 from fastapi.exceptions import RequestValidationError
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, Response
 from pymongo.errors import PyMongoError
 from .config import Settings
 from .discovery import Discovery
@@ -12,6 +14,32 @@ from .models import JobRequest, Problem, TERMINAL, ACTIVE
 from .runner import Runner
 from .store import Store, public
 from .transport import SECClient
+
+
+EXPORT_LIMIT = 10000
+DECIMAL = re.compile(r"-?\d+(?:\.\d+)?")
+
+
+def csv_text(value):
+    text = str(value) if value is not None else ""
+    if text.startswith(("\t", "\r", "\n")) or text.lstrip().startswith(("=", "+", "-", "@")):
+        return "'" + text
+    return text
+
+
+def csv_export(filename, header, rows):
+    output = StringIO(newline="")
+    csv = writer(output)
+    csv.writerow(header)
+    csv.writerows(rows)
+    return Response(output.getvalue(), media_type="text/csv",
+                    headers={"Content-Disposition": f'attachment; filename="{filename}.csv"'})
+
+
+def display_unit(unit):
+    numerator = " × ".join(unit["numerator"])
+    denominator = " × ".join(unit["denominator"])
+    return f"{numerator} / {denominator}" if denominator else numerator
 
 
 def create_app(settings=None, store=None, client_factory=SECClient, start_runner=True):
@@ -142,14 +170,21 @@ def create_app(settings=None, store=None, client_factory=SECClient, start_runner
         return {"data": public(row)}
 
     @app.get("/api/v1/sec/companies/{symbol}/filings")
-    def filings(symbol: str, limit: int = Query(default=25, ge=1, le=100), offset: int = Query(default=0, ge=0, le=100000)):
+    def filings(symbol: str, limit: int = Query(default=25, ge=1, le=100), offset: int = Query(default=0, ge=0, le=100000), format: Literal["json", "csv"] = "json"):
         row = issuer_for(symbol)
         db = ready_store().db
         query = {"cik": row["_id"], "generation": {"$exists": True}}
-        rows = list(db.filings.find(query).sort([("filingDate", -1), ("_id", -1)]).skip(offset).limit(limit))
+        cursor = db.filings.find(query).sort([("filingDate", -1), ("_id", -1)])
+        if format == "csv":
+            rows = list(cursor.limit(EXPORT_LIMIT + 1))
+            if len(rows) > EXPORT_LIMIT:
+                raise Problem(422, "export_too_large", "Too many filings for one export")
+            fields = ["accession", "form", "filingDate", "reportDate", "sourceAvailability", "sourceUrl"]
+            return csv_export(symbol.upper() + "-filings", fields, ([csv_text(row.get(field)) for field in fields] for row in rows))
+        rows = list(cursor.skip(offset).limit(limit))
         return {"data": public(rows), "meta": {"total": db.filings.count_documents(query), "offset": offset, "limit": limit}}
 
-    def fact_page(collection, query, concept, dimension, offset, limit):
+    def fact_filter(query, concept, dimension):
         if concept:
             query["$or"] = [{"concept": {"$regex": re.escape(concept), "$options": "i"}}, {"label": {"$regex": re.escape(concept), "$options": "i"}}]
         if dimension == "consolidated":
@@ -157,17 +192,39 @@ def create_app(settings=None, store=None, client_factory=SECClient, start_runner
         elif dimension:
             pattern = {"$regex": re.escape(dimension), "$options": "i"}
             query["dimensions"] = {"$elemMatch": {"$or": [{"axis": pattern}, {"member": pattern}, {"typedValue": pattern}]}}
+        return query
+
+    def fact_page(collection, query, concept, dimension, offset, limit):
+        query = fact_filter(query, concept, dimension)
         rows = list(collection.find(query).sort("ordinal", 1).skip(offset).limit(limit))
         return {"data": public(rows), "meta": {"total": collection.count_documents(query), "offset": offset, "limit": limit}}
 
     @app.get("/api/v1/sec/filings/{accession}/facts")
-    def facts(accession: str, concept: str = Query(default="", max_length=200), dimension: str = Query(default="", max_length=200), offset: int = Query(default=0, ge=0, le=1000000), limit: int = Query(default=100, ge=1, le=500)):
+    def facts(accession: str, concept: str = Query(default="", max_length=200), dimension: str = Query(default="", max_length=200), offset: int = Query(default=0, ge=0, le=1000000), limit: int = Query(default=100, ge=1, le=500), format: Literal["json", "csv"] = "json"):
         db = ready_store().db
         filing = db.filings.find_one({"_id": accession, "generation": {"$exists": True}})
         if not filing:
             raise Problem(404, "filing_not_found", "Imported SEC filing not found")
-        result = fact_page(db.facts, {"accession": accession, "generation": filing["generation"]}, concept, dimension, offset, limit)
-        units = {u["unitRef"]: {"numerator": u["numerator"], "denominator": u["denominator"]} for u in db.units.find({"accession": accession, "generation": filing["generation"]})}
+        query = {"accession": accession, "generation": filing["generation"]}
+        units = {u["unitRef"]: {"numerator": u["numerator"], "denominator": u["denominator"]} for u in db.units.find(query)}
+        if format == "csv":
+            if not re.fullmatch(r"\d{10}-\d{2}-\d{6}", accession):
+                raise Problem(422, "invalid_accession", "Invalid filing accession")
+            rows = list(db.facts.find(fact_filter(dict(query), concept, dimension)).sort("ordinal", 1).limit(EXPORT_LIMIT + 1))
+            if len(rows) > EXPORT_LIMIT:
+                raise Problem(422, "export_too_large", "Narrow the fact filters before exporting")
+            def fields(row):
+                value = str(row.get("value") or "")
+                unit = units.get(row.get("unitRef"))
+                return [csv_text(accession), row["ordinal"], csv_text(row.get("concept")), csv_text(row.get("label")),
+                        value if DECIMAL.fullmatch(value) else "", csv_text(row.get("rawValue")), row.get("nil", False),
+                        csv_text(display_unit(unit) if unit else row.get("unitRef")), csv_text(row.get("startDate")),
+                        csv_text(row.get("endDate")), csv_text(row.get("instant")), csv_text(row.get("dimensions")),
+                        csv_text(row.get("sourceUrl") or filing.get("sourceUrl"))]
+            header = ["accession", "ordinal", "concept", "label", "value", "raw_value", "nil", "unit",
+                      "start_date", "end_date", "instant", "dimensions", "source_url"]
+            return csv_export(accession + "-facts", header, map(fields, rows))
+        result = fact_page(db.facts, query, concept, dimension, offset, limit)
         for row in result["data"]:
             row["unit"] = units.get(row.get("unitRef"))
         return result

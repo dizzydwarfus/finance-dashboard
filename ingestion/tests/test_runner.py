@@ -110,3 +110,44 @@ def test_parser_dependency_failure_is_returned_without_raw_details(store,setting
     assert 'IOerror' in failure.value.details['diagnostics']
     assert str(tmp_path) not in failure.value.message
     assert store.db.facts.count_documents({})==0
+
+
+def test_fiscal_labels_require_matching_filer_and_report_date(store, settings, issuer):
+    import httpx
+
+    class FiscalClient(FilingClient):
+        def get(self, url, **kwargs):
+            if url.endswith("/dei-test.xsd"):
+                schema = """<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
+                    xmlns:xbrli="http://www.xbrl.org/2003/instance"
+                    targetNamespace="https://xbrl.sec.gov/dei/2025" elementFormDefault="qualified">
+                    <xs:import namespace="http://www.xbrl.org/2003/instance"
+                        schemaLocation="http://www.xbrl.org/2003/xbrl-instance-2003-12-31.xsd"/>
+                    <xs:element name="DocumentPeriodEndDate" type="xbrli:dateItemType" substitutionGroup="xbrli:item" xbrli:periodType="duration"/>
+                    <xs:element name="DocumentFiscalYearFocus" type="xbrli:gYearItemType" substitutionGroup="xbrli:item" xbrli:periodType="duration"/>
+                    <xs:element name="DocumentFiscalPeriodFocus" type="xbrli:stringItemType" substitutionGroup="xbrli:item" xbrli:periodType="duration"/>
+                    </xs:schema>"""
+                return httpx.Response(200, text=schema, request=httpx.Request("GET", url))
+            response = super().get(url, **kwargs)
+            if not url.endswith("/filing.xml"):
+                return response
+            contents = response.content.replace(
+                b'<xbrli:xbrl ', b'<xbrli:xbrl xmlns:dei="https://xbrl.sec.gov/dei/2025" ')
+            contents = contents.replace(b'<link:schemaRef',
+                b'<link:schemaRef xlink:type="simple" xlink:href="dei-test.xsd"/><link:schemaRef', 1)
+            contents = contents.replace(b'</xbrli:xbrl>', b'''
+                <dei:DocumentPeriodEndDate contextRef="annual">2025-09-27</dei:DocumentPeriodEndDate>
+                <dei:DocumentFiscalYearFocus contextRef="annual">2025</dei:DocumentFiscalYearFocus>
+                <dei:DocumentFiscalPeriodFocus contextRef="annual">FY</dei:DocumentFiscalPeriodFocus>
+                <dei:DocumentFiscalPeriodFocus contextRef="segment">Q4</dei:DocumentFiscalPeriodFocus>
+                </xbrli:xbrl>''')
+            return httpx.Response(200, content=contents, request=response.request)
+
+    runner, job, filing = ready_job(store, settings, issuer)
+    runner.client_factory = FiscalClient
+    runner.process(job)
+    result = store.get_job(job["_id"])
+    assert result["status"] == "completed", result
+    published = store.db.filings.find_one({"_id": filing["accession"]})
+    assert (published["fiscalYear"], published["fiscalPeriod"]) == ("2025", "FY")
+    assert store.db.facts.count_documents({}) == 6

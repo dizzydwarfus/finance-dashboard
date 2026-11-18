@@ -5,8 +5,7 @@ export interface Env extends AccessConfig {
   CLOUDFLARE_HOSTNAME?: string;
   API: DurableObjectNamespace;
   WEB: DurableObjectNamespace;
-  MONGODB_URI: string;
-  MONGODB_DATABASE: string;
+  SEC_READ_MONGODB_URI: string;
 }
 export function routeTarget(path: string): 'API' | 'WEB' {
   return path === '/api' || path.startsWith('/api/') || path === '/healthz' || path === '/readyz' ? 'API' : 'WEB';

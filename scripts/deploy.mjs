@@ -26,6 +26,8 @@ if (!rollback) {
 }
 if (!rollback && !dryRun) {
   if (env.SEC_MONGODB_DATABASE !== 'SECIngestion') throw new Error('SEC_MONGODB_DATABASE must be SECIngestion');
+  if (!/^mongodb(?:\+srv)?:\/\//.test(env.SEC_READ_MONGODB_URI)) throw new Error('Invalid SEC_READ_MONGODB_URI');
+  if (env.SEC_READ_MONGODB_URI === env.SEC_MONGODB_URI) throw new Error('The SEC reader and writer require separate credentials');
   if (!/^mongodb(?:\+srv)?:\/\//.test(env.SEC_MONGODB_URI)) throw new Error('Invalid SEC_MONGODB_URI');
   if (!/^[^\r\n]{3,160}\s[<(]?[^\s@<>()]+@[^\s@<>()]+\.[A-Za-z]{2,}[>)]?$/.test(env.SEC_USER_AGENT) || /example\.(com|org)|placeholder|apicaller|John Doe/i.test(env.SEC_USER_AGENT)) throw new Error('SEC_USER_AGENT needs your application name and real monitored contact email');
 }
@@ -36,7 +38,7 @@ if (checking) {
 const config = JSON.parse(await readFile(resolve(infra, 'wrangler.jsonc'), 'utf8'));
 config.account_id = env.CLOUDFLARE_ACCOUNT_ID;
 if (!rollback) {
-  Object.assign(config.env.production.vars, { ACCESS_TEAM_DOMAIN: env.ACCESS_TEAM_DOMAIN, ACCESS_AUD: env.ACCESS_AUD, MONGODB_DATABASE: env.MONGODB_DATABASE || 'FinanceApp', CLOUDFLARE_HOSTNAME: env.CLOUDFLARE_HOSTNAME });
+  Object.assign(config.env.production.vars, { ACCESS_TEAM_DOMAIN: env.ACCESS_TEAM_DOMAIN, ACCESS_AUD: env.ACCESS_AUD, CLOUDFLARE_HOSTNAME: env.CLOUDFLARE_HOSTNAME });
   config.env.production.routes = [{ pattern: env.CLOUDFLARE_HOSTNAME, custom_domain: true }];
 }
 const configPath = resolve(infra, `.wrangler.deploy.production.${process.pid}.json`);
@@ -84,7 +86,7 @@ try {
     if (!dryRun) await run(['secret', 'bulk', '--config', secConfigPath, '--env', 'production'], JSON.stringify({ SEC_MONGODB_URI: env.SEC_MONGODB_URI, SEC_USER_AGENT: env.SEC_USER_AGENT }));
     await run(['deploy', '--config', configPath, '--env', 'production', ...(dryRun ? ['--dry-run'] : [])]);
     if (!dryRun) {
-      await run(['secret', 'bulk', '--config', configPath, '--env', 'production'], JSON.stringify({ MONGODB_URI: env.MONGODB_URI }));
+      await run(['secret', 'bulk', '--config', configPath, '--env', 'production'], JSON.stringify({ SEC_READ_MONGODB_URI: env.SEC_READ_MONGODB_URI }));
       console.log('Production deployment completed. Run node scripts/smoke.mjs.');
     }
   }

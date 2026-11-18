@@ -1,53 +1,67 @@
 import { test, expect, type Page } from '@playwright/test';
-const company = { symbol: 'DEMO', name: 'Example Industries', description: 'A synthetic company for browser verification.', sector: 'Industrials', industry: 'Manufacturing', country: 'US', exchange: 'DEMO', website: 'https://example.com', currency: 'USD', ceo: 'Alex Example', price: 12.55, marketCap: 125500000, employees: 1200, asOf: '2025-01-15T12:00:00Z' };
-async function mock(page: Page, missingPrices = false) {
+
+const companies = [
+  { id: '0000000001', cik: '0000000001', symbol: 'DEMO', name: 'Example Industries', imported: true },
+  { id: '0000000002', cik: '0000000002', symbol: 'RAW', name: 'Raw filings only', imported: true },
+];
+const field = { key: 'revenue', label: 'Revenue', format: 'money' };
+const source = { accession: '0000000001-26-000001', url: 'https://www.sec.gov/Archives/example.htm', form: '10-K' };
+const table = { fields: [field], rows: [{ period: { mode: 'annual', start: '2025-09-28', end: '2026-09-26', fiscalYear: '2026', fiscalPeriod: 'FY' },
+  values: { revenue: { value: '125500000', unit: 'USD', sources: [source] } }, growth: { revenue: .255 } }] };
+
+async function mock(page: Page) {
   await page.route('**/api/v1/**', async route => {
-    const url = new URL(route.request().url()); let data: unknown = [];
-    if (url.pathname.endsWith('/tickers')) data = [{ symbol: 'DEMO', coverage: ['income_statement', 'company_profile'] }, { symbol: 'EMPTY', coverage: ['income_statement'] }].filter(t => t.symbol.includes(url.searchParams.get('q')?.toUpperCase() || ''));
-    else if (url.pathname.endsWith('/DEMO')) data = company;
-    else if (url.pathname.endsWith('/EMPTY')) data = { ...company, symbol: 'EMPTY', name: 'EMPTY', price: null, asOf: null };
-    else if (url.pathname.endsWith('/metrics')) data = { definitions: [{ key: 'revenue', label: 'Revenue', format: 'currency' }, { key: 'netIncome', label: 'Net income', format: 'currency' }], points: [{ date: '2024-12-31', year: '2024', period: 'FY', currency: 'USD', values: { revenue: 125500000, netIncome: 15000000 }, growth: { revenue: .255, netIncome: null } }] };
-    else if (url.pathname.includes('/statements/')) data = url.searchParams.get('period') === 'Q1' ? [] : [{ date: '2024-12-31', year: '2024', period: 'FY', currency: 'USD', values: { revenue: 125500000, netIncome: 15000000 } }];
-    else if (url.pathname.endsWith('/prices')) { if (missingPrices) return route.fulfill({ status: 503, contentType: 'application/json', body: JSON.stringify({ error: { message: 'Unavailable' } }) }); data = [{ date: '2024-12-30', open: 12, high: 13, low: 11.5, close: 12.55, volume: 12345 }]; }
-    else if (url.pathname.endsWith('/splits')) data = [{ date: '2024-12-30', numerator: 2, denominator: 1 }];
-    return route.fulfill({ contentType: 'application/json', body: JSON.stringify({ data }) });
+    const { pathname, searchParams } = new URL(route.request().url());
+    let data: unknown = [];
+    if (pathname === '/api/v1/sec/companies') data = companies.filter(c => c.symbol.includes((searchParams.get('q') || '').toUpperCase()));
+    if (pathname === '/api/v1/sec/companies/DEMO') data = companies[0];
+    if (pathname === '/api/v1/sec/companies/RAW') data = companies[1];
+    if (pathname.endsWith('/metrics')) data = pathname.includes('/RAW/') ? { ...table, rows: [] } : table;
+    if (pathname.includes('/statements/')) data = searchParams.get('period') === 'annual' ? table : { ...table, rows: [] };
+    if (pathname.endsWith('/related')) data = [{ cik: '0000000002', name: 'Raw filings only', symbols: ['RAW'] }];
+    return route.fulfill({ json: { data } });
   });
 }
-test('company navigation, deep links, history and search', async ({ page }) => {
-  await mock(page); await page.goto('/companies/DEMO');
-  await expect(page.getByRole('heading', { name: 'Example Industries DEMO', exact: true })).toBeVisible();
-  await expect(page.getByRole('article').filter({ hasText: 'Revenue' }).getByText('$125.5M', { exact: true })).toBeVisible();
-  await page.getByRole('link', { name: /EMPTY/ }).click(); await expect(page).toHaveURL(/companies\/EMPTY/);
-  await page.goBack(); await expect(page.getByRole('heading', { name: 'Example Industries DEMO', exact: true })).toBeVisible();
-  await page.getByRole('textbox', { name: 'Search tickers' }).fill('nomatch'); await expect(page.getByText('No matching companies.')).toBeVisible();
+
+test('company navigation defaults to trends or filings based on coverage', async ({ page }) => {
+  await mock(page);
+  await page.goto('/companies/DEMO');
+  await expect(page.getByRole('heading', { name: 'Example Industries DEMO' })).toBeVisible();
+  await expect(page.getByRole('img', { name: 'Revenue trend' })).toBeVisible();
+  await expect(page.getByRole('tab', { name: 'Overview' })).toHaveAttribute('aria-selected', 'true');
+  await expect(page.getByRole('heading', { name: 'Related SEC issuers' })).toBeVisible();
+  await page.getByRole('navigation', { name: 'Company navigation' }).getByRole('link', { name: /RAW/ }).click();
+  await expect(page).toHaveURL(/companies\/RAW/);
+  await expect(page.getByRole('tab', { name: 'Filings' })).toHaveAttribute('aria-selected', 'true');
+  await page.goBack();
+  await expect(page.getByRole('heading', { name: 'Example Industries DEMO' })).toBeVisible();
+  await page.getByRole('textbox', { name: 'Search companies' }).fill('nomatch');
+  await expect(page.getByText('No imported companies match.')).toBeVisible();
 });
-test('statement selection, reporting filters and empty periods', async ({ page }) => {
-  await mock(page); await page.goto('/companies/DEMO'); await page.getByRole('tab', { name: 'Statements' }).click();
-  await expect(page.getByRole('table')).toBeVisible(); await expect(page.getByRole('cell', { name: '$125,500,000.00' })).toBeVisible();
-  await page.getByLabel('Statement type').selectOption('balance'); await expect(page.getByRole('table')).toBeVisible();
-  await page.getByLabel('Reporting period').selectOption('Q1'); await expect(page.getByText('No statements for this reporting period.')).toBeVisible();
+
+test('statements preserve dates and provenance, and exports respect filters', async ({ page }) => {
+  await mock(page);
+  await page.goto('/companies/DEMO?view=statements');
+  await expect(page.getByRole('table')).toBeVisible();
+  await expect(page.getByText('125,500,000 USD')).toBeVisible();
+  await expect(page.getByRole('columnheader', { name: '2026 FY · 2026-09-26' })).toBeVisible();
+  await expect(page.getByRole('link', { name: '10-K ↗' })).toHaveAttribute('href', source.url);
+  await page.getByLabel('Statement', { exact: true }).selectOption('cash-flow');
+  await page.getByLabel('Reporting period').selectOption('ytd');
+  await expect(page.getByText('No mapped values for this statement and reporting period.')).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Download statement CSV' })).toHaveAttribute('href', /cash-flow\?period=ytd&limit=10&format=csv$/);
+  await expect(page.getByRole('tab', { name: 'Prices' })).toHaveCount(0);
 });
-test('charts, stock splits, price dates and theme persist', async ({ page }) => {
-  await mock(page); await page.goto('/companies/DEMO');
-  await expect(page.getByRole('img', { name: 'Financial metrics and year-over-year growth' })).toBeVisible();
-  await page.getByRole('checkbox', { name: 'Net income' }).uncheck();
-  await page.getByRole('tab', { name: 'Price history' }).click();
-  await expect(page.getByRole('img', { name: /Historical candlestick/ })).toBeVisible();
-  await page.getByText('Stock split history', { exact: false }).click(); await expect(page.getByText('2 : 1', { exact: true })).toBeVisible();
-  await page.getByLabel('Price from date').fill('2025-01-01'); await page.getByLabel('Price to date').fill('2024-01-01');
-  await expect(page.getByText('Choose an end date on or after the start date.')).toBeVisible();
-  await page.getByRole('button', { name: 'Reset' }).click();
-  const themeButton = page.getByRole('button', { name: /Switch to .* theme/ }).filter({ visible: true });
-  await themeButton.click(); const theme = await page.locator('html').getAttribute('data-theme'); await page.reload(); await expect(page.locator('html')).toHaveAttribute('data-theme', theme!);
-});
-test('price failures do not block financial statements', async ({ page }) => {
-  await mock(page, true); await page.goto('/companies/DEMO'); await page.getByRole('tab', { name: 'Price history' }).click();
-  await expect(page.getByText('Price history unavailable. Other financial views are still available.')).toBeVisible();
-  await page.getByRole('tab', { name: 'Statements' }).click(); await expect(page.getByRole('table')).toBeVisible();
-});
-test('mobile layout avoids horizontal overflow', async ({ page }) => {
-  await page.setViewportSize({ width: 390, height: 844 }); await mock(page); await page.goto('/companies/DEMO');
-  await expect(page.getByRole('heading', { name: 'Example Industries DEMO', exact: true })).toBeVisible();
-  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
-  await page.screenshot({ path: 'test-results/dashboard-mobile.png', fullPage: true });
+
+test('financial views fit on mobile and keep the theme on reload', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await mock(page);
+  await page.goto('/companies/DEMO');
+  await expect(page.getByRole('heading', { name: 'Example Industries DEMO' })).toBeVisible();
+  const button = page.locator('.theme-toggle');
+  await button.click();
+  const theme = await page.locator('html').getAttribute('data-theme');
+  await page.reload();
+  await expect(page.locator('html')).toHaveAttribute('data-theme', theme!);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBeTruthy();
 });

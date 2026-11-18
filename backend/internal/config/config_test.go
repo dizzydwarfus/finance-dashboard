@@ -18,31 +18,30 @@ func configRoot(t *testing.T) string {
 	}
 	t.Chdir(filepath.Join(root, "backend"))
 	t.Setenv("CI", "")
-	t.Setenv("MONGODB_URI", "")
-	t.Setenv("MONGODB_DATABASE", "")
+	t.Setenv("SEC_READ_MONGODB_URI", "")
 	t.Setenv("LISTEN_ADDR", "")
 	return root
 }
 func TestLocalDotEnvSelection(t *testing.T) {
 	root := configRoot(t)
-	os.WriteFile(filepath.Join(root, ".env"), []byte("MONGODB_URI='mongodb://fallback'\n"), 0600)
-	os.WriteFile(filepath.Join(root, ".env.production"), []byte("MONGODB_URI='mongodb://production'\n"), 0600)
-	os.WriteFile(filepath.Join(root, ".env.local"), []byte("MONGODB_URI='mongodb://local'\nMONGODB_DATABASE=LocalFinance\nLISTEN_ADDR=127.0.0.1:8081\n"), 0600)
-	t.Setenv("MONGODB_URI", "mongodb://stale-shell")
+	os.WriteFile(filepath.Join(root, ".env"), []byte("SEC_READ_MONGODB_URI='mongodb://fallback'\n"), 0600)
+	os.WriteFile(filepath.Join(root, ".env.production"), []byte("SEC_READ_MONGODB_URI='mongodb://production'\n"), 0600)
+	os.WriteFile(filepath.Join(root, ".env.local"), []byte("SEC_READ_MONGODB_URI='mongodb://local'\nLISTEN_ADDR=127.0.0.1:8081\n"), 0600)
+	t.Setenv("SEC_READ_MONGODB_URI", "mongodb://stale-shell")
 	c, err := Load()
-	if err != nil || c.MongoURI != "mongodb://local" || c.Database != "LocalFinance" || c.Address != "127.0.0.1:8081" {
+	if err != nil || c.MongoURI != "mongodb://local" || c.Address != "127.0.0.1:8081" {
 		t.Fatal(c, err)
 	}
 }
 func TestDotEnvFallbackAndCI(t *testing.T) {
 	root := configRoot(t)
-	os.WriteFile(filepath.Join(root, ".env"), []byte("MONGODB_URI='mongodb://fallback'\n"), 0600)
+	os.WriteFile(filepath.Join(root, ".env"), []byte("SEC_READ_MONGODB_URI='mongodb://fallback'\n"), 0600)
 	c, err := Load()
-	if err != nil || c.MongoURI != "mongodb://fallback" || c.Database != "FinanceApp" {
+	if err != nil || c.MongoURI != "mongodb://fallback" {
 		t.Fatal(c, err)
 	}
 	t.Setenv("CI", "true")
-	t.Setenv("MONGODB_URI", "mongodb://injected")
+	t.Setenv("SEC_READ_MONGODB_URI", "mongodb://injected")
 	c, err = Load()
 	if err != nil || c.MongoURI != "mongodb://injected" {
 		t.Fatal(c, err)

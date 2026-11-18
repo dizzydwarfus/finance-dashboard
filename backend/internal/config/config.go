@@ -10,8 +10,8 @@ import (
 )
 
 type Config struct {
-	MongoURI, Database, Address string
-	QueryTimeout                time.Duration
+	MongoURI, Address string
+	QueryTimeout      time.Duration
 }
 
 // Local runs select the repository-root .env.local, falling back to .env.
@@ -27,12 +27,9 @@ func Load() (Config, error) {
 		}
 		return os.Getenv(key)
 	}
-	c := Config{MongoURI: get("MONGODB_URI"), Database: get("MONGODB_DATABASE"), Address: get("LISTEN_ADDR"), QueryTimeout: 8 * time.Second}
+	c := Config{MongoURI: get("SEC_READ_MONGODB_URI"), Address: get("LISTEN_ADDR"), QueryTimeout: 8 * time.Second}
 	if c.MongoURI == "" {
-		return c, errors.New("MONGODB_URI is required")
-	}
-	if c.Database == "" {
-		c.Database = "FinanceApp"
+		return c, errors.New("SEC_READ_MONGODB_URI is required")
 	}
 	if c.Address == "" {
 		c.Address = "127.0.0.1:8080"

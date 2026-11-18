@@ -3,6 +3,7 @@ from pathlib import Path
 from threading import Event, Thread, Lock
 import json
 import os
+import re
 import subprocess
 import sys
 import tempfile
@@ -228,9 +229,15 @@ class Runner:
                         "cik": job["cik"], "generation": generation} for ordinal, row in enumerate(rows))
             self.write_generation(collection, records, job["_id"])
         self.assert_owned()
+        focused = {
+            (row["fiscalYear"], row["fiscalPeriod"]) for row in result.get("reportingMetadata", [])
+            if row["entity"] == job["cik"].lstrip("0") and row["reportDate"] == filing.get("reportDate")
+            and re.fullmatch(r"[0-9]{4}", row["fiscalYear"]) and row["fiscalPeriod"] in {"FY", "Q1", "Q2", "Q3", "Q4"}
+        }
+        fiscal_year, fiscal_period = next(iter(focused)) if len(focused) == 1 else (None, None)
         # Publication is a single-document pointer switch; staging rows are never returned by readers.
         self.store.db.filings.update_one({"_id": accession}, {"$set": {**filing, "generation": generation, "parserVersion": self.settings.parser_version,
-            "sources": sources, "factCount": len(result["facts"]), "lastUpdated": now(), "lastCheckedAt": now(), "sourceAvailability": "available"}}, upsert=True)
+            "sources": sources, "fiscalYear": fiscal_year, "fiscalPeriod": fiscal_period, "factCount": len(result["facts"]), "lastUpdated": now(), "lastCheckedAt": now(), "sourceAvailability": "available"}}, upsert=True)
         self.store.db.issuers.update_one({"_id": job["cik"]}, {"$set": {**{k: v for k, v in issuer.items() if k != "symbols"}, "lastUpdated": now()}, "$addToSet": {"symbols": {"$each": issuer["symbols"]}}}, upsert=True)
 
     def company_facts(self, job, issuer, client):

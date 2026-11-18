@@ -4,38 +4,6 @@
  */
 
 export interface paths {
-    "/api/v1/tickers": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["listTickers"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/companies/{symbol}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["getCompany"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/v1/companies/{symbol}/statements/{type}": {
         parameters: {
             query?: never;
@@ -43,7 +11,37 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get: operations["getStatements"];
+        /** Statements from published SEC filings */
+        get: {
+            parameters: {
+                query?: {
+                    period?: "all" | "annual" | "quarter" | "ytd";
+                    limit?: number;
+                    format?: "json" | "csv";
+                };
+                header?: never;
+                path: {
+                    symbol: string;
+                    type: "income" | "balance" | "cash-flow";
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Result */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: components["schemas"]["ResearchTable"];
+                        };
+                        "text/csv": string;
+                    };
+                };
+            };
+        };
         put?: never;
         post?: never;
         delete?: never;
@@ -59,39 +57,34 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get: operations["getMetrics"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/companies/{symbol}/prices": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
+        /** SEC financial metrics and comparable year-over-year growth */
+        get: {
+            parameters: {
+                query?: {
+                    period?: "all" | "annual" | "quarter" | "ytd";
+                    limit?: number;
+                };
+                header?: never;
+                path: {
+                    symbol: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Result */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: components["schemas"]["ResearchTable"];
+                        };
+                    };
+                };
+            };
         };
-        get: operations["getPrices"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/companies/{symbol}/splits": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["getSplits"];
         put?: never;
         post?: never;
         delete?: never;
@@ -334,6 +327,7 @@ export interface paths {
                 query?: {
                     limit?: number;
                     offset?: number;
+                    format?: "json" | "csv";
                 };
                 header?: never;
                 path: {
@@ -350,6 +344,7 @@ export interface paths {
                     };
                     content: {
                         "application/json": components["schemas"]["SECFilingPage"];
+                        "text/csv": string;
                     };
                 };
                 /** @description Access authentication required */
@@ -433,6 +428,7 @@ export interface paths {
                     dimension?: string;
                     limit?: number;
                     offset?: number;
+                    format?: "json" | "csv";
                 };
                 header?: never;
                 path: {
@@ -449,6 +445,7 @@ export interface paths {
                     };
                     content: {
                         "application/json": components["schemas"]["SECFactPage"];
+                        "text/csv": string;
                     };
                 };
                 /** @description Access authentication required */
@@ -1108,77 +1105,95 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/companies/{symbol}/related": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Imported issuers with the same SEC SIC code */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    symbol: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Result */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: components["schemas"]["RelatedIssuer"][];
+                        };
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/companies/{symbol}/segments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Comparable observations for a selected published dimensional fact */
+        get: {
+            parameters: {
+                query: {
+                    accession: string;
+                    fact: string;
+                    format?: "json" | "csv";
+                };
+                header?: never;
+                path: {
+                    symbol: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Result */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: components["schemas"]["SegmentSeries"];
+                        };
+                        "text/csv": string;
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
-        Ticker: {
-            symbol: string;
-            coverage: string[];
-        };
-        Company: {
-            symbol: string;
-            name: string;
-            description: string;
-            sector: string;
-            industry: string;
-            country: string;
-            exchange: string;
-            website: string;
-            currency: string;
-            ceo: string;
-            price: number | null;
-            marketCap: number | null;
-            employees: number | null;
-            asOf: string | null;
-        };
-        Statement: {
-            /** Format: date */
-            date: string;
-            year: string;
-            period: string;
-            currency: string;
-            values: {
-                [key: string]: number | null;
-            };
-        };
-        Metric: {
-            key: string;
-            label: string;
-            /** @enum {string} */
-            format: "currency" | "percent" | "number";
-        };
-        MetricPoint: {
-            date: string;
-            year: string;
-            period: string;
-            currency: string;
-            values: {
-                [key: string]: number | null;
-            };
-            growth: {
-                [key: string]: number | null;
-            };
-        };
-        Metrics: {
-            definitions: components["schemas"]["Metric"][];
-            points: components["schemas"]["MetricPoint"][];
-        };
-        Price: {
-            /** Format: date */
-            date: string;
-            open: number | null;
-            high: number | null;
-            low: number | null;
-            close: number | null;
-            volume: number | null;
-        };
-        Split: {
-            /** Format: date */
-            date: string;
-            numerator: number | null;
-            denominator: number | null;
-        };
         Error: {
             error: {
                 code: string;
@@ -1187,24 +1202,6 @@ export interface components {
         };
         Health: {
             status: string;
-        };
-        ListTickersResponse: {
-            data: components["schemas"]["Ticker"][];
-        };
-        GetCompanyResponse: {
-            data: components["schemas"]["Company"];
-        };
-        GetStatementsResponse: {
-            data: components["schemas"]["Statement"][];
-        };
-        GetMetricsResponse: {
-            data: components["schemas"]["Metrics"];
-        };
-        GetPricesResponse: {
-            data: components["schemas"]["Price"][];
-        };
-        GetSplitsResponse: {
-            data: components["schemas"]["Split"][];
         };
         GetHealthResponse: {
             data: components["schemas"]["Health"];
@@ -1249,6 +1246,8 @@ export interface components {
             factCount: number;
             lastUpdated: string;
             sourceAvailability: string;
+            fiscalYear?: string | null;
+            fiscalPeriod?: string | null;
         } & {
             [key: string]: unknown;
         };
@@ -1276,6 +1275,7 @@ export interface components {
             sourceUrl?: string;
             sourceId?: string | null;
             sourcePath?: string;
+            ordinal?: number;
         } & {
             [key: string]: unknown;
         };
@@ -1393,6 +1393,69 @@ export interface components {
         } & {
             [key: string]: unknown;
         };
+        ResearchSource: {
+            accession: string;
+            url: string;
+            form: string;
+            filed: string;
+            concept: string;
+            ordinal: number;
+            reportedValue: string | null;
+            rawValue: string;
+        };
+        ResearchCell: {
+            value: string | null;
+            unit: string;
+            issue?: string;
+            sources: components["schemas"]["ResearchSource"][];
+        };
+        ResearchPeriod: {
+            /** @enum {string} */
+            mode: "annual" | "quarter" | "ytd" | "instant";
+            start: string;
+            end: string;
+            fiscalYear?: string;
+            fiscalPeriod?: string;
+        };
+        ResearchField: {
+            key: string;
+            label: string;
+            /** @enum {string} */
+            format: "money" | "eps" | "ratio";
+        };
+        ResearchRow: {
+            period: components["schemas"]["ResearchPeriod"];
+            values: {
+                [key: string]: components["schemas"]["ResearchCell"];
+            };
+            growth?: {
+                [key: string]: number | null;
+            };
+        };
+        ResearchTable: {
+            fields: components["schemas"]["ResearchField"][];
+            rows: components["schemas"]["ResearchRow"][];
+        };
+        SegmentSeries: {
+            concept: string;
+            label: string;
+            dimensions: {
+                axis: string;
+                member: string | null;
+                typedValue: string | null;
+            }[];
+            unit: string;
+            points: {
+                period: components["schemas"]["ResearchPeriod"];
+                cell: components["schemas"]["ResearchCell"];
+            }[];
+        };
+        RelatedIssuer: {
+            cik: string;
+            name: string;
+            symbols: string[];
+            sic: string;
+        };
     };
     responses: never;
     parameters: never;
@@ -1402,422 +1465,6 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
-    listTickers: {
-        parameters: {
-            query?: {
-                q?: string;
-                limit?: number;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Success; empty collections return an empty array */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ListTickersResponse"];
-                };
-            };
-            /** @description Invalid request */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Error"];
-                };
-            };
-            /** @description Authentication required at gateway */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Error"];
-                };
-            };
-            /** @description Unknown company or endpoint */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Error"];
-                };
-            };
-            /** @description Dataset exceeds supported read bound */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Error"];
-                };
-            };
-            /** @description Database or container temporarily unavailable */
-            503: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Error"];
-                };
-            };
-        };
-    };
-    getCompany: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                symbol: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Success; empty collections return an empty array */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["GetCompanyResponse"];
-                };
-            };
-            /** @description Invalid request */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Error"];
-                };
-            };
-            /** @description Authentication required at gateway */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Error"];
-                };
-            };
-            /** @description Unknown company or endpoint */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Error"];
-                };
-            };
-            /** @description Dataset exceeds supported read bound */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Error"];
-                };
-            };
-            /** @description Database or container temporarily unavailable */
-            503: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Error"];
-                };
-            };
-        };
-    };
-    getStatements: {
-        parameters: {
-            query?: {
-                period?: "FY" | "Q1" | "Q2" | "Q3" | "Q4";
-                limit?: number;
-            };
-            header?: never;
-            path: {
-                symbol: string;
-                type: "income" | "balance" | "cash-flow";
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Success; empty collections return an empty array */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["GetStatementsResponse"];
-                };
-            };
-            /** @description Invalid request */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Error"];
-                };
-            };
-            /** @description Authentication required at gateway */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Error"];
-                };
-            };
-            /** @description Unknown company or endpoint */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Error"];
-                };
-            };
-            /** @description Dataset exceeds supported read bound */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Error"];
-                };
-            };
-            /** @description Database or container temporarily unavailable */
-            503: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Error"];
-                };
-            };
-        };
-    };
-    getMetrics: {
-        parameters: {
-            query?: {
-                period?: "FY" | "Q1" | "Q2" | "Q3" | "Q4";
-                limit?: number;
-            };
-            header?: never;
-            path: {
-                symbol: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Success; empty collections return an empty array */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["GetMetricsResponse"];
-                };
-            };
-            /** @description Invalid request */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Error"];
-                };
-            };
-            /** @description Authentication required at gateway */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Error"];
-                };
-            };
-            /** @description Unknown company or endpoint */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Error"];
-                };
-            };
-            /** @description Dataset exceeds supported read bound */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Error"];
-                };
-            };
-            /** @description Database or container temporarily unavailable */
-            503: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Error"];
-                };
-            };
-        };
-    };
-    getPrices: {
-        parameters: {
-            query?: {
-                from?: string;
-                to?: string;
-                limit?: number;
-            };
-            header?: never;
-            path: {
-                symbol: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Success; empty collections return an empty array */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["GetPricesResponse"];
-                };
-            };
-            /** @description Invalid request */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Error"];
-                };
-            };
-            /** @description Authentication required at gateway */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Error"];
-                };
-            };
-            /** @description Unknown company or endpoint */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Error"];
-                };
-            };
-            /** @description Dataset exceeds supported read bound */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Error"];
-                };
-            };
-            /** @description Database or container temporarily unavailable */
-            503: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Error"];
-                };
-            };
-        };
-    };
-    getSplits: {
-        parameters: {
-            query?: {
-                limit?: number;
-            };
-            header?: never;
-            path: {
-                symbol: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Success; empty collections return an empty array */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["GetSplitsResponse"];
-                };
-            };
-            /** @description Invalid request */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Error"];
-                };
-            };
-            /** @description Authentication required at gateway */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Error"];
-                };
-            };
-            /** @description Unknown company or endpoint */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Error"];
-                };
-            };
-            /** @description Dataset exceeds supported read bound */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Error"];
-                };
-            };
-            /** @description Database or container temporarily unavailable */
-            503: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Error"];
-                };
-            };
-        };
-    };
     getHealth: {
         parameters: {
             query?: never;

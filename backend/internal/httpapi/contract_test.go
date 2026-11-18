@@ -2,10 +2,7 @@ package httpapi
 
 import (
 	"encoding/json"
-	"finance-dashboard/backend/internal/service"
 	"fmt"
-	"io"
-	"log/slog"
 	"net/http/httptest"
 	"os"
 	"strings"
@@ -23,13 +20,16 @@ func TestOpenAPIResponseSchemas(t *testing.T) {
 		t.Fatal(err)
 	}
 	schemas := spec["components"].(map[string]any)["schemas"].(map[string]any)
-	h := (&Server{Service: &service.Service{Repo: &fakeRepo{}}, Log: slog.New(slog.NewTextHandler(io.Discard, nil))}).Handler()
+	h := server()
 	for path, entry := range spec["paths"].(map[string]any) {
 		if strings.HasPrefix(path, "/api/v1/sec/") {
 			continue // SEC endpoints belong to the independently tested Python service.
 		}
 		t.Run(path, func(t *testing.T) {
 			url := strings.ReplaceAll(strings.ReplaceAll(path, "{symbol}", "DEMO"), "{type}", "income")
+			if strings.HasSuffix(path, "/segments") {
+				url += "?accession=" + accession + "&fact=" + fakeID
+			}
 			rec := httptest.NewRecorder()
 			h.ServeHTTP(rec, httptest.NewRequest("GET", url, nil))
 			if rec.Code != 200 {
@@ -61,7 +61,7 @@ func validateSchema(value any, schema map[string]any, schemas map[string]any) er
 		if _, ok := value.(string); !ok {
 			return fmt.Errorf("expected string, got %T", value)
 		}
-	case "number":
+	case "number", "integer":
 		if _, ok := value.(float64); !ok {
 			return fmt.Errorf("expected number, got %T", value)
 		}

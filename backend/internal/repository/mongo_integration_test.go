@@ -2,144 +2,144 @@ package repository_test
 
 import (
 	"context"
-	"finance-dashboard/backend/internal/repository"
-	"finance-dashboard/backend/internal/service"
+	"encoding/json"
+	"errors"
 	"fmt"
-	"go.mongodb.org/mongo-driver/v2/bson"
-	"go.mongodb.org/mongo-driver/v2/mongo"
-	"go.mongodb.org/mongo-driver/v2/mongo/options"
 	"net/url"
 	"os"
 	"testing"
 	"time"
+
+	"finance-dashboard/backend/internal/repository"
+	"finance-dashboard/backend/internal/service"
+	"go.mongodb.org/mongo-driver/v2/bson"
+	"go.mongodb.org/mongo-driver/v2/mongo"
+	"go.mongodb.org/mongo-driver/v2/mongo/options"
 )
 
-// Only MONGODB_TEST_URI enables writes, in a randomly named disposable database.
-// Never supply an Atlas production URI here. The application itself has no writers.
-func TestMongoReadOnlyIntegration(t *testing.T) {
-	uri := os.Getenv("MONGODB_TEST_URI")
-	if uri == "" {
-		t.Skip("MONGODB_TEST_URI not set; requires disposable MongoDB with user-admin permissions")
+func TestPublishedSECFilingReads(t *testing.T) {
+	rawURI := os.Getenv("MONGODB_TEST_URI")
+	if rawURI == "" {
+		t.Skip("requires disposable authenticated MongoDB")
+	}
+	uri, err := url.Parse(rawURI)
+	if err != nil || uri.Scheme != "mongodb" || uri.Hostname() != "127.0.0.1" {
+		t.Fatal("integration test requires loopback disposable MongoDB")
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
-	writer, err := mongo.Connect(options.Client().ApplyURI(uri))
+	admin, err := mongo.Connect(options.Client().ApplyURI(rawURI))
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer writer.Disconnect(context.Background())
-	name := fmt.Sprintf("finance_dashboard_test_%d", time.Now().UnixNano())
-	db := writer.Database(name)
-	defer db.Drop(context.Background())
-	bytes, err := os.ReadFile("../../testdata/financeapp.json")
+	defer admin.Disconnect(ctx)
+	db := admin.Database(repository.Database)
+	names, err := db.ListCollectionNames(ctx, bson.M{})
+	if err != nil || len(names) != 0 {
+		t.Fatal("integration test requires empty disposable SECIngestion")
+	}
+	defer db.Drop(ctx)
+	raw, err := os.ReadFile("../../testdata/published.json")
 	if err != nil {
 		t.Fatal(err)
 	}
-	var fixture map[string][]bson.M
-	if err = bson.UnmarshalExtJSON(bytes, false, &fixture); err != nil {
+	var fixture map[string][]json.RawMessage
+	if err = json.Unmarshal(raw, &fixture); err != nil {
 		t.Fatal(err)
 	}
-	for collection, records := range fixture {
-		docs := make([]any, len(records))
-		for i, row := range records {
-			docs[i] = row
-		}
-		if len(docs) > 0 {
-			if _, err = db.Collection(collection).InsertMany(ctx, docs); err != nil {
+	for collection, entries := range fixture {
+		docs := []bson.M{}
+		for _, entry := range entries {
+			var doc bson.M
+			if err = bson.UnmarshalExtJSON(entry, false, &doc); err != nil {
 				t.Fatal(err)
 			}
+			docs = append(docs, doc)
+		}
+		if _, err = db.Collection(collection).InsertMany(ctx, docs); err != nil {
+			t.Fatal(err)
 		}
 	}
-	if err = db.RunCommand(ctx, bson.D{{Key: "createUser", Value: "reader"}, {Key: "pwd", Value: "fixture-only"}, {Key: "roles", Value: bson.A{bson.M{"role": "read", "db": name}}}}).Err(); err != nil {
+	if err = db.RunCommand(ctx, bson.D{{Key: "createUser", Value: "fixture-reader"}, {Key: "pwd", Value: "reader-only"}, {Key: "roles", Value: bson.A{"read"}}}).Err(); err != nil {
 		t.Fatal(err)
 	}
-	defer db.RunCommand(context.Background(), bson.D{{Key: "dropUser", Value: "reader"}})
-	u, err := url.Parse(uri)
+	defer db.RunCommand(ctx, bson.D{{Key: "dropUser", Value: "fixture-reader"}})
+	reader, err := repository.Open(fmt.Sprintf("mongodb://fixture-reader:reader-only@%s/SECIngestion", uri.Host))
 	if err != nil {
 		t.Fatal(err)
 	}
-	u.User = url.UserPassword("reader", "fixture-only")
-	u.Path = "/" + name
-	q := u.Query()
-	q.Set("authSource", name)
-	u.RawQuery = q.Encode()
-	reader, err := repository.Open(u.String(), name)
+	defer reader.Client.Disconnect(ctx)
+	if err = reader.Ready(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if _, err = reader.DB.Collection("schema").UpdateOne(ctx, bson.M{"_id": "ingestion"}, bson.M{"$set": bson.M{"version": 999}}); err == nil {
+		t.Fatal("reader was able to write")
+	}
+	broader, err := repository.Open(rawURI)
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer reader.Client.Disconnect(context.Background())
-	s := service.Service{Repo: reader}
-	before, err := db.Collection("income_statement").CountDocuments(ctx, bson.M{})
+	defer broader.Client.Disconnect(ctx)
+	if err = broader.Ready(ctx); !errors.Is(err, repository.ErrReaderRole) {
+		t.Fatalf("broader credential allowed: %v", err)
+	}
+
+	s := &service.Service{Repo: reader}
+	start := time.Now()
+	metrics, err := s.Metrics(ctx, "DEMO", "all", 20)
 	if err != nil {
 		t.Fatal(err)
 	}
-	tickers, err := reader.Tickers(ctx)
-	if err != nil || len(tickers) != 2 {
-		t.Fatalf("tickers: %+v %v", tickers, err)
+	t.Logf("Metrics read over %d reporting rows: %s", len(metrics.Rows), time.Since(start))
+	var annual, quarter, ytd bool
+	for _, row := range metrics.Rows {
+		switch [2]string{row.Period.Mode, row.Period.End} {
+		case [2]string{"annual", "2026-09-26"}:
+			annual = true
+			expect(t, row.Values["revenue"].Value, "478834000000")
+			if row.Period.FiscalPeriod != "FY" || row.Values["revenue"].Sources[0].Accession != "0000320193-26-000026" || row.Growth["revenue"] == nil {
+				t.Fatalf("bad period/provenance: %+v", row)
+			}
+		case [2]string{"quarter", "2026-06-27"}:
+			quarter = true
+			expect(t, row.Values["revenue"].Value, "109417000000")
+			expect(t, row.Values["operatingIncome"].Value, "13")
+			if row.Values["netIncome"].Issue != "conflicting_values" || row.Values["netIncome"].Value != nil || row.Values["operatingCashFlow"].Value != nil {
+				t.Fatalf("ambiguous facts were reported: %+v", row)
+			}
+		case [2]string{"ytd", "2026-06-27"}:
+			ytd = true
+			expect(t, row.Values["revenue"].Value, "364357000000")
+			expect(t, row.Values["freeCashFlow"].Value, "110197000000")
+		}
 	}
-	c, err := s.Company(ctx, "DEMO")
-	if err != nil || c.Name != "Example Industries" {
-		t.Fatal(c, err)
+	if !annual || !quarter || !ytd {
+		t.Fatal("missing reporting periods")
 	}
-	rows, err := s.Statements(ctx, "DEMO", "income")
-	if err != nil || len(rows) != 3 {
-		t.Fatal(rows, err)
+	var anchor struct {
+		ID string `bson:"_id"`
 	}
-	metrics, err := s.Metrics(ctx, "DEMO")
-	if err != nil || *metrics.Points[2].Values["workingCapital"] != 50 {
-		t.Fatal(metrics, err)
+	if err := db.Collection("facts").FindOne(ctx, bson.M{"accession": "0000320193-26-000020", "ordinal": 6}).Decode(&anchor); err != nil {
+		t.Fatal(err)
 	}
-	prices, err := s.Prices(ctx, "DEMO", "", "")
-	if err != nil || len(prices) != 2 {
-		t.Fatal(prices, err)
+	trend, err := s.Segment(ctx, "DEMO", "0000320193-26-000020", anchor.ID)
+	if err != nil || len(trend.Points) != 2 {
+		t.Fatalf("segment series: %+v %v", trend, err)
 	}
-	if _, err = reader.DB.Collection("income_statement").InsertOne(ctx, bson.M{"symbol": "UNAUTHORIZED"}); err == nil {
-		t.Fatal("read-only user was allowed to write; start MongoDB with authentication enabled")
+	expect(t, trend.Points[1].Cell.Value, "18816000000")
+	issuer, err := reader.Issuer(ctx, "DEMO")
+	if err != nil {
+		t.Fatal(err)
 	}
-	after, err := db.Collection("income_statement").CountDocuments(ctx, bson.M{})
-	if err != nil || before != after {
-		t.Fatal("read API changed stored documents")
+	related, err := reader.Related(ctx, issuer)
+	if err != nil || len(related) != 1 || related[0].Symbols[0] != "PEER" {
+		t.Fatalf("related issuers: %+v %v", related, err)
 	}
 }
 
-// Opt-in live smoke test performs no writes or schema changes.
-func TestAtlasReadSmoke(t *testing.T) {
-	uri := os.Getenv("MONGODB_SMOKE_URI")
-	if uri == "" {
-		t.Skip("MONGODB_SMOKE_URI not set")
+func expect(t *testing.T, value *string, want string) {
+	t.Helper()
+	if value == nil || *value != want {
+		t.Fatalf("expected %s, got %v", want, value)
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-	defer cancel()
-	reader, err := repository.Open(uri, "FinanceApp")
-	if err != nil {
-		t.Fatal("cannot configure MongoDB")
-	}
-	defer reader.Client.Disconnect(context.Background())
-	if err = reader.Ping(ctx); err != nil {
-		t.Fatal("MongoDB ping failed")
-	}
-	tickers, err := reader.Tickers(ctx)
-	if err != nil || len(tickers) == 0 {
-		t.Fatal("cannot list stored symbols")
-	}
-	s := service.Service{Repo: reader}
-	symbol := tickers[0].Symbol
-	if _, err = s.Company(ctx, symbol); err != nil {
-		t.Fatal("profile read failed")
-	}
-	for _, kind := range []string{"income", "balance", "cash-flow"} {
-		if _, err = s.Statements(ctx, symbol, kind); err != nil {
-			t.Fatal("statement read failed")
-		}
-	}
-	if _, err = s.Metrics(ctx, symbol); err != nil {
-		t.Fatal("metrics read failed")
-	}
-	if _, err = s.Prices(ctx, symbol, "", ""); err != nil {
-		t.Fatal("price read failed")
-	}
-	if _, err = s.Splits(ctx, symbol); err != nil {
-		t.Fatal("split read failed")
-	}
-	t.Logf("Validated Go driver and six collection reads; %d stored symbols", len(tickers))
 }
