@@ -22,7 +22,7 @@ Keep the existing repository-root `.env.production` for local deployment command
 
 Local deployment commands load only `.env.production`; it overrides stale shell settings. Missing keys fail validation. In CI (`CI=true`), env files are ignored and injected GitHub Secrets are used. Values are literal, without `${VARIABLE}` interpolation; percent-encode MongoDB URI credentials where required. Credential files stay ignored by Git and excluded from images. Existing staging files and cloud resources are no longer used by the application workflows; removing them is separate account cleanup.
 
-Workers Paid, Containers, a managed domain, an Access application allowing your identity and the smoke-test service token, and Atlas network access are required. In Atlas Database Access, add a password-based user with the built-in `read` role on `SECIngestion` only. Copy the connection URI with this user’s percent-encoded credentials to both production configurations. Keep the separate ingestion writer and existing network controls. Rotate any live credentials formerly committed in legacy configuration; deleting files does not remove Git history.
+Workers Paid, Containers, a managed domain, an Access application allowing your identity and the smoke-test service token, and Atlas network access are required. In Atlas Database Access, add a password-based user with the built-in `read` role on `SECIngestion` only. Copy the connection URI with this user’s percent-encoded credentials to both production configurations. Keep the separate ingestion writer and existing network controls.
 
 ## Deploy
 
@@ -41,7 +41,7 @@ node scripts/smoke.mjs
 
 From `infra/`, the equivalent shortcuts are `npm run deploy` and `npm run smoke`. `node scripts/deploy.mjs --dry-run` validates the bundle and builds images without deploying. The internal Wrangler environment stays named `production` to preserve the existing Worker and container identities; command-line environment selection is unnecessary.
 
-The script builds three Linux AMD64 images, deploys the private ingestion Worker followed by the gateway Worker, installs their separate secrets through stdin, and removes its temporary configuration. Logs are redacted. Only Go receives `SEC_READ_MONGODB_URI`; only ingestion receives `SEC_MONGODB_URI` and `SEC_USER_AGENT`. Bootstrap the SEC database explicitly before the first release; see [SEC setup](sec-ingestion.md). Nginx runs one worker and writes errors through its existing stderr descriptor. The gateway records requests.
+The script builds three Linux AMD64 images, deploys the private ingestion Worker followed by the gateway Worker, installs their separate secrets through stdin, and removes its temporary configuration. Logs are redacted. Only Go receives `SEC_READ_MONGODB_URI`; only ingestion receives `SEC_MONGODB_URI` and `SEC_USER_AGENT`. Bootstrap the SEC database explicitly before the first release; see [SEC setup](sec-ingestion.md). Nginx runs one worker and writes errors through its existing stderr descriptor. The gateway records requests. Each dashboard release starts its own Go and Nginx instances; ingestion keeps its Durable Object identity for job recovery.
 
 Dashboard containers start on demand as `lite`; ingestion uses one `standard-1` instance and sleep after ten minutes of inactivity. Readiness polling is bounded to 25 seconds; startup failures return retryable 503 responses. The lifecycle code replaces containers when their deployed image or runtime configuration changes. Container state is disposable; MongoDB holds the data.
 
@@ -76,5 +76,3 @@ Local Go/Vite development uses `.env.local`, falling back to `.env`; Go requires
 - Token source-location rejection: update the token's permitted deployment context; the scripts do not change its restrictions.
 - Local Podman disk exhaustion: prune unused untagged images with `podman image prune -f` and build with `podman-compose --parallel 1`; VM disk space is separate from available macOS disk space. See [local SEC setup](sec-ingestion.md).
 - Local Podman: set `WRANGLER_DOCKER_BIN` to the absolute path of `scripts/podman-docker.mjs` and keep its VM running. CI uses Docker.
-
-For rollback to a pre-cutover version, keep the old `FinanceApp` credential and the final dashboard version that already has it. Preserve its container image in Cloudflare until the rollback window closes. The SEC analysis release uses the same published generations as the preceding ingestion release.

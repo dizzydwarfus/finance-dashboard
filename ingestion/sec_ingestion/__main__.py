@@ -18,7 +18,7 @@ def main():
         settings = Settings.load(args.env_file)
         store = Store.connect(settings)
         store.bootstrap()
-        print("SECIngestion collections and indexes are ready. No legacy database was modified.")
+        print("SECIngestion collections and indexes are ready.")
     except Exception:
         raise SystemExit("Bootstrap failed. Check the SECIngestion URI, database permission, and network access; credentials were not printed.") from None
 

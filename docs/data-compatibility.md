@@ -1,6 +1,6 @@
 # SEC financial mapping
 
-The Go API reads published XBRL generations from `SECIngestion`. It uses the accession and generation together to look up facts, contexts, and units. This prevents incomplete reparses from becoming visible and lets existing imports feed the analysis without re-scraping. No normalized copy is written. A request reads at most 100 published filings and 50,000 matching facts or contexts per issuer. The old FinanceApp inspection metadata remains in [mongodb-schema.json](mongodb-schema.json) for reference.
+The Go API reads published XBRL generations from `SECIngestion`. It uses the accession and generation together to look up facts, contexts, and units. This prevents incomplete reparses from becoming visible and lets existing imports feed the analysis without re-scraping. No normalized copy is written. A request reads at most 100 published filings and 50,000 matching facts or contexts per issuer.
 
 | View | US GAAP facts |
 | --- | --- |

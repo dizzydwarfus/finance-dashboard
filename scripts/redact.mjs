@@ -2,7 +2,7 @@ import { deploymentKeys } from './env.mjs';
 // Wrangler output is buffered before redaction so chunk boundaries cannot expose a secret.
 export function createRedactor(env) {
   const values = deploymentKeys.flatMap(key => env[key] ? [env[key]] : []);
-  for (const value of [env.SEC_READ_MONGODB_URI, env.SEC_MONGODB_URI, env.MONGODB_URI].filter(Boolean)) {
+  for (const value of [env.SEC_READ_MONGODB_URI, env.SEC_MONGODB_URI].filter(Boolean)) {
     try {
       const uri = new URL(value);
       for (const part of [uri.username, uri.password]) {

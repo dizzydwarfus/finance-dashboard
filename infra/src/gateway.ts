@@ -6,6 +6,7 @@ export interface Env extends AccessConfig {
   API: DurableObjectNamespace;
   WEB: DurableObjectNamespace;
   SEC_READ_MONGODB_URI: string;
+  DASHBOARD_RELEASE?: string;
 }
 export function routeTarget(path: string): 'API' | 'WEB' {
   return path === '/api' || path.startsWith('/api/') || path === '/healthz' || path === '/readyz' ? 'API' : 'WEB';
@@ -29,11 +30,11 @@ export async function gateway(request: Request, env: Env, authenticate = verifyA
   if (!sec && !['GET', 'HEAD'].includes(request.method)) return Response.json({ error: { code: 'method_not_allowed', message: 'This application is read-only.' } }, { status: 405, headers: { Allow: 'GET, HEAD' } });
   const target = routeTarget(new URL(request.url).pathname);
   try {
-    // Fixed names enforce one instance per service; no user-controlled instance allocation.
+    // Stateless services receive one container per release. The release key comes from deployment.
     const namespace = env[target];
     const forwarded = new Request(request);
     for (const header of ['Cookie', 'Authorization', 'Cf-Access-Jwt-Assertion', 'Cf-Access-Authenticated-User-Email', 'CF-Access-Client-Id', 'CF-Access-Client-Secret']) forwarded.headers.delete(header);
-    const response = sec ? await env.SEC_INGESTION!.fetch(forwarded) : await namespace.get(namespace.idFromName('singleton')).fetch(forwarded);
+    const response = sec ? await env.SEC_INGESTION!.fetch(forwarded) : await namespace.get(namespace.idFromName(env.DASHBOARD_RELEASE || 'singleton')).fetch(forwarded);
     const result = new Response(response.body, response);
     result.headers.set('X-Content-Type-Options', 'nosniff');
     result.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');

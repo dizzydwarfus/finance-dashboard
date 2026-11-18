@@ -3,12 +3,12 @@ const id = '11111111-1111-4111-8111-111111111111';
 const company = { id: '0000000001', cik: '0000000001', symbol: 'NEW', symbols: ['NEW'], name: 'New SEC Company', exchanges: ['TEST'], sicDescription: 'Synthetic issuer', lastUpdated: '2026-01-01T00:00:00Z', lastSuccessfullyScrapedAt: '2026-01-01T00:00:00Z', coverage: ['sec_filings'] };
 const filing = { id: '0000000001-25-000001', accession: '0000000001-25-000001', form: '10-K', filingDate: '2025-11-01', reportDate: '2025-09-27', sourceUrl: 'https://www.sec.gov/Archives/edgar/data/1/filing.htm', factCount: 102, lastUpdated: '2026-01-01T00:00:00Z', sourceAvailability: 'available' };
 async function setup(page: Page, options: { complete?: boolean; failed?: boolean; listError?: boolean; hold?: boolean } = {}) {
-  const state = { imported: !!options.complete, submitted: 0, legacyReads: 0, phase: options.complete ? 'completed' : 'queued', polls: 0, allowComplete: !options.hold, received: [] as unknown[] };
+  const state = { imported: !!options.complete, submitted: 0, analysisReads: 0, phase: options.complete ? 'completed' : 'queued', polls: 0, allowComplete: !options.hold, received: [] as unknown[] };
   await page.route('**/api/v1/**', async route => {
     const request = route.request(); const url = new URL(request.url()); const path = url.pathname;
     let data: unknown = []; let status = 200; let meta: unknown;
     if (path === '/api/v1/tickers') data = [];
-    else if (!path.startsWith('/api/v1/sec/')) { state.legacyReads++; status = 404; }
+    else if (!path.startsWith('/api/v1/sec/')) { state.analysisReads++; status = 404; }
     else if (path === '/api/v1/sec/companies') {
       if (options.listError) return route.fulfill({ status: 503, contentType: 'application/json', body: JSON.stringify({ error: { message: 'SEC database unavailable' } }) });
       data = state.imported ? [{ ...company, imported: true }] : []; meta = { suggestions: [], registryUpdatedAt: null };
@@ -43,7 +43,7 @@ async function setup(page: Page, options: { complete?: boolean; failed?: boolean
   });
   return state;
 }
-test('unknown ticker imports from the app and opens SEC facts without legacy API queries', async ({ page }) => {
+test('unknown ticker imports from the app and opens SEC facts without requesting the financial analysis', async ({ page }) => {
   const state = await setup(page);
   await page.goto('/');
   await page.getByRole('textbox', { name: 'Search companies' }).fill('NEW');
@@ -55,7 +55,7 @@ test('unknown ticker imports from the app and opens SEC facts without legacy API
   await expect(page.getByRole('table', { name: 'SEC numeric facts and segment dimensions' })).toBeVisible();
   await expect(page.getByRole('cell', { name: '123,456,789,012,345,678.00', exact: true })).toBeVisible();
   await expect(page.getByText('ProductAxis: HardwareMember')).toBeVisible();
-  expect(state.submitted).toBe(1); expect(state.legacyReads).toBe(0);
+  expect(state.submitted).toBe(1); expect(state.analysisReads).toBe(0);
   await expect(page.getByRole('tab', { name: 'Filings', exact: true })).toHaveAttribute('aria-selected','true');
   await page.screenshot({path:'test-results/sec-filings.png',fullPage:true});
   await page.getByLabel('SEC concept filter').fill('Revenue');
@@ -69,7 +69,7 @@ test('job deep link reconnects after reload without submitting again', async ({ 
   await page.reload();
   state.allowComplete = true;
   await expect(page.getByText('1 / 1 filings completed')).toBeVisible({ timeout: 15000 });
-  expect(state.submitted).toBe(0); expect(state.legacyReads).toBe(0);
+  expect(state.submitted).toBe(0); expect(state.analysisReads).toBe(0);
 });
 test('blocked imports explain the problem and expose an explicit retry', async ({ page }) => {
   await setup(page, { failed: true });

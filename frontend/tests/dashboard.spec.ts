@@ -50,7 +50,6 @@ test('statements preserve dates and provenance, and exports respect filters', as
   await page.getByLabel('Reporting period').selectOption('ytd');
   await expect(page.getByText('No mapped values for this statement and reporting period.')).toBeVisible();
   await expect(page.getByRole('link', { name: 'Download statement CSV' })).toHaveAttribute('href', /cash-flow\?period=ytd&limit=10&format=csv$/);
-  await expect(page.getByRole('tab', { name: 'Prices' })).toHaveCount(0);
 });
 
 test('financial views fit on mobile and keep the theme on reload', async ({ page }) => {

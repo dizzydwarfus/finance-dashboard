@@ -25,7 +25,8 @@
       "preview_urls": false,
       "vars": {
         "ACCESS_TEAM_DOMAIN": "",
-        "ACCESS_AUD": ""
+        "ACCESS_AUD": "",
+        "DASHBOARD_RELEASE": "development"
       },
       "durable_objects": {
         "bindings": [

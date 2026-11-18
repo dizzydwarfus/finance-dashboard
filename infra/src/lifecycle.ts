@@ -19,8 +19,14 @@ export class Lifecycle {
     if (!image) throw new Error('Container image missing');
     // Named-image updates do not restart durable_object containers automatically.
     if (container.running) {
-      const info = await container.inspect();
-      if (info?.image && (info.image !== image || info.labels?.config !== configHash)) await container.destroy();
+      let info = await container.inspect();
+      // An empty image can be returned while an existing instance is starting.
+      // Wait briefly for its identity before deciding whether it can be reused.
+      for (let attempt = 0; attempt < 8 && container.running && !info?.image; attempt++) {
+        await new Promise(resolve => setTimeout(resolve, 250));
+        info = await container.inspect();
+      }
+      if (container.running && (info?.image !== image || info.labels?.config !== configHash)) await container.destroy();
     }
     if (!container.running) container.start({ image, instance: this.config.instance || 'lite', enableInternet: this.config.internet, env: this.config.env, labels: { config: configHash } });
     // Cloudflare rejects timeout changes before a container has been started.

@@ -24,7 +24,7 @@ class Settings:
             values = os.environ
         database = values.get("SEC_MONGODB_DATABASE", "SECIngestion")
         if database != "SECIngestion":
-            raise ValueError("SEC_MONGODB_DATABASE must be SECIngestion; legacy databases are protected")
+            raise ValueError("SEC_MONGODB_DATABASE must be SECIngestion")
         return cls(uri=values.get("SEC_MONGODB_URI", ""), database=database,
                    user_agent=values.get("SEC_USER_AGENT", ""),
                    parser_version=values.get("SEC_PARSER_VERSION", "arelle-v1"),

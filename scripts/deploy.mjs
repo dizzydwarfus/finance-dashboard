@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url';
 import { resolve } from 'node:path';
 import { loadEnvironment, deploymentKeys, requireKeys } from './env.mjs';
 import { createRedactor } from './redact.mjs';
-import { createHash } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import { ingestionExists, setMaintenance } from './ingestion-deployment.mjs';
 const root = fileURLToPath(new URL('../', import.meta.url));
 const infra = resolve(root, 'infra');
@@ -38,7 +38,7 @@ if (checking) {
 const config = JSON.parse(await readFile(resolve(infra, 'wrangler.jsonc'), 'utf8'));
 config.account_id = env.CLOUDFLARE_ACCOUNT_ID;
 if (!rollback) {
-  Object.assign(config.env.production.vars, { ACCESS_TEAM_DOMAIN: env.ACCESS_TEAM_DOMAIN, ACCESS_AUD: env.ACCESS_AUD, CLOUDFLARE_HOSTNAME: env.CLOUDFLARE_HOSTNAME });
+  Object.assign(config.env.production.vars, { ACCESS_TEAM_DOMAIN: env.ACCESS_TEAM_DOMAIN, ACCESS_AUD: env.ACCESS_AUD, CLOUDFLARE_HOSTNAME: env.CLOUDFLARE_HOSTNAME, DASHBOARD_RELEASE: /^[a-f0-9]{40}$/.test(env.GITHUB_SHA || '') ? env.GITHUB_SHA : randomUUID() });
   config.env.production.routes = [{ pattern: env.CLOUDFLARE_HOSTNAME, custom_domain: true }];
 }
 const configPath = resolve(infra, `.wrangler.deploy.production.${process.pid}.json`);

@@ -19,6 +19,15 @@ describe('container lifecycle', () => {
     await new Lifecycle(c as unknown as Container, config).ready();
     expect(c.destroy).toHaveBeenCalledTimes(1); expect(c.start).toHaveBeenCalledTimes(1);
   });
+  it('checks the identity again when an existing container is still starting', async () => {
+    const c = container();
+    c.running = true;
+    c.inspect.mockResolvedValueOnce({ image: '', labels: { config: '' } });
+    await new Lifecycle(c as unknown as Container, config).ready();
+    expect(c.inspect).toHaveBeenCalledTimes(2);
+    expect(c.destroy).toHaveBeenCalledOnce();
+    expect(c.start).toHaveBeenCalledWith(expect.objectContaining({ image: 'image-v1' }));
+  });
   it('restarts when runtime secrets change even if the image is unchanged', async () => {
     const c = container(); c.running = true; c.inspect.mockResolvedValue({ image: 'image-v1', labels: { config: 'old-config' } });
     await new Lifecycle(c as unknown as Container, config).ready();

@@ -86,10 +86,6 @@ Follow the [deployment runbook](docs/deployment.md) to configure Access, a read-
 
 GitHub Actions runs checks automatically on pushes to `main` and pull requests. To deploy, manually run **Validate and deploy dashboard** from `main` in GitHub Actions (`workflow_dispatch`); it deploys only after checks pass, then runs authenticated smoke tests. Restore a known-good Cloudflare version with `node scripts/deploy.mjs --rollback VERSION_ID`, or revert a commit and manually deploy the revert. MongoDB data and schemas are not changed during deployment.
 
-## Migration status
-
-The dashboard now uses published `SECIngestion` data. Keep the old `FinanceApp` credential available for the previous Cloudflare release during the rollback window. The old `SECRawData` database is managed separately. Rotate any live credentials previously committed in Git history.
-
 SEC privacy, fair access, limits, recovery, and reuse rules: [SEC access policy](docs/sec-access-policy.md). The [ingestion runbook](docs/sec-ingestion.md) describes database/user setup and the first live rollout checks.
 
 License: [MIT](LICENSE); parser/plugin licenses are documented separately in the SEC policy.

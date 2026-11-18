@@ -122,7 +122,7 @@ def test_custom_role_uses_effective_permissions_instead_of_role_name(store):
     store.verify_permissions()
     assert store.permissions_verified
     for extra in [
-        {'resource':{'db':'FinanceApp','collection':''},'actions':['find']},
+        {'resource':{'db':'outside_scope','collection':''},'actions':['find']},
         {'resource':{'cluster':True},'actions':['listDatabases']},
         {'resource':{'anyResource':True},'actions':['find']},
         {'resource':{'db':'SECIngestion','collection':''},'actions':['grantRole']},

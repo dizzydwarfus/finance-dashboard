@@ -45,12 +45,12 @@ def test_unique_requests_recovery_generation_publication_and_database_isolation(
         assert store.db.facts.count_documents({})==6
         runner.process(store.get_job(job['_id']))
         assert store.db.facts.count_documents({})==6
-        for database in ('FinanceApp','SECRawData'):
+        for database in ('outside_scope_a','outside_scope_b'):
             with pytest.raises(OperationFailure) as denied:
                 client[database].forbidden.insert_one({'not':'allowed'})
             assert denied.value.code == 13
             with pytest.raises(OperationFailure): list(client[database].forbidden.find({}))
-        with pytest.raises(ValueError): Store(client.FinanceApp)
+        with pytest.raises(ValueError): Store(client.outside_scope_a)
     finally:
         client.close()
         admin.SECIngestion.command('dropUser',username)

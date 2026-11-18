@@ -61,8 +61,7 @@ func TestCutoverRoutes(t *testing.T) {
 		method, path string
 		status       int
 	}{
-		{"GET", "/api/v1/companies/DEMO/prices", 404},
-		{"GET", "/api/v1/companies/DEMO/splits", 404},
+		{"GET", "/api/v1/companies/DEMO/unsupported", 404},
 		{"GET", "/api/v1/companies/NOPE/metrics", 404},
 		{"GET", "/api/v1/companies/DEMO/metrics?period=invalid", 400},
 		{"GET", "/api/v1/companies/DEMO/metrics?limit=201", 400},
