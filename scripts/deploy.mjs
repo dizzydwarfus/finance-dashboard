@@ -73,6 +73,7 @@ const hash = await parserHash(resolve(root, 'ingestion/sec_ingestion'));
 hash.update(await readFile(resolve(root, 'ingestion/requirements.lock')));
 Object.assign(secConfig.env.production.vars, { SEC_MONGODB_DATABASE: 'SECIngestion', SEC_PARSER_VERSION: `sec-${hash.digest('hex').slice(0,20)}` });
 let locked = false;
+let deploymentError;
 try {
   await writeFile(configPath, JSON.stringify(config, null, 2));
   await writeFile(secConfigPath, JSON.stringify(secConfig, null, 2));
@@ -88,10 +89,19 @@ try {
     await run(['deploy', '--config', configPath, '--env', 'production', ...(dryRun ? ['--dry-run'] : [])]);
     if (!dryRun) {
       await run(['secret', 'bulk', '--config', configPath, '--env', 'production'], JSON.stringify({ SEC_READ_MONGODB_URI: env.SEC_READ_MONGODB_URI, SEC_WORKSPACE_MONGODB_URI:env.SEC_WORKSPACE_MONGODB_URI }));
-      console.log('Production deployment completed. Run node scripts/smoke.mjs.');
     }
   }
+} catch (error) {
+  deploymentError = error;
+  throw error;
 } finally {
-  try { if (locked) await setMaintenance(env, false); }
-  finally { await Promise.all([unlink(configPath).catch(() => {}), unlink(secConfigPath).catch(() => {})]); }
+  try {
+    if (locked) await setMaintenance(env, false);
+  } catch (error) {
+    if (!deploymentError) throw error;
+    console.error(error.message);
+  } finally {
+    await Promise.all([unlink(configPath).catch(() => {}), unlink(secConfigPath).catch(() => {})]);
+  }
 }
+if (!dryRun && !rollback) console.log('Production deployment completed. Run node scripts/smoke.mjs.');

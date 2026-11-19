@@ -85,7 +85,7 @@ The deploy script hashes ingestion source, vendored transforms, and the dependen
 
 ## Deployment and rollout
 
-Only the existing manual `workflow_dispatch` release deploys. CI tests with synthetic local filings; it never starts imports or requests SEC. The release deploys ingestion first, then the dashboard. The deployment script acquires an authenticated maintenance lock sharing the job-admission lease. Any accepted queued/running/cooling-down work rejects replacement; finish or cancel it first. While locked, new requests/retries are rejected. The lock releases in `finally`. If a deployment runner is forcibly killed, release it after inspecting the deployment using the command below.
+Only the existing manual `workflow_dispatch` release deploys. CI uses synthetic local filings. The release deploys ingestion first, then the dashboard. The deployment script acquires an authenticated maintenance lock sharing the job-admission lease. Finish or cancel accepted imports before replacing ingestion. While locked, new requests and retries are rejected. The script retries temporary lock-release failures for up to six attempts and requires confirmation that maintenance is off. If release fails or a runner is forcibly killed, confirm the deployment has finished before releasing the lock with the command below.
 
 ```sh
 node scripts/sec-maintenance.mjs off
